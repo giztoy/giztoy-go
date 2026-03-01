@@ -6,7 +6,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
 
 PLATFORM="${1:-darwin-arm64}"
-PREBUILT_DIR="${ROOT_DIR}/third_party/audio/prebuilt/${PLATFORM}"
+PREBUILT_DIR="${ROOT_DIR}/third_party/audio/prebuilt/libopus/${PLATFORM}"
 
 fail() {
 	echo "[verify_artifacts] error: $*" >&2

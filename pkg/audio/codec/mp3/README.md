@@ -12,8 +12,8 @@ MP3 codec package for giztoy-go audio pipeline.
 
 - On supported cgo platforms (`linux|darwin` + `amd64|arm64`), encoder links
   prebuilt static library from:
-  - `third_party/audio/prebuilt/<platform>/include/lame/lame.h`
-  - `third_party/audio/prebuilt/<platform>/lib/libmp3lame.a`
+  - `third_party/audio/prebuilt/lame/<platform>/include/lame/lame.h`
+  - `third_party/audio/prebuilt/lame/<platform>/lib/libmp3lame.a`
 - On unsupported platforms, encoder APIs return explicit
   `unsupported platform` errors.
 

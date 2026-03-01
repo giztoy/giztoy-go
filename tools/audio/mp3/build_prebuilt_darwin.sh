@@ -108,7 +108,7 @@ cp "${INSTALL_DIR}/lib/libmp3lame.a" "${OUT_ROOT}/lib/libmp3lame.a"
 LAME_COMMIT="$(git -C "${LAME_SRC_DIR}" rev-parse HEAD 2>/dev/null || true)"
 LAME_DESCRIBE="$(git -C "${LAME_SRC_DIR}" describe --tags --always 2>/dev/null || true)"
 
-cat >"${OUT_ROOT}/build.mp3.env" <<EOF
+cat >"${OUT_ROOT}/build.env" <<EOF
 LAME_SUBMODULE_PATH=third_party/audio/lame
 LAME_COMMIT=${LAME_COMMIT}
 LAME_DESCRIBE=${LAME_DESCRIBE}

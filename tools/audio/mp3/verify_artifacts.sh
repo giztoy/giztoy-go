@@ -6,7 +6,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
 
 PLATFORM="${1:-darwin-arm64}"
-PREBUILT_DIR="${ROOT_DIR}/third_party/audio/prebuilt/${PLATFORM}"
+PREBUILT_DIR="${ROOT_DIR}/third_party/audio/prebuilt/lame/${PLATFORM}"
 
 fail() {
 	echo "[verify_artifacts] error: $*" >&2
@@ -28,9 +28,9 @@ check_not_lfs_pointer() {
 
 check_file_exists "${PREBUILT_DIR}/include/lame/lame.h"
 check_not_lfs_pointer "${PREBUILT_DIR}/lib/libmp3lame.a"
-check_file_exists "${PREBUILT_DIR}/manifest.mp3.json"
+check_file_exists "${PREBUILT_DIR}/manifest.json"
 
-python3 - "${PREBUILT_DIR}/manifest.mp3.json" "${PREBUILT_DIR}" "${PLATFORM}" <<'PY'
+python3 - "${PREBUILT_DIR}/manifest.json" "${PREBUILT_DIR}" "${PLATFORM}" <<'PY'
 import hashlib
 import json
 import pathlib

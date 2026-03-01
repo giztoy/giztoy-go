@@ -16,14 +16,13 @@ tracked upstream submodule `third_party/audio/lame`.
   - Outputs staged files to `.tmp/audio-mp3-prebuilt/<platform>/`.
 
 - `package_prebuilt.sh`
-  - Copies staged artifacts into `third_party/audio/prebuilt/<platform>/`.
-  - Generates `manifest.mp3.json` with SHA-256 checksums.
-  - 不会删除同目录下其他库（如 opus）的已存在产物。
+  - Copies staged artifacts into `third_party/audio/prebuilt/lame/<platform>/`.
+  - Generates `manifest.json` with SHA-256 checksums.
 
 - `verify_artifacts.sh`
   - Validates required files and checksum consistency.
   - Detects accidental Git LFS pointer files for `libmp3lame.a`.
-  - Verifies `manifest.mp3.json`.
+  - Verifies `manifest.json`.
 
 ## Usage
 
@@ -57,5 +56,5 @@ tools/audio/mp3/verify_artifacts.sh linux-arm64
 - `build_prebuilt_linux.sh` does not support cross-build: when
   `TARGET_ARCH=arm64`, you must execute the script on an arm64 Linux machine.
 - `pkg/audio/codec/mp3` links against
-  `third_party/audio/prebuilt/<platform>/lib/libmp3lame.a` on supported cgo
+  `third_party/audio/prebuilt/lame/<platform>/lib/libmp3lame.a` on supported cgo
   platforms.

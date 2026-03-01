@@ -3,17 +3,17 @@
 package mp3
 
 /*
-#cgo darwin,arm64 CFLAGS: -I${SRCDIR}/../../../../third_party/audio/prebuilt/darwin-arm64/include
-#cgo darwin,arm64 LDFLAGS: -L${SRCDIR}/../../../../third_party/audio/prebuilt/darwin-arm64/lib -lmp3lame -liconv -lm
+#cgo darwin,arm64 CFLAGS: -I${SRCDIR}/../../../../third_party/audio/prebuilt/lame/darwin-arm64/include
+#cgo darwin,arm64 LDFLAGS: -L${SRCDIR}/../../../../third_party/audio/prebuilt/lame/darwin-arm64/lib -lmp3lame -liconv -lm
 
-#cgo darwin,amd64 CFLAGS: -I${SRCDIR}/../../../../third_party/audio/prebuilt/darwin-amd64/include
-#cgo darwin,amd64 LDFLAGS: -L${SRCDIR}/../../../../third_party/audio/prebuilt/darwin-amd64/lib -lmp3lame -liconv -lm
+#cgo darwin,amd64 CFLAGS: -I${SRCDIR}/../../../../third_party/audio/prebuilt/lame/darwin-amd64/include
+#cgo darwin,amd64 LDFLAGS: -L${SRCDIR}/../../../../third_party/audio/prebuilt/lame/darwin-amd64/lib -lmp3lame -liconv -lm
 
-#cgo linux,amd64 CFLAGS: -I${SRCDIR}/../../../../third_party/audio/prebuilt/linux-amd64/include
-#cgo linux,amd64 LDFLAGS: -L${SRCDIR}/../../../../third_party/audio/prebuilt/linux-amd64/lib -lmp3lame -lm
+#cgo linux,amd64 CFLAGS: -I${SRCDIR}/../../../../third_party/audio/prebuilt/lame/linux-amd64/include
+#cgo linux,amd64 LDFLAGS: -L${SRCDIR}/../../../../third_party/audio/prebuilt/lame/linux-amd64/lib -lmp3lame -lm
 
-#cgo linux,arm64 CFLAGS: -I${SRCDIR}/../../../../third_party/audio/prebuilt/linux-arm64/include
-#cgo linux,arm64 LDFLAGS: -L${SRCDIR}/../../../../third_party/audio/prebuilt/linux-arm64/lib -lmp3lame -lm
+#cgo linux,arm64 CFLAGS: -I${SRCDIR}/../../../../third_party/audio/prebuilt/lame/linux-arm64/include
+#cgo linux,arm64 LDFLAGS: -L${SRCDIR}/../../../../third_party/audio/prebuilt/lame/linux-arm64/lib -lmp3lame -lm
 
 #include <lame/lame.h>
 

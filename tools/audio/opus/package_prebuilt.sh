@@ -7,7 +7,7 @@ ROOT_DIR="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
 
 PLATFORM="${1:-darwin-arm64}"
 SRC_DIR="${2:-${ROOT_DIR}/.tmp/opus-prebuilt/${PLATFORM}}"
-DST_DIR="${ROOT_DIR}/third_party/audio/prebuilt/${PLATFORM}"
+DST_DIR="${ROOT_DIR}/third_party/audio/prebuilt/libopus/${PLATFORM}"
 
 if [[ ! -d "${SRC_DIR}" ]]; then
 	echo "[package_prebuilt] error: source directory not found: ${SRC_DIR}" >&2

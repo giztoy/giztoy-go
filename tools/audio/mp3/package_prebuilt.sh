@@ -7,11 +7,8 @@ ROOT_DIR="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
 
 PLATFORM="${1:-darwin-arm64}"
 SRC_DIR="${2:-${ROOT_DIR}/.tmp/audio-mp3-prebuilt/${PLATFORM}}"
-DST_DIR="${ROOT_DIR}/third_party/audio/prebuilt/${PLATFORM}"
-BUILD_META_SRC="${SRC_DIR}/build.mp3.env"
-if [[ ! -f "${BUILD_META_SRC}" && -f "${SRC_DIR}/build.env" ]]; then
-	BUILD_META_SRC="${SRC_DIR}/build.env"
-fi
+DST_DIR="${ROOT_DIR}/third_party/audio/prebuilt/lame/${PLATFORM}"
+BUILD_META_SRC="${SRC_DIR}/build.env"
 
 if [[ ! -d "${SRC_DIR}" ]]; then
 	echo "[package_prebuilt] error: source directory not found: ${SRC_DIR}" >&2
@@ -28,13 +25,14 @@ if [[ ! -f "${SRC_DIR}/lib/libmp3lame.a" ]]; then
 	exit 1
 fi
 
+rm -rf "${DST_DIR}"
 mkdir -p "${DST_DIR}/include/lame" "${DST_DIR}/lib"
 
 cp "${SRC_DIR}/include/lame/lame.h" "${DST_DIR}/include/lame/lame.h"
 cp "${SRC_DIR}/lib/libmp3lame.a" "${DST_DIR}/lib/libmp3lame.a"
 
 if [[ -f "${BUILD_META_SRC}" ]]; then
-	cp "${BUILD_META_SRC}" "${DST_DIR}/build.mp3.env"
+	cp "${BUILD_META_SRC}" "${DST_DIR}/build.env"
 fi
 
 python3 - "${DST_DIR}" "${PLATFORM}" <<'PY'
@@ -48,11 +46,7 @@ dst_dir = pathlib.Path(sys.argv[1])
 platform = sys.argv[2]
 
 build_env = {}
-build_env_path = dst_dir / "build.mp3.env"
-if not build_env_path.exists():
-    fallback = dst_dir / "build.env"
-    if fallback.exists():
-        build_env_path = fallback
+build_env_path = dst_dir / "build.env"
 if build_env_path.exists():
     for line in build_env_path.read_text(encoding="utf-8").splitlines():
         if "=" not in line:
@@ -82,7 +76,7 @@ manifest = {
     "artifacts": artifacts,
 }
 
-(dst_dir / "manifest.mp3.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+(dst_dir / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
 print(f"[package_prebuilt] wrote manifest with {len(artifacts)} artifacts")
 PY
 

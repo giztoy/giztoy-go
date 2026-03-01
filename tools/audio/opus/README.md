@@ -15,7 +15,7 @@ Build, package, and verify libopus prebuilt artifacts for supported targets.
   - Installs outputs into `.tmp/opus-prebuilt/<platform>/`.
 
 - `package_prebuilt.sh`
-  - Copies build outputs into `third_party/audio/prebuilt/<platform>/`.
+  - Copies build outputs into `third_party/audio/prebuilt/libopus/<platform>/`.
   - Generates `manifest.json` with SHA-256 checksums for headers and `libopus.a`.
 
 - `verify_artifacts.sh`
@@ -49,4 +49,4 @@ tools/audio/opus/verify_artifacts.sh linux-arm64
 ## Notes
 
 - Source of truth is the `third_party/audio/libopus` submodule revision.
-- `pkg/audio/codec/opus` links prebuilt static libraries from `third_party/audio/prebuilt/<platform>/lib/libopus.a`.
+- `pkg/audio/codec/opus` links prebuilt static libraries from `third_party/audio/prebuilt/libopus/<platform>/lib/libopus.a`.
