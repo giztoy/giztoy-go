@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "platform": "linux-amd64",
+  "lame": {
+    "submodule_path": "third_party/audio/lame",
+    "commit": "59a722d49e9f2bea65917dcdd17b94c710a02f0c",
+    "describe": "59a722d"
+  },
+  "generated_at": "2026-03-01T21:12:58Z",
+  "artifacts": [
+    {
+      "path": "include/lame/lame.h",
+      "sha256": "414feb55113b48e4aba2f613ec0410084c438bf36eee8b7b19e8eeeafa0120c2"
+    },
+    {
+      "path": "lib/libmp3lame.a",
+      "sha256": "01c9bbd704c1aca88f4b7bfdaa937eb7c33cb2ed7a5a84640a03301130d7d24a"
+    }
+  ]
+}
