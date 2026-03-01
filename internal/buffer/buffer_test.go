@@ -1,0 +1,378 @@
+package buffer
+
+import (
+	"bytes"
+	"errors"
+	"io"
+	"sync"
+	"testing"
+	"time"
+)
+
+func TestBuffer_WriteRead(t *testing.T) {
+	buf := N[byte](10)
+
+	n, err := buf.Write([]byte{1, 2, 3, 4, 5})
+	if err != nil {
+		t.Fatalf("Write error: %v", err)
+	}
+	if n != 5 {
+		t.Fatalf("Write returned %d, want 5", n)
+	}
+
+	if buf.Len() != 5 {
+		t.Fatalf("Len() = %d, want 5", buf.Len())
+	}
+
+	buf.CloseWrite()
+
+	got := make([]byte, 10)
+	n, err = buf.Read(got)
+	if err != nil {
+		t.Fatalf("Read error: %v", err)
+	}
+	if n != 5 {
+		t.Fatalf("Read returned %d, want 5", n)
+	}
+	if !bytes.Equal(got[:n], []byte{1, 2, 3, 4, 5}) {
+		t.Fatalf("Read got %v, want [1,2,3,4,5]", got[:n])
+	}
+
+	_, err = buf.Read(got)
+	if err != io.EOF {
+		t.Fatalf("expected EOF, got %v", err)
+	}
+}
+
+func TestBuffer_ConcurrentWriteRead(t *testing.T) {
+	buf := N[byte](100)
+
+	data := make([]byte, 256)
+	for i := range data {
+		data[i] = byte(i)
+	}
+
+	var wg sync.WaitGroup
+	wg.Add(2)
+
+	go func() {
+		defer wg.Done()
+		for i := 0; i < len(data); i += 32 {
+			end := i + 32
+			if end > len(data) {
+				end = len(data)
+			}
+			_, err := buf.Write(data[i:end])
+			if err != nil {
+				t.Errorf("Write error: %v", err)
+				return
+			}
+		}
+		buf.CloseWrite()
+	}()
+
+	var received []byte
+	go func() {
+		defer wg.Done()
+		tmp := make([]byte, 64)
+		for {
+			n, err := buf.Read(tmp)
+			if err != nil {
+				if err == io.EOF {
+					break
+				}
+				t.Errorf("Read error: %v", err)
+				return
+			}
+			received = append(received, tmp[:n]...)
+		}
+	}()
+
+	wg.Wait()
+
+	if !bytes.Equal(received, data) {
+		t.Errorf("received data mismatch")
+	}
+}
+
+func TestBuffer_Add(t *testing.T) {
+	buf := N[int](10)
+
+	for i := 0; i < 5; i++ {
+		if err := buf.Add(i); err != nil {
+			t.Fatalf("Add(%d) error: %v", i, err)
+		}
+	}
+
+	if buf.Len() != 5 {
+		t.Fatalf("Len() = %d, want 5", buf.Len())
+	}
+}
+
+func TestBuffer_Next(t *testing.T) {
+	buf := N[int](10)
+
+	for i := 1; i <= 3; i++ {
+		buf.Add(i)
+	}
+	buf.CloseWrite()
+
+	v, err := buf.Next()
+	if err != nil {
+		t.Fatalf("Next error: %v", err)
+	}
+	if v != 1 {
+		t.Fatalf("Next() = %d, want 1", v)
+	}
+
+	v, err = buf.Next()
+	if err != nil {
+		t.Fatalf("Next error: %v", err)
+	}
+	if v != 2 {
+		t.Fatalf("Next() = %d, want 2", v)
+	}
+
+	v, err = buf.Next()
+	if err != nil {
+		t.Fatalf("Next error: %v", err)
+	}
+	if v != 3 {
+		t.Fatalf("Next() = %d, want 3", v)
+	}
+
+	_, err = buf.Next()
+	if !errors.Is(err, ErrIteratorDone) {
+		t.Fatalf("expected ErrIteratorDone, got %v", err)
+	}
+}
+
+func TestBuffer_Discard(t *testing.T) {
+	buf := N[byte](10)
+	buf.Write([]byte{1, 2, 3, 4, 5})
+
+	if err := buf.Discard(2); err != nil {
+		t.Fatalf("Discard error: %v", err)
+	}
+
+	if buf.Len() != 3 {
+		t.Fatalf("Len() = %d, want 3", buf.Len())
+	}
+
+	if err := buf.Discard(100); err != nil {
+		t.Fatalf("Discard error: %v", err)
+	}
+
+	if buf.Len() != 0 {
+		t.Fatalf("Len() = %d, want 0", buf.Len())
+	}
+}
+
+func TestBuffer_Reset(t *testing.T) {
+	buf := N[byte](10)
+	buf.Write([]byte{1, 2, 3, 4, 5})
+
+	buf.Reset()
+
+	if buf.Len() != 0 {
+		t.Fatalf("Len() = %d, want 0", buf.Len())
+	}
+}
+
+func TestBuffer_Bytes(t *testing.T) {
+	buf := N[byte](10)
+	buf.Write([]byte{1, 2, 3})
+
+	b := buf.Bytes()
+	if !bytes.Equal(b, []byte{1, 2, 3}) {
+		t.Fatalf("Bytes() = %v, want [1,2,3]", b)
+	}
+}
+
+func TestBuffer_CloseWithError(t *testing.T) {
+	buf := N[byte](10)
+	buf.Write([]byte{1, 2, 3})
+
+	customErr := errors.New("custom error")
+	buf.CloseWithError(customErr)
+
+	if buf.Error() != customErr {
+		t.Fatalf("Error() = %v, want %v", buf.Error(), customErr)
+	}
+
+	_, err := buf.Write([]byte{4, 5})
+	if err == nil {
+		t.Fatal("Write should fail after CloseWithError")
+	}
+	if !errors.Is(err, customErr) {
+		t.Fatalf("Write error should wrap customErr, got %v", err)
+	}
+
+	tmp := make([]byte, 10)
+	_, err = buf.Read(tmp)
+	if err == nil {
+		t.Fatal("Read should fail after CloseWithError")
+	}
+}
+
+func TestBuffer_Close(t *testing.T) {
+	buf := N[byte](10)
+	buf.Write([]byte{1, 2, 3})
+
+	buf.Close()
+
+	_, err := buf.Write([]byte{4, 5})
+	if err == nil {
+		t.Fatal("Write should fail after Close")
+	}
+	if !errors.Is(err, io.ErrClosedPipe) {
+		t.Fatalf("Write error should wrap ErrClosedPipe, got %v", err)
+	}
+}
+
+func TestBuffer_CloseWriteThenRead(t *testing.T) {
+	buf := N[byte](10)
+	buf.Write([]byte{1, 2, 3})
+	buf.CloseWrite()
+
+	got := make([]byte, 10)
+	n, err := buf.Read(got)
+	if err != nil {
+		t.Fatalf("Read error: %v", err)
+	}
+	if n != 3 {
+		t.Fatalf("Read returned %d, want 3", n)
+	}
+
+	_, err = buf.Read(got)
+	if err != io.EOF {
+		t.Fatalf("expected EOF, got %v", err)
+	}
+
+	_, err = buf.Write([]byte{4})
+	if err == nil {
+		t.Fatal("Write should fail after CloseWrite")
+	}
+}
+
+func TestBuffer_BlockingRead(t *testing.T) {
+	buf := N[byte](10)
+
+	done := make(chan struct{})
+	go func() {
+		tmp := make([]byte, 5)
+		n, err := buf.Read(tmp)
+		if err != nil {
+			t.Errorf("Read error: %v", err)
+			return
+		}
+		if n != 3 {
+			t.Errorf("Read returned %d, want 3", n)
+		}
+		close(done)
+	}()
+
+	time.Sleep(50 * time.Millisecond)
+
+	buf.Write([]byte{1, 2, 3})
+	buf.CloseWrite()
+
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		t.Fatal("Read did not unblock")
+	}
+}
+
+func TestBuffer_AddUnblocksReader(t *testing.T) {
+	buf := N[int](10)
+
+	done := make(chan struct{})
+	go func() {
+		v, err := buf.Next()
+		if err != nil {
+			t.Errorf("Next error: %v", err)
+			return
+		}
+		if v != 42 {
+			t.Errorf("Next() = %d, want 42", v)
+		}
+		close(done)
+	}()
+
+	time.Sleep(50 * time.Millisecond)
+
+	if err := buf.Add(42); err != nil {
+		t.Fatalf("Add error: %v", err)
+	}
+
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		t.Fatal("Next() was not unblocked by Add()")
+	}
+}
+
+func TestBuffer_AddToClosedBuffer(t *testing.T) {
+	buf := N[int](10)
+	buf.CloseWrite()
+
+	err := buf.Add(1)
+	if err == nil {
+		t.Fatal("Add should fail after CloseWrite")
+	}
+}
+
+func TestBuffer_DiscardFromClosedBuffer(t *testing.T) {
+	buf := N[byte](10)
+	buf.Write([]byte{1, 2, 3})
+
+	customErr := errors.New("closed")
+	buf.CloseWithError(customErr)
+
+	err := buf.Discard(1)
+	if err == nil {
+		t.Fatal("Discard should fail after CloseWithError")
+	}
+}
+
+func TestBuffer_NextFromClosedBuffer(t *testing.T) {
+	buf := N[int](10)
+	buf.Add(1)
+
+	customErr := errors.New("closed")
+	buf.CloseWithError(customErr)
+
+	_, err := buf.Next()
+	if err == nil {
+		t.Fatal("Next should fail after CloseWithError")
+	}
+}
+
+func TestBuffer_DoubleCloseWrite(t *testing.T) {
+	buf := N[byte](10)
+
+	err1 := buf.CloseWrite()
+	err2 := buf.CloseWrite()
+
+	if err1 != nil {
+		t.Fatalf("First CloseWrite error: %v", err1)
+	}
+	if err2 != nil {
+		t.Fatalf("Second CloseWrite error: %v", err2)
+	}
+}
+
+func TestBuffer_DoubleCloseWithError(t *testing.T) {
+	buf := N[byte](10)
+
+	err1 := errors.New("error1")
+	err2 := errors.New("error2")
+
+	buf.CloseWithError(err1)
+	buf.CloseWithError(err2)
+
+	if buf.Error() != err1 {
+		t.Fatalf("Error() = %v, want %v", buf.Error(), err1)
+	}
+}

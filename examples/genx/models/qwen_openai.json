@@ -1,0 +1,23 @@
+{
+  "schema": "openai/chat/v1",
+  "type": "generator",
+  "api_key": "$QWEN_API_KEY",
+  "base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+  "expect": {
+    "generate_success": true,
+    "invoke_json_output_success": true,
+    "invoke_tool_calls_success": true,
+    "invalid_key_generate_success": false,
+    "invalid_key_invoke_json_output_success": false,
+    "invalid_key_invoke_tool_calls_success": false
+  },
+  "models": [
+    {
+      "name": "qwen/turbo-latest",
+      "model": "qwen-turbo-latest",
+      "invoke_params": {
+        "max_tokens": 4096
+      }
+    }
+  ]
+}

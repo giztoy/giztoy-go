@@ -1,0 +1,37 @@
+{
+  "schema": "openai/chat/v1",
+  "type": "generator",
+  "api_key": "$OMG_API_KEY",
+  "base_url": "https://cn2us02.opapi.win/v1",
+  "expect": {
+    "generate_success": true,
+    "invoke_json_output_success": true,
+    "invoke_tool_calls_success": true,
+    "invalid_key_generate_success": false,
+    "invalid_key_invoke_json_output_success": false,
+    "invalid_key_invoke_tool_calls_success": false
+  },
+  "models": [
+    {
+      "name": "omg/gpt-4o-mini",
+      "model": "gpt-4o-mini",
+      "invoke_params": {
+        "max_tokens": 4096
+      }
+    },
+    {
+      "name": "omg/gpt-4.1",
+      "model": "gpt-4.1",
+      "invoke_params": {
+        "max_tokens": 4096
+      }
+    },
+    {
+      "name": "omg/gpt-5",
+      "model": "gpt-5",
+      "invoke_params": {
+        "max_tokens": 4096
+      }
+    }
+  ]
+}
