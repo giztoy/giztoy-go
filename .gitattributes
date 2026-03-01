@@ -1,0 +1,2 @@
+pkg/ncnn/models/*.bin filter=lfs diff=lfs merge=lfs -text
+third_party/ncnn/prebuilt/*/lib/*.a filter=lfs diff=lfs merge=lfs -text

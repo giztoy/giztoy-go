@@ -18,3 +18,9 @@ go.work.sum
 
 # macOS
 .DS_Store
+
+# local build scratch
+.tmp/
+
+# local review workspace files
+openteam/
