@@ -54,6 +54,11 @@ Suggested interpretation for review decisions:
 - `>= 60% and <= 80%`: Below baseline (needs fixes or explicit approval)
 - `< 60%`: Fail
 
+### 3.2) Unit Test File Mapping Convention
+
+- Keep a **1:1 mapping** between source and unit-test files whenever possible.
+- For `foo.go`, prefer a single corresponding `foo_test.go` (avoid splitting tests for the same source into multiple files without clear reason).
+
 ### 4) Commit Hygiene
 
 - Do not commit temporary files, logs, build artifacts, or secrets.
