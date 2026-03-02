@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "platform": "linux-amd64",
+  "libogg_source_tag": "v1.3.6-6-g0288fad",
+  "libogg_source_rev": "0288fadac3ac62d453409dfc83e9c4ab617d2472",
+  "build": {
+    "BUILD_SHARED_LIBS": "OFF",
+    "INSTALL_DOCS": "OFF",
+    "INSTALL_PKG_CONFIG_MODULE": "OFF",
+    "INSTALL_CMAKE_PACKAGE_MODULE": "OFF",
+    "BUILD_TESTING": "OFF"
+  },
+  "generated_at": "2026-03-02T05:48:49Z",
+  "artifacts": [
+    {
+      "path": "include/ogg/config_types.h",
+      "sha256": "bd424c5670e21bf37fcd039d4e39a9f8f19aa5af7ee720810a07092da6557e60"
+    },
+    {
+      "path": "include/ogg/ogg.h",
+      "sha256": "aad86109c1fdb377738675a63e0b19859e06ada25ae5c59c290ca7263d1dc4ca"
+    },
+    {
+      "path": "include/ogg/os_types.h",
+      "sha256": "3bbab6a5d31e3c25c6080252b042afb87028e3ffff100e3e0285648b250b70f4"
+    },
+    {
+      "path": "lib/libogg.a",
+      "sha256": "5b1b04eb8fbdb8e3e2266957949a0bc59a1dc804b44a5868dd6c97eeeb6d6089"
+    }
+  ]
+}
