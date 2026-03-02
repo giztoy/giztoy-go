@@ -24,3 +24,6 @@ go.work.sum
 
 # local review workspace files
 openteam/
+
+# benchmark transient outputs
+benchmark/results/

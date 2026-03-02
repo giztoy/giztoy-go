@@ -16,9 +16,9 @@ import (
 	"text/tabwriter"
 	"time"
 
-	"github.com/haivivi/giztoy/go/pkg/genx"
 	"github.com/openai/openai-go"
 	"github.com/openai/openai-go/option"
+	"github.com/haivivi/giztoy/go/pkg/genx"
 )
 
 //go:embed models/*_openai.json

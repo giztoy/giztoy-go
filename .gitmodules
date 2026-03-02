@@ -4,3 +4,6 @@
 [submodule "third_party/audio/lame"]
 	path = third_party/audio/lame
 	url = https://github.com/lameproject/lame.git
+[submodule "third_party/net/kcp"]
+	path = third_party/net/kcp
+	url = https://github.com/skywind3000/kcp.git

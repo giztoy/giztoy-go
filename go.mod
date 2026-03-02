@@ -7,6 +7,7 @@ require (
 	github.com/google/jsonschema-go v0.4.2
 	github.com/googleapis/gax-go/v2 v2.16.0
 	github.com/hajimehoshi/go-mp3 v0.3.4
+	github.com/hashicorp/yamux v0.1.2
 	github.com/kaptinlin/jsonrepair v0.2.6
 	github.com/openai/openai-go v1.12.0
 	github.com/tphakala/go-audio-resampling v0.0.0-20251123212058-a9dde25e8eea
