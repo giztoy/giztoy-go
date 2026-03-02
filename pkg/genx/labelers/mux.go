@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/haivivi/giztoy/go/internal/trie"
+	"github.com/haivivi/giztoy/go/pkg/trie"
 )
 
 // DefaultMux is the default labeler multiplexer.

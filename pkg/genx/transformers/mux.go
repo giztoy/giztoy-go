@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/haivivi/giztoy/go/internal/buffer"
-	"github.com/haivivi/giztoy/go/internal/trie"
+	"github.com/haivivi/giztoy/go/pkg/buffer"
 	"github.com/haivivi/giztoy/go/pkg/genx"
+	"github.com/haivivi/giztoy/go/pkg/trie"
 )
 
 var _ genx.Transformer = (*Mux)(nil)
