@@ -1,16 +1,17 @@
 # tools/ncnn
 
 Build, package, and verify NCNN prebuilt artifacts for supported targets.
+Source of truth is the tracked upstream submodule `third_party/ncnn/upstream`.
 
 ## Scripts
 
 - `build_prebuilt_linux.sh`
-  - Downloads and builds upstream NCNN source on Linux.
+  - Builds NCNN from `third_party/ncnn/upstream` on Linux.
   - Produces `include/ncnn/*.h` and `lib/libncnn.a` under `.tmp/ncnn-prebuilt/<platform>/`.
   - Uses fixed build flags: `NCNN_VULKAN=OFF`, `NCNN_C_API=ON`.
 
 - `build_prebuilt_darwin.sh`
-  - Downloads and builds upstream NCNN source on macOS.
+  - Builds NCNN from `third_party/ncnn/upstream` on macOS.
   - Supports `TARGET_ARCH=arm64` and `TARGET_ARCH=amd64`.
   - Produces `include/ncnn/*.h` and `lib/libncnn.a` under `.tmp/ncnn-prebuilt/<platform>/`.
 
@@ -49,8 +50,7 @@ tools/ncnn/verify_artifacts.sh darwin-amd64
 
 ## Notes
 
-- Default source version: `20260113`.
-- Override source metadata when needed:
-  - `NCNN_VERSION=<version>`
-  - `NCNN_SHA256=<sha256>`
+- Initialize submodule before building:
+  - `git submodule update --init --recursive`
+- `build.env` records submodule metadata (`NCNN_COMMIT`, `NCNN_DESCRIBE`) for traceability.
 - `pkg/ncnn` links prebuilt static libraries from `third_party/ncnn/prebuilt/<platform>/lib/libncnn.a`.
