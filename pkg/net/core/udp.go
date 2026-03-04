@@ -218,7 +218,8 @@ type UDP struct {
 	kcpOutputErrors       atomic.Uint64
 
 	// State
-	closed atomic.Bool
+	closing atomic.Bool
+	closed  atomic.Bool
 }
 
 // peerState holds the internal state for a peer.
@@ -385,7 +386,7 @@ func NewUDP(key *noise.KeyPair, opts ...Option) (*UDP, error) {
 // SetPeerEndpoint sets or updates a peer's endpoint address.
 // If the peer doesn't exist, it creates a new peer entry.
 func (u *UDP) SetPeerEndpoint(pk noise.PublicKey, endpoint net.Addr) {
-	if u.closed.Load() {
+	if u.closed.Load() || u.closing.Load() {
 		return
 	}
 
@@ -536,7 +537,7 @@ func (u *UDP) Peers() iter.Seq[*Peer] {
 // WriteTo sends encrypted data to a peer.
 // Uses EVENT protocol by default.
 func (u *UDP) WriteTo(pk noise.PublicKey, data []byte) error {
-	if u.closed.Load() {
+	if u.closed.Load() || u.closing.Load() {
 		return ErrClosed
 	}
 
@@ -801,7 +802,7 @@ func (u *UDP) handleHandshakeResp(data []byte, from *net.UDPAddr) {
 // The peer must have an endpoint set via SetPeerEndpoint.
 // A receive loop (ReadFrom) must be running to process the handshake response.
 func (u *UDP) Connect(pk noise.PublicKey) error {
-	if u.closed.Load() {
+	if u.closed.Load() || u.closing.Load() {
 		return ErrClosed
 	}
 
@@ -888,22 +889,44 @@ func (u *UDP) initiateHandshake(peer *peerState) error {
 
 // Close closes the UDP network.
 func (u *UDP) Close() error {
-	if u.closed.Swap(true) {
+	if u.closed.Load() || u.closing.Swap(true) {
 		return nil // Already closed
 	}
 
 	// Close all per-peer ServiceMux instances first so AcceptStream callers
 	// don't block forever on open accept queues.
-	u.mu.Lock()
-	for _, peer := range u.peers {
-		peer.mu.Lock()
-		if peer.serviceMux != nil {
-			_ = peer.serviceMux.Close()
-			peer.serviceMux = nil
-		}
-		peer.mu.Unlock()
+	//
+	// 注意：必须在 smux.Close() 完成前保留 peer.serviceMux 指针，
+	// 这样关闭中的 CLOSE_ACK 才能从 UDP 解密路径正确路由回 ServiceMux。
+	type peerMuxRef struct {
+		peer *peerState
+		smux *kcp.ServiceMux
 	}
-	u.mu.Unlock()
+	refs := make([]peerMuxRef, 0)
+	u.mu.RLock()
+	for _, peer := range u.peers {
+		peer.mu.RLock()
+		smux := peer.serviceMux
+		peer.mu.RUnlock()
+		if smux != nil {
+			refs = append(refs, peerMuxRef{peer: peer, smux: smux})
+		}
+	}
+	u.mu.RUnlock()
+
+	for _, ref := range refs {
+		_ = ref.smux.Close()
+	}
+
+	for _, ref := range refs {
+		ref.peer.mu.Lock()
+		if ref.peer.serviceMux == ref.smux {
+			ref.peer.serviceMux = nil
+		}
+		ref.peer.mu.Unlock()
+	}
+
+	u.closed.Store(true)
 
 	// Signal goroutines to stop
 	close(u.closeChan)

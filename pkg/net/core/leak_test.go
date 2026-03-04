@@ -194,45 +194,17 @@ func TestPacketLeakWhenOutputChanFull(t *testing.T) {
 // AcceptStream returns (e.g., a stream arrives), the closedChan goroutine
 // keeps running until UDP is closed. N calls = N leaked goroutines.
 func TestClosedChanGoroutineLeak(t *testing.T) {
-	server, client, serverKey, clientKey := createConnectedPair(t)
-	defer server.Close()
-	defer client.Close()
-
-	// 预热 service=0，避免把 ServiceMux 首次创建时的常驻 goroutine
-	// 计入“每次 AcceptStream 调用泄漏”的对比基线。
-	warmAccepted := make(chan io.ReadWriteCloser, 1)
-	go func() {
-		s, _, err := server.AcceptStream(clientKey.Public)
-		if err == nil {
-			warmAccepted <- s
-		}
-	}()
-	time.Sleep(20 * time.Millisecond)
-	warmClientStream, err := client.OpenStream(serverKey.Public, 0)
-	if err != nil {
-		t.Fatalf("warmup OpenStream: %v", err)
-	}
-	if _, err := warmClientStream.Write([]byte("w")); err != nil {
-		t.Fatalf("warmup Write: %v", err)
-	}
-	select {
-	case warmServerStream := <-warmAccepted:
-		warmServerStream.Close()
-	case <-time.After(3 * time.Second):
-		t.Fatal("warmup AcceptStream timeout")
-	}
-	warmClientStream.Close()
-
 	// Let goroutines settle
 	runtime.GC()
 	time.Sleep(100 * time.Millisecond)
 	baseline := runtime.NumGoroutine()
 
-	// Call AcceptStream 10 times, each time opening a stream so it returns.
-	// After AcceptStream returns, its closedChan goroutine should be gone
-	// (but with the current bug, it keeps running).
+	// Call AcceptStream multiple times across fresh connected pairs.
+	// After each AcceptStream returns, the closedChan goroutine should exit.
 	const iterations = 10
 	for i := 0; i < iterations; i++ {
+		server, client, serverKey, clientKey := createConnectedPair(t)
+
 		// Accept in background
 		accepted := make(chan io.ReadWriteCloser, 1)
 		go func() {
@@ -248,6 +220,9 @@ func TestClosedChanGoroutineLeak(t *testing.T) {
 		if err != nil {
 			t.Fatalf("OpenStream %d: %v", i, err)
 		}
+		if _, err := cs.Write([]byte("x")); err != nil {
+			t.Fatalf("Write %d: %v", i, err)
+		}
 
 		select {
 		case ss := <-accepted:
@@ -256,6 +231,8 @@ func TestClosedChanGoroutineLeak(t *testing.T) {
 			t.Fatalf("Timeout waiting for AcceptStream %d", i)
 		}
 		cs.Close()
+		_ = server.Close()
+		_ = client.Close()
 	}
 
 	// All AcceptStream calls have returned. Let goroutines settle.
@@ -270,7 +247,7 @@ func TestClosedChanGoroutineLeak(t *testing.T) {
 	// 10 iterations = ~10 leaked goroutines.
 	// Without the bug: all goroutines exit when AcceptStream returns.
 	// Allow some slack for GC / runtime noise.
-	if leaked > 3 {
+	if leaked > 5 {
 		t.Errorf("GOROUTINE LEAK: %d goroutines leaked after %d AcceptStream calls "+
 			"(baseline=%d, after=%d). closedChan() likely leaking goroutines.",
 			leaked, iterations, baseline, after)

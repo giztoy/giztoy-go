@@ -4,7 +4,7 @@ import (
 	"sync"
 	"time"
 
-	core "github.com/haivivi/giztoy/go/pkg/net/core"
+	"github.com/haivivi/giztoy/go/pkg/net/core"
 	"github.com/haivivi/giztoy/go/pkg/net/noise"
 )
 

@@ -189,6 +189,92 @@ func TestIntegration_KCPService0Stream(t *testing.T) {
 	}
 }
 
+// TestIntegration_KCPStreamActiveClose 测试主动关闭快速感知
+// 验证一端 Close 后，另一端阻塞中的 stream Read 能在短时间内失败返回
+func TestIntegration_KCPStreamActiveClose(t *testing.T) {
+	serverKey, err := noise.GenerateKeyPair()
+	if err != nil {
+		t.Fatalf("Generate server key failed: %v", err)
+	}
+	clientKey, err := noise.GenerateKeyPair()
+	if err != nil {
+		t.Fatalf("Generate client key failed: %v", err)
+	}
+
+	server := testutil.NewUDPNode(t, serverKey)
+	defer server.Close()
+	client := testutil.NewUDPNode(t, clientKey)
+	defer client.Close()
+
+	testutil.ConnectNodes(t, client, clientKey, server, serverKey)
+
+	acceptCh := make(chan net.Conn, 1)
+	errCh := make(chan error, 1)
+	go func() {
+		stream, service, acceptErr := server.AcceptStream(clientKey.Public)
+		if acceptErr != nil {
+			errCh <- acceptErr
+			return
+		}
+		if service != 0 {
+			errCh <- gnet.ErrUnsupportedService
+			_ = stream.Close()
+			return
+		}
+		acceptCh <- stream
+	}()
+
+	clientStream, err := client.OpenStream(serverKey.Public, 0)
+	if err != nil {
+		t.Fatalf("client OpenStream failed: %v", err)
+	}
+	defer clientStream.Close()
+
+	if _, err := clientStream.Write([]byte("x")); err != nil {
+		t.Fatalf("client stream priming write failed: %v", err)
+	}
+
+	var serverStream net.Conn
+	select {
+	case serverStream = <-acceptCh:
+		defer serverStream.Close()
+	case acceptErr := <-errCh:
+		t.Fatalf("server AcceptStream failed: %v", acceptErr)
+	case <-time.After(5 * time.Second):
+		t.Fatal("server AcceptStream timeout")
+	}
+
+	if got := testutil.ReadExactWithTimeout(t, serverStream, 1, 5*time.Second); !bytes.Equal(got, []byte("x")) {
+		t.Fatalf("server stream priming payload mismatch: got=%q want=%q", string(got), "x")
+	}
+
+	readErrCh := make(chan error, 1)
+	go func() {
+		buf := make([]byte, 1)
+		_, readErr := serverStream.Read(buf)
+		readErrCh <- readErr
+	}()
+
+	time.Sleep(20 * time.Millisecond)
+	start := time.Now()
+	if err := client.Close(); err != nil {
+		t.Fatalf("client Close failed: %v", err)
+	}
+
+	select {
+	case readErr := <-readErrCh:
+		if readErr == nil {
+			t.Fatal("server stream Read should fail after peer close")
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("server stream Read did not fail within 2s after peer close")
+	}
+
+	if took := time.Since(start); took >= 380*time.Millisecond {
+		t.Fatalf("active close should return before ACK-timeout path: took=%v", took)
+	}
+}
+
 // TestIntegration_KCPRejectNonZeroService 测试 foundation 层拒绝非零 service
 // 验证 service != 0 时返回 ErrUnsupportedService
 func TestIntegration_KCPRejectNonZeroService(t *testing.T) {

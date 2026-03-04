@@ -2,8 +2,8 @@ package kcp
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
-	"io"
 	"runtime"
 	"sync"
 	"testing"
@@ -237,8 +237,8 @@ func TestKCPConn_Close_ReadEOF(t *testing.T) {
 
 	select {
 	case err := <-readDone:
-		if err != io.EOF {
-			t.Errorf("Read after Close = %v, want io.EOF", err)
+		if !errors.Is(err, ErrConnClosedLocal) {
+			t.Errorf("Read after Close = %v, want %v", err, ErrConnClosedLocal)
 		}
 	case <-time.After(2 * time.Second):
 		t.Fatal("Read did not unblock after Close")
@@ -251,8 +251,8 @@ func TestKCPConn_Close_WriteError(t *testing.T) {
 
 	a.Close()
 	_, err := a.Write([]byte("test"))
-	if err != ErrConnClosed {
-		t.Errorf("Write after Close = %v, want ErrConnClosed", err)
+	if !errors.Is(err, ErrConnClosedLocal) {
+		t.Errorf("Write after Close = %v, want %v", err, ErrConnClosedLocal)
 	}
 }
 
@@ -284,8 +284,8 @@ func TestKCPConn_CloseWhileReading(t *testing.T) {
 
 	select {
 	case err := <-readDone:
-		if err != io.EOF {
-			t.Errorf("Read returned %v, want io.EOF", err)
+		if !errors.Is(err, ErrConnClosedLocal) {
+			t.Errorf("Read returned %v, want %v", err, ErrConnClosedLocal)
 		}
 	case <-time.After(2 * time.Second):
 		t.Fatal("blocked Read not unblocked by Close")
@@ -298,8 +298,75 @@ func TestKCPConn_CloseWhileWriting(t *testing.T) {
 
 	a.Close()
 	_, err := a.Write([]byte("data"))
-	if err == nil {
-		t.Error("Write after Close should return error")
+	if !errors.Is(err, ErrConnClosedLocal) {
+		t.Errorf("Write after Close = %v, want %v", err, ErrConnClosedLocal)
+	}
+}
+
+func TestKCPConn_ActiveClose_Normal(t *testing.T) {
+	c := NewKCPConn(1, func([]byte) {})
+	defer c.Close()
+
+	if err := c.closeWithReason(ErrConnClosedByPeer); err != nil {
+		t.Fatalf("closeWithReason failed: %v", err)
+	}
+
+	buf := make([]byte, 16)
+	if _, err := c.Read(buf); !errors.Is(err, ErrConnClosedByPeer) {
+		t.Fatalf("Read after peer close = %v, want %v", err, ErrConnClosedByPeer)
+	}
+	if _, err := c.Write([]byte("x")); !errors.Is(err, ErrConnClosedByPeer) {
+		t.Fatalf("Write after peer close = %v, want %v", err, ErrConnClosedByPeer)
+	}
+	if err := c.Input([]byte{0x01, 0x02, 0x03}); !errors.Is(err, ErrConnClosedByPeer) {
+		t.Fatalf("Input after peer close = %v, want %v", err, ErrConnClosedByPeer)
+	}
+}
+
+func TestKCPConn_ActiveClose_DuringReadWrite(t *testing.T) {
+	c := NewKCPConn(1, func([]byte) {})
+	defer c.Close()
+
+	readErrCh := make(chan error, 1)
+	go func() {
+		buf := make([]byte, 32)
+		_, err := c.Read(buf)
+		readErrCh <- err
+	}()
+
+	writeErrCh := make(chan error, 1)
+	go func() {
+		payload := bytes.Repeat([]byte("W"), 128)
+		for {
+			_, err := c.Write(payload)
+			if err != nil {
+				writeErrCh <- err
+				return
+			}
+		}
+	}()
+
+	time.Sleep(20 * time.Millisecond)
+	if err := c.closeWithReason(ErrConnClosedByPeer); err != nil {
+		t.Fatalf("closeWithReason failed: %v", err)
+	}
+
+	select {
+	case err := <-readErrCh:
+		if !errors.Is(err, ErrConnClosedByPeer) {
+			t.Fatalf("Read during peer close = %v, want %v", err, ErrConnClosedByPeer)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("Read was not unblocked after peer close")
+	}
+
+	select {
+	case err := <-writeErrCh:
+		if !errors.Is(err, ErrConnClosedByPeer) {
+			t.Fatalf("Write during peer close = %v, want %v", err, ErrConnClosedByPeer)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("Write was not unblocked after peer close")
 	}
 }
 
@@ -742,6 +809,9 @@ func TestKCPConn_ReadPeerDead(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error after peer death, got nil")
 	}
+	if !errors.Is(err, ErrConnTimeout) {
+		t.Fatalf("Read after peer death err=%v, want %v", err, ErrConnTimeout)
+	}
 	if elapsed > 35*time.Second {
 		t.Fatalf("Read took %v — KCPConn has no self-timeout", elapsed)
 	}
@@ -773,6 +843,9 @@ func TestKCPConn_WritePeerDead(t *testing.T) {
 	}
 	elapsed := time.Since(start)
 
+	if !errors.Is(writeErr, ErrConnTimeout) {
+		t.Fatalf("Write after peer death err=%v, want %v", writeErr, ErrConnTimeout)
+	}
 	if elapsed > 35*time.Second {
 		t.Fatalf("Write took %v to fail", elapsed)
 	}

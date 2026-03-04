@@ -33,13 +33,31 @@ func TestRPCRequestDecodeInvalidMissingFields(t *testing.T) {
 	if _, err := DecodeRPCRequest([]byte(`{"v":1,"method":"m"}`)); !errors.Is(err, ErrMissingID) {
 		t.Fatalf("DecodeRPCRequest(missing id) err=%v, want %v", err, ErrMissingID)
 	}
+	if _, err := DecodeRPCRequest([]byte(`{"v":1,"id":"   ","method":"m"}`)); !errors.Is(err, ErrMissingID) {
+		t.Fatalf("DecodeRPCRequest(blank id) err=%v, want %v", err, ErrMissingID)
+	}
 
 	if _, err := DecodeRPCRequest([]byte(`{"v":1,"id":"x"}`)); !errors.Is(err, ErrMissingMethod) {
 		t.Fatalf("DecodeRPCRequest(missing method) err=%v, want %v", err, ErrMissingMethod)
 	}
+	if _, err := DecodeRPCRequest([]byte(`{"v":1,"id":"x","method":" \t "}`)); !errors.Is(err, ErrMissingMethod) {
+		t.Fatalf("DecodeRPCRequest(blank method) err=%v, want %v", err, ErrMissingMethod)
+	}
 
 	if _, err := DecodeRPCRequest([]byte(`{"v":2,"id":"x","method":"m"}`)); !errors.Is(err, ErrInvalidV) {
 		t.Fatalf("DecodeRPCRequest(invalid v) err=%v, want %v", err, ErrInvalidV)
+	}
+}
+
+func TestPrologueDecodeInvalidJSON(t *testing.T) {
+	if _, err := DecodeRPCRequest([]byte(`{"v":1,"id":"x","method":`)); err == nil {
+		t.Fatal("DecodeRPCRequest(invalid json) should fail")
+	}
+	if _, err := DecodeRPCResponse([]byte(`{"v":1,"id":"x","result":`)); err == nil {
+		t.Fatal("DecodeRPCResponse(invalid json) should fail")
+	}
+	if _, err := DecodeEvent([]byte(`{"v":1,"name":`)); err == nil {
+		t.Fatal("DecodeEvent(invalid json) should fail")
 	}
 }
 
@@ -75,6 +93,34 @@ func TestRPCResponseEncodeDecodeValid(t *testing.T) {
 	}
 }
 
+func TestRPCResponseEncodeDecodeWithErrorPayload(t *testing.T) {
+	resp := RPCResponse{
+		V:  PrologueVersion,
+		ID: "rpc-err-1",
+		Error: &RPCError{
+			Code:    500,
+			Message: "internal error",
+			Data:    json.RawMessage(`{"trace":"abc"}`),
+		},
+	}
+
+	data, err := EncodeRPCResponse(resp)
+	if err != nil {
+		t.Fatalf("EncodeRPCResponse(error payload) failed: %v", err)
+	}
+
+	decoded, err := DecodeRPCResponse(data)
+	if err != nil {
+		t.Fatalf("DecodeRPCResponse(error payload) failed: %v", err)
+	}
+	if decoded.Error == nil {
+		t.Fatal("decoded response error should not be nil")
+	}
+	if decoded.Error.Message != resp.Error.Message {
+		t.Fatalf("decoded response error message=%q, want %q", decoded.Error.Message, resp.Error.Message)
+	}
+}
+
 func TestEventEncodeDecodeValid(t *testing.T) {
 	evt := Event{
 		V:    PrologueVersion,
@@ -100,6 +146,9 @@ func TestEventEncodeDecodeValid(t *testing.T) {
 func TestEventDecodeInvalidMissingField(t *testing.T) {
 	if _, err := DecodeEvent([]byte(`{"v":1}`)); !errors.Is(err, ErrMissingName) {
 		t.Fatalf("DecodeEvent(missing name) err=%v, want %v", err, ErrMissingName)
+	}
+	if _, err := DecodeEvent([]byte(`{"v":1,"name":"   "}`)); !errors.Is(err, ErrMissingName) {
+		t.Fatalf("DecodeEvent(blank name) err=%v, want %v", err, ErrMissingName)
 	}
 
 	if _, err := DecodeEvent([]byte(`{"v":2,"name":"evt"}`)); !errors.Is(err, ErrInvalidV) {

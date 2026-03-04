@@ -34,7 +34,7 @@ func (sf StampedOpusFrame) Stamp() EpochMillis {
 }
 
 func (sf StampedOpusFrame) Frame() []byte {
-	if len(sf) <= opusFrameHeader {
+	if len(sf) < opusFrameHeader {
 		return nil
 	}
 	return sf[opusFrameHeader:]

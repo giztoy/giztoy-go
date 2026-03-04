@@ -42,6 +42,11 @@ func TestStampedOpusFrameValidateErrors(t *testing.T) {
 		t.Fatalf("short.Frame()=%v, want nil", got)
 	}
 
+	headerOnly := StampedOpusFrame(make([]byte, 8))
+	if got := headerOnly.Frame(); got == nil || len(got) != 0 {
+		t.Fatalf("headerOnly.Frame() should be empty slice, got=%v", got)
+	}
+
 	empty := StampedOpusFrame(nil)
 	if got := empty.Version(); got != 0 {
 		t.Fatalf("empty.Version()=%d, want 0", got)
@@ -55,5 +60,20 @@ func TestStampedOpusFrameValidateErrors(t *testing.T) {
 	bad[0] = 2
 	if _, err := ParseStampedOpusFrame(bad); !errors.Is(err, ErrInvalidOpusFrameVersion) {
 		t.Fatalf("Parse(bad version) err=%v, want %v", err, ErrInvalidOpusFrameVersion)
+	}
+}
+
+func TestStampedOpusFrameZeroAndMaxTimestamp(t *testing.T) {
+	frame := []byte{0xF8}
+
+	zero := StampOpusFrame(frame, 0)
+	if got := zero.Stamp(); got != 0 {
+		t.Fatalf("zero stamp=%d, want 0", got)
+	}
+
+	const max56 = (1 << 56) - 1
+	max := StampOpusFrame(frame, EpochMillis(max56))
+	if got := max.Stamp(); got != EpochMillis(max56) {
+		t.Fatalf("max56 stamp=%d, want %d", got, EpochMillis(max56))
 	}
 }

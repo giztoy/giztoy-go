@@ -149,6 +149,16 @@ func TestDefaultSocketConfig(t *testing.T) {
 	}
 }
 
+func TestSetReusePort_InvalidFD(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("SO_REUSEPORT not supported on Windows")
+	}
+
+	if err := SetReusePort(^uintptr(0)); err == nil {
+		t.Fatal("SetReusePort(invalid fd) should return error")
+	}
+}
+
 func TestFullSocketConfig_ApplyAll(t *testing.T) {
 	conn, err := net.ListenUDP("udp", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1)})
 	if err != nil {
