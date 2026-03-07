@@ -12,8 +12,8 @@ import (
 	"github.com/haivivi/giztoy/go/pkg/net/noise"
 )
 
-// TestIntegration_ConnectionPoolCapacity 测试连接池容量
-// 验证服务器能同时处理 64 个并发 peer 连接
+// TestIntegration_ConnectionPoolCapacity verifies the server can handle
+// 64 concurrent peer connections simultaneously.
 func TestIntegration_ConnectionPoolCapacity(t *testing.T) {
 	const peerCount = 64
 
@@ -68,8 +68,8 @@ func TestIntegration_ConnectionPoolCapacity(t *testing.T) {
 	}
 }
 
-// TestIntegration_NetworkInterruptionReconnect 测试网络中断与重连
-// 验证同 key 新 endpoint 能成功重连，服务器能更新 endpoint 信息
+// TestIntegration_NetworkInterruptionReconnect verifies that a peer with the
+// same key can reconnect from a new endpoint and the server updates accordingly.
 func TestIntegration_NetworkInterruptionReconnect(t *testing.T) {
 	serverKey, err := noise.GenerateKeyPair()
 	if err != nil {
@@ -120,8 +120,8 @@ func TestIntegration_NetworkInterruptionReconnect(t *testing.T) {
 	}
 }
 
-// TestIntegration_KCPService0Stream 测试 KCP 基础 stream 功能
-// 验证 service=0 时可以正常建立 stream 并进行双向通信
+// TestIntegration_KCPService0Stream verifies that a KCP stream on service=0
+// can be established and supports bidirectional communication.
 func TestIntegration_KCPService0Stream(t *testing.T) {
 	serverKey, err := noise.GenerateKeyPair()
 	if err != nil {
@@ -142,14 +142,9 @@ func TestIntegration_KCPService0Stream(t *testing.T) {
 	acceptCh := make(chan net.Conn, 1)
 	errCh := make(chan error, 1)
 	go func() {
-		stream, service, err := server.AcceptStream(clientKey.Public)
+		stream, err := server.AcceptStreamOn(clientKey.Public, 0)
 		if err != nil {
 			errCh <- err
-			return
-		}
-		if service != 0 {
-			errCh <- gnet.ErrUnsupportedService
-			_ = stream.Close()
 			return
 		}
 		acceptCh <- stream
@@ -171,9 +166,9 @@ func TestIntegration_KCPService0Stream(t *testing.T) {
 	case serverStream = <-acceptCh:
 		defer serverStream.Close()
 	case err := <-errCh:
-		t.Fatalf("server AcceptStream failed: %v", err)
+		t.Fatalf("server AcceptStreamOn failed: %v", err)
 	case <-time.After(5 * time.Second):
-		t.Fatal("server AcceptStream timeout")
+		t.Fatal("server AcceptStreamOn timeout")
 	}
 
 	if got := testutil.ReadExactWithTimeout(t, serverStream, len(request), 5*time.Second); !bytes.Equal(got, request) {
@@ -189,8 +184,8 @@ func TestIntegration_KCPService0Stream(t *testing.T) {
 	}
 }
 
-// TestIntegration_KCPStreamActiveClose 测试主动关闭快速感知
-// 验证一端 Close 后，另一端阻塞中的 stream Read 能在短时间内失败返回
+// TestIntegration_KCPStreamActiveClose verifies that after one end closes,
+// the other end's blocking stream Read fails promptly.
 func TestIntegration_KCPStreamActiveClose(t *testing.T) {
 	serverKey, err := noise.GenerateKeyPair()
 	if err != nil {
@@ -211,14 +206,9 @@ func TestIntegration_KCPStreamActiveClose(t *testing.T) {
 	acceptCh := make(chan net.Conn, 1)
 	errCh := make(chan error, 1)
 	go func() {
-		stream, service, acceptErr := server.AcceptStream(clientKey.Public)
-		if acceptErr != nil {
-			errCh <- acceptErr
-			return
-		}
-		if service != 0 {
-			errCh <- gnet.ErrUnsupportedService
-			_ = stream.Close()
+		stream, err := server.AcceptStreamOn(clientKey.Public, 0)
+		if err != nil {
+			errCh <- err
 			return
 		}
 		acceptCh <- stream
@@ -238,10 +228,10 @@ func TestIntegration_KCPStreamActiveClose(t *testing.T) {
 	select {
 	case serverStream = <-acceptCh:
 		defer serverStream.Close()
-	case acceptErr := <-errCh:
-		t.Fatalf("server AcceptStream failed: %v", acceptErr)
+	case err := <-errCh:
+		t.Fatalf("server AcceptStreamOn failed: %v", err)
 	case <-time.After(5 * time.Second):
-		t.Fatal("server AcceptStream timeout")
+		t.Fatal("server AcceptStreamOn timeout")
 	}
 
 	if got := testutil.ReadExactWithTimeout(t, serverStream, 1, 5*time.Second); !bytes.Equal(got, []byte("x")) {
@@ -275,9 +265,9 @@ func TestIntegration_KCPStreamActiveClose(t *testing.T) {
 	}
 }
 
-// TestIntegration_KCPRejectNonZeroService 测试 foundation 层拒绝非零 service
-// 验证 service != 0 时返回 ErrUnsupportedService
-func TestIntegration_KCPRejectNonZeroService(t *testing.T) {
+// TestIntegration_KCPNonZeroServiceStream tests that non-zero service streams
+// can be opened and accepted end-to-end through the foundation layer.
+func TestIntegration_KCPNonZeroServiceStream(t *testing.T) {
 	serverKey, err := noise.GenerateKeyPair()
 	if err != nil {
 		t.Fatalf("Generate server key failed: %v", err)
@@ -294,13 +284,31 @@ func TestIntegration_KCPRejectNonZeroService(t *testing.T) {
 
 	testutil.ConnectNodes(t, client, clientKey, server, serverKey)
 
-	if _, err := client.OpenStream(serverKey.Public, 7); err != gnet.ErrUnsupportedService {
-		t.Fatalf("OpenStream(non-zero service) err=%v, want %v", err, gnet.ErrUnsupportedService)
+	stream, err := client.OpenStream(serverKey.Public, 7)
+	if err != nil {
+		t.Fatalf("OpenStream(service=7) err=%v", err)
+	}
+	defer stream.Close()
+
+	msg := []byte("non-zero-service")
+	if _, err := stream.Write(msg); err != nil {
+		t.Fatalf("Write failed: %v", err)
+	}
+
+	accepted, err := server.AcceptStreamOn(clientKey.Public, 7)
+	if err != nil {
+		t.Fatalf("AcceptStreamOn(7) err=%v", err)
+	}
+	defer accepted.Close()
+
+	got := testutil.ReadExactWithTimeout(t, accepted, len(msg), 5*time.Second)
+	if !bytes.Equal(got, msg) {
+		t.Fatalf("payload mismatch: got=%q want=%q", got, msg)
 	}
 }
 
-// TestIntegration_RPCBidirectionalOverKCPStream 测试 RPC 双向请求响应
-// 验证 A->B 与 B->A 各一次调用都能正常完成 req/resp
+// TestIntegration_RPCBidirectionalOverKCPStream verifies bidirectional RPC
+// request/response: one call from A->B and one from B->A both complete.
 func TestIntegration_RPCBidirectionalOverKCPStream(t *testing.T) {
 	serverKey, err := noise.GenerateKeyPair()
 	if err != nil {
@@ -324,14 +332,9 @@ func TestIntegration_RPCBidirectionalOverKCPStream(t *testing.T) {
 		acceptCh := make(chan net.Conn, 1)
 		errCh := make(chan error, 1)
 		go func() {
-			stream, service, err := callee.AcceptStream(callerPK)
+			stream, err := callee.AcceptStreamOn(callerPK, 0)
 			if err != nil {
 				errCh <- err
-				return
-			}
-			if service != 0 {
-				errCh <- gnet.ErrUnsupportedService
-				_ = stream.Close()
 				return
 			}
 			acceptCh <- stream
@@ -373,8 +376,8 @@ func TestIntegration_RPCBidirectionalOverKCPStream(t *testing.T) {
 	assertRPC(server, client, serverKey.Public, clientKey.Public, []byte(`{"method":"echo"}`), []byte(`{"msg":"ok"}`))
 }
 
-// TestIntegration_EVENTFireAndForgetBidirectional 测试 EVENT fire-and-forget 双向突发收发
-// 验证双向各发 64 条事件不阻塞主链路，无应答依赖
+// TestIntegration_EVENTFireAndForgetBidirectional verifies bidirectional
+// fire-and-forget EVENT delivery: 64 events each way without blocking.
 func TestIntegration_EVENTFireAndForgetBidirectional(t *testing.T) {
 	serverKey, err := noise.GenerateKeyPair()
 	if err != nil {
@@ -434,8 +437,8 @@ func TestIntegration_EVENTFireAndForgetBidirectional(t *testing.T) {
 	}
 }
 
-// TestIntegration_OPUSFramesOrdered 测试 OPUS 连续帧顺序性
-// 验证连续发送 40 帧 OPUS 数据，接收端顺序可读，无协议误判
+// TestIntegration_OPUSFramesOrdered verifies that 40 consecutive OPUS frames
+// are received in order with correct protocol identification.
 func TestIntegration_OPUSFramesOrdered(t *testing.T) {
 	serverKey, err := noise.GenerateKeyPair()
 	if err != nil {
@@ -473,8 +476,8 @@ func TestIntegration_OPUSFramesOrdered(t *testing.T) {
 	}
 }
 
-// TestIntegration_WriteValidationPrecedesPeerLookup 测试 Write 的边界校验顺序
-// 验证 RPC datagram/非法协议在查找 peer 之前就会被拒绝
+// TestIntegration_WriteValidationPrecedesPeerLookup verifies that Write
+// rejects RPC datagrams and unsupported protocols before looking up the peer.
 func TestIntegration_WriteValidationPrecedesPeerLookup(t *testing.T) {
 	localKey, err := noise.GenerateKeyPair()
 	if err != nil {
@@ -497,8 +500,8 @@ func TestIntegration_WriteValidationPrecedesPeerLookup(t *testing.T) {
 	}
 }
 
-// TestIntegration_UnknownPeerOperations 测试未知 peer 的错误语义
-// 验证 Write/Read/OpenStream/AcceptStream 对未知 peer 返回 ErrPeerNotFound
+// TestIntegration_UnknownPeerOperations verifies that Write/Read/OpenStream/
+// AcceptStream return ErrPeerNotFound for an unknown peer.
 func TestIntegration_UnknownPeerOperations(t *testing.T) {
 	localKey, err := noise.GenerateKeyPair()
 	if err != nil {
@@ -530,8 +533,8 @@ func TestIntegration_UnknownPeerOperations(t *testing.T) {
 	}
 }
 
-// TestIntegration_StreamBeforeSession 测试会话未建立时的 stream 行为
-// 验证 peer 已注册但未握手建立 session 时返回 ErrNoSession
+// TestIntegration_StreamBeforeSession verifies that stream operations return
+// ErrNoSession when the peer is registered but the handshake is not complete.
 func TestIntegration_StreamBeforeSession(t *testing.T) {
 	serverKey, err := noise.GenerateKeyPair()
 	if err != nil {
@@ -547,7 +550,7 @@ func TestIntegration_StreamBeforeSession(t *testing.T) {
 	client := testutil.NewUDPNode(t, clientKey)
 	defer client.Close()
 
-	// 仅注册 endpoint，不执行 Connect（因此 peer 存在但 session 未建立）
+	// Register endpoints only, without Connect (peer exists but no session).
 	client.SetPeerEndpoint(serverKey.Public, server.HostInfo().Addr)
 	server.SetPeerEndpoint(clientKey.Public, client.HostInfo().Addr)
 
@@ -560,8 +563,8 @@ func TestIntegration_StreamBeforeSession(t *testing.T) {
 	}
 }
 
-// TestIntegration_ClosedNodeOperations 测试关闭节点后的 API 行为
-// 验证 Read/Write/OpenStream/AcceptStream 一致返回 ErrClosed
+// TestIntegration_ClosedNodeOperations verifies that Read/Write/OpenStream/
+// AcceptStream consistently return ErrClosed after the node is closed.
 func TestIntegration_ClosedNodeOperations(t *testing.T) {
 	localKey, err := noise.GenerateKeyPair()
 	if err != nil {
@@ -595,8 +598,8 @@ func TestIntegration_ClosedNodeOperations(t *testing.T) {
 	}
 }
 
-// TestIntegration_ZeroLengthPayloads 测试零长度 payload 边界
-// 验证 EVENT/OPUS 支持空 payload 且接收侧可正确识别协议号
+// TestIntegration_ZeroLengthPayloads verifies that EVENT/OPUS support
+// zero-length payloads and the receiver correctly identifies the protocol.
 func TestIntegration_ZeroLengthPayloads(t *testing.T) {
 	serverKey, err := noise.GenerateKeyPair()
 	if err != nil {

@@ -435,9 +435,12 @@ func TestConnValidationAndProtocolErrorPaths(t *testing.T) {
 	if err := smux.Input(1, []byte{0x00, 0x01, 0x02}); err != nil {
 		t.Fatalf("smux.Input(service=1) failed: %v", err)
 	}
-	if _, err := pair.serverConn.AcceptRPC(); !errors.Is(err, core.ErrUnsupportedService) {
-		t.Fatalf("AcceptRPC(service!=0) err=%v, want %v", err, core.ErrUnsupportedService)
+	// AcceptService(1) should accept the service=1 stream injected above.
+	svcStream, err := pair.serverConn.AcceptService(1)
+	if err != nil {
+		t.Fatalf("AcceptService(1) err=%v", err)
 	}
+	_ = svcStream.Close()
 }
 
 func TestConnEventConcurrentDelivery(t *testing.T) {

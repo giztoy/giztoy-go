@@ -242,12 +242,33 @@ func TestPeerWriteRejectsUnsupportedProtocol(t *testing.T) {
 	}
 }
 
-func TestOpenStreamRejectsNonZeroService(t *testing.T) {
-	server, client, serverKey, _ := createConnectedPair(t)
+func TestOpenStreamNonZeroService(t *testing.T) {
+	server, client, serverKey, clientKey := createConnectedPair(t)
 	defer server.Close()
 	defer client.Close()
 
-	if _, err := client.OpenStream(serverKey.Public, 1); err != ErrUnsupportedService {
-		t.Fatalf("OpenStream(service=1) err=%v, want %v", err, ErrUnsupportedService)
+	stream, err := client.OpenStream(serverKey.Public, 7)
+	if err != nil {
+		t.Fatalf("OpenStream(service=7) err=%v", err)
+	}
+	defer stream.Close()
+
+	if _, err := stream.Write([]byte("hello")); err != nil {
+		t.Fatalf("Write failed: %v", err)
+	}
+
+	accepted, err := server.AcceptStreamOn(clientKey.Public, 7)
+	if err != nil {
+		t.Fatalf("AcceptStreamOn(7) err=%v", err)
+	}
+	defer accepted.Close()
+
+	buf := make([]byte, 64)
+	n, err := accepted.Read(buf)
+	if err != nil {
+		t.Fatalf("Read err=%v", err)
+	}
+	if string(buf[:n]) != "hello" {
+		t.Fatalf("Read got=%q, want %q", string(buf[:n]), "hello")
 	}
 }

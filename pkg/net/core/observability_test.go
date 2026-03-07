@@ -10,7 +10,7 @@ import (
 func TestDispatchToChannelsDropCounters(t *testing.T) {
 	t.Run("output queue full increments drop counter", func(t *testing.T) {
 		u := &UDP{
-			outputChan:  make(chan *packet), // 无接收方：始终触发 default 丢弃
+			outputChan:  make(chan *packet), // no receiver: always triggers default drop
 			decryptChan: make(chan *packet, 1),
 			closeChan:   make(chan struct{}),
 		}
@@ -30,7 +30,7 @@ func TestDispatchToChannelsDropCounters(t *testing.T) {
 			if routed != pkt {
 				t.Fatal("decrypt queue packet mismatch")
 			}
-			// 仅 decrypt 引用仍持有，手动释放避免池泄漏。
+			// Only the decrypt ref remains; release manually to avoid pool leak.
 			unrefPacket(routed)
 		default:
 			t.Fatal("packet was not routed to decryptChan")
@@ -40,7 +40,7 @@ func TestDispatchToChannelsDropCounters(t *testing.T) {
 	t.Run("decrypt queue full increments drop counter", func(t *testing.T) {
 		u := &UDP{
 			outputChan:  make(chan *packet, 1),
-			decryptChan: make(chan *packet), // 无接收方：始终触发 default 丢弃
+			decryptChan: make(chan *packet), // no receiver: always triggers default drop
 			closeChan:   make(chan struct{}),
 		}
 
@@ -64,7 +64,7 @@ func TestDispatchToChannelsDropCounters(t *testing.T) {
 			if routed.err != ErrNoData {
 				t.Fatalf("routed packet err=%v, want %v", routed.err, ErrNoData)
 			}
-			// 仅 output 引用仍持有，手动释放避免池泄漏。
+			// Only the output ref remains; release manually to avoid pool leak.
 			unrefPacket(routed)
 		default:
 			t.Fatal("packet was not queued to outputChan")
@@ -90,7 +90,7 @@ func TestRPCRouteErrorCounterOnSmuxInputFailure(t *testing.T) {
 	if smux == nil {
 		t.Fatal("server service mux not initialized")
 	}
-	_ = smux.Close() // 后续 RPC 路由将触发 Input 错误
+	_ = smux.Close() // subsequent RPC routing will trigger Input errors
 
 	client.mu.RLock()
 	clientPeer := client.peers[serverKey.Public]

@@ -163,7 +163,7 @@ func (l *Listener) receiveLoop() {
 			l.handleTransport(buf[:n], addr)
 
 		default:
-			// Foundation 阶段仅处理 HandshakeInit 与 Transport，其他类型忽略。
+			// Only HandshakeInit and Transport are handled; ignore other types.
 		}
 	}
 }

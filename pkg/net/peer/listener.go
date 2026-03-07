@@ -97,6 +97,10 @@ func (l *Listener) Peer(pk noise.PublicKey) (*Conn, error) {
 	return &Conn{udp: l.udp, pk: pk}, nil
 }
 
+func (l *Listener) HostInfo() *core.HostInfo {
+	return l.udp.HostInfo()
+}
+
 func (l *Listener) Close() error {
 	if l == nil {
 		return ErrNilListener

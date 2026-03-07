@@ -71,7 +71,7 @@ func TestUDPStreamThroughput(t *testing.T) {
 		chunk[i] = byte(i & 0xFF)
 	}
 
-	// 先写一块数据触发服务端 AcceptStream。
+	// Write an initial chunk to trigger the server-side AcceptStream.
 	written := 0
 	n, err := clientStream.Write(chunk)
 	if err != nil {

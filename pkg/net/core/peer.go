@@ -32,13 +32,12 @@ func (u *UDP) createServiceMux(peer *peerState) *kcp.ServiceMux {
 
 // sendToPeerWithService sends data to a peer with protocol + service.
 func (u *UDP) sendToPeerWithService(peer *peerState, protocol byte, service uint64, data []byte) error {
-	if service != 0 {
-		return ErrUnsupportedService
-	}
 	return u.sendDirectWithService(peer, protocol, service, data)
 }
 
 // sendDirectWithService sends data directly to a peer with protocol + service.
+// For RPC protocol, the service ID is encoded as a varint prefix in the payload
+// so the receiver can route to the correct ServiceMux entry.
 func (u *UDP) sendDirectWithService(peer *peerState, protocol byte, service uint64, data []byte) error {
 	if !noise.IsFoundationProtocol(protocol) {
 		return ErrUnsupportedProtocol
@@ -56,7 +55,13 @@ func (u *UDP) sendDirectWithService(peer *peerState, protocol byte, service uint
 		return ErrNoSession
 	}
 
-	plaintext := noise.EncodePayload(protocol, data)
+	wirePayload := data
+	if protocol == noise.ProtocolRPC {
+		wirePayload = noise.AppendVarint(nil, service)
+		wirePayload = append(wirePayload, data...)
+	}
+
+	plaintext := noise.EncodePayload(protocol, wirePayload)
 	ciphertext, counter, err := session.Encrypt(plaintext)
 	if err != nil {
 		return err
@@ -94,10 +99,6 @@ func (u *UDP) sendDirect(peer *peerState, protocol byte, data []byte) error {
 // service. Callers should write at least one payload after OpenStream to ensure
 // the peer-side accept unblocks.
 func (u *UDP) OpenStream(pk noise.PublicKey, service uint64) (net.Conn, error) {
-	if service != 0 {
-		return nil, ErrUnsupportedService
-	}
-
 	if u.closed.Load() || u.closing.Load() {
 		return nil, ErrClosed
 	}
@@ -152,6 +153,32 @@ func (u *UDP) AcceptStream(pk noise.PublicKey) (net.Conn, uint64, error) {
 	}
 
 	return m.AcceptStream()
+}
+
+// AcceptStreamOn accepts an incoming KCP stream on a specific service from the specified peer.
+// Unlike AcceptStream, this blocks until a stream arrives on the given service ID.
+func (u *UDP) AcceptStreamOn(pk noise.PublicKey, service uint64) (net.Conn, error) {
+	if u.closed.Load() || u.closing.Load() {
+		return nil, ErrClosed
+	}
+
+	u.mu.RLock()
+	peer, exists := u.peers[pk]
+	u.mu.RUnlock()
+
+	if !exists {
+		return nil, ErrPeerNotFound
+	}
+
+	peer.mu.RLock()
+	m := peer.serviceMux
+	peer.mu.RUnlock()
+
+	if m == nil {
+		return nil, ErrNoSession
+	}
+
+	return m.AcceptStreamOn(service)
 }
 
 // closedChan returns a channel that's closed when UDP is closed.

@@ -12,9 +12,9 @@ type EpochMillis int64
 // StampedOpusFrame format:
 // [version:1 byte][timestamp:7 bytes][opus frame bytes:N]
 //
-// 与旧 chatgear/opus.Stamp 语义一致：
-// - version 固定写入第 1 字节；
-// - timestamp 使用 big-endian 的低 56bit（写入后 7 字节）。
+// Compatible with the legacy chatgear/opus.Stamp semantics:
+// - version is written as the 1st byte;
+// - timestamp uses the lower 56 bits in big-endian (next 7 bytes).
 type StampedOpusFrame []byte
 
 func (sf StampedOpusFrame) Version() int {

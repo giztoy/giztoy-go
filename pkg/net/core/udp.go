@@ -52,12 +52,12 @@ type HostInfo struct {
 	TxBytes   uint64
 	LastSeen  time.Time
 
-	// 可观测性指标（网络热路径）
-	DroppedOutputPackets  uint64 // outputChan 满导致丢弃
-	DroppedDecryptPackets uint64 // decryptChan 满导致丢弃
-	DroppedInboundPackets uint64 // peer inboundChan 满导致丢弃
-	RPCRouteErrors        uint64 // RPC 路由到 ServiceMux 输入失败
-	KCPOutputErrors       uint64 // ServiceMux Output 回调返回错误
+	// Observability counters (network hot path)
+	DroppedOutputPackets  uint64 // dropped due to full outputChan
+	DroppedDecryptPackets uint64 // dropped due to full decryptChan
+	DroppedInboundPackets uint64 // dropped due to full peer inboundChan
+	RPCRouteErrors        uint64 // failed to route RPC into ServiceMux
+	KCPOutputErrors       uint64 // ServiceMux Output callback returned error
 }
 
 // PeerInfo contains information about a peer.
@@ -896,8 +896,8 @@ func (u *UDP) Close() error {
 	// Close all per-peer ServiceMux instances first so AcceptStream callers
 	// don't block forever on open accept queues.
 	//
-	// 注意：必须在 smux.Close() 完成前保留 peer.serviceMux 指针，
-	// 这样关闭中的 CLOSE_ACK 才能从 UDP 解密路径正确路由回 ServiceMux。
+	// Keep the peer.serviceMux pointer alive until smux.Close() completes,
+	// so in-flight CLOSE_ACK frames from the UDP decrypt path can still route back.
 	type peerMuxRef struct {
 		peer *peerState
 		smux *kcp.ServiceMux
@@ -1220,19 +1220,26 @@ func (u *UDP) decryptTransport(pkt *packet, data []byte, from *net.UDPAddr) {
 	pkt.payload = make([]byte, len(payload))
 	copy(pkt.payload, payload)
 	pkt.payloadN = len(payload)
-	// RPC 协议统一走 KCP stream，不走普通透传路径。
+	// RPC protocol is routed through KCP streams, not the raw passthrough path.
+	// Wire format: service_varint + kcp_data
 	if protocol == noise.ProtocolRPC {
 		if smux == nil {
 			u.rpcRouteErrors.Add(1)
 			pkt.err = ErrNoSession
 			return
 		}
-		if err := smux.Input(0, payload); err != nil {
+		service, n, err := noise.DecodeVarint(payload)
+		if err != nil {
 			u.rpcRouteErrors.Add(1)
 			pkt.err = err
 			return
 		}
-		pkt.err = ErrNoData // RPC 数据已交给 smux/KCP
+		if err := smux.Input(service, payload[n:]); err != nil {
+			u.rpcRouteErrors.Add(1)
+			pkt.err = err
+			return
+		}
+		pkt.err = ErrNoData // RPC data handed off to smux/KCP
 		return
 	}
 

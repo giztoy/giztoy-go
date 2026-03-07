@@ -51,8 +51,8 @@ var (
 	// ErrUnsupportedProtocol indicates the protocol is outside RPC/EVENT/OPUS whitelist.
 	ErrUnsupportedProtocol = errors.New("net: unsupported protocol")
 
-	// ErrUnsupportedService indicates non-zero service is not supported in foundation phase.
-	ErrUnsupportedService = errors.New("net: only service 0 is supported")
+	// ErrUnsupportedService indicates the requested service is not supported.
+	ErrUnsupportedService = errors.New("net: unsupported service")
 
 	// ErrRPCMustUseStream indicates RPC traffic must use direct KCP stream.
 	ErrRPCMustUseStream = errors.New("net: rpc must use kcp stream")

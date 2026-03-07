@@ -12,27 +12,26 @@ type Conn struct {
 	pk  noise.PublicKey
 }
 
-func (c *Conn) OpenRPC() (net.Conn, error) {
+func (c *Conn) OpenService(service uint64) (net.Conn, error) {
 	if err := c.validate(); err != nil {
 		return nil, err
 	}
-	return c.udp.OpenStream(c.pk, 0)
+	return c.udp.OpenStream(c.pk, service)
+}
+
+func (c *Conn) AcceptService(service uint64) (net.Conn, error) {
+	if err := c.validate(); err != nil {
+		return nil, err
+	}
+	return c.udp.AcceptStreamOn(c.pk, service)
+}
+
+func (c *Conn) OpenRPC() (net.Conn, error) {
+	return c.OpenService(0)
 }
 
 func (c *Conn) AcceptRPC() (net.Conn, error) {
-	if err := c.validate(); err != nil {
-		return nil, err
-	}
-
-	stream, service, err := c.udp.AcceptStream(c.pk)
-	if err != nil {
-		return nil, err
-	}
-	if service != 0 {
-		_ = stream.Close()
-		return nil, core.ErrUnsupportedService
-	}
-	return stream, nil
+	return c.AcceptService(0)
 }
 
 func (c *Conn) SendEvent(evt Event) error {
