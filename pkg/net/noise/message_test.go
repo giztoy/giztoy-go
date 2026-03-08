@@ -5,21 +5,10 @@ import (
 	"testing"
 )
 
-func TestProtocolConstants(t *testing.T) {
-	if ProtocolRPC != 0x01 {
-		t.Fatalf("ProtocolRPC = %d, want 1", ProtocolRPC)
-	}
-	if ProtocolEVENT != 0x03 {
-		t.Fatalf("ProtocolEVENT = %d, want 3", ProtocolEVENT)
-	}
-	if ProtocolOPUS != 0x10 {
-		t.Fatalf("ProtocolOPUS = %d, want 16", ProtocolOPUS)
-	}
-}
-
 func TestEncodeDecodePayload_ProtocolPayloadOnly(t *testing.T) {
 	payload := []byte(`{"method":"ping"}`)
-	encoded := EncodePayload(ProtocolRPC, payload)
+	const protocolRPC byte = 0x81
+	encoded := EncodePayload(protocolRPC, payload)
 
 	if len(encoded) != 1+len(payload) {
 		t.Fatalf("encoded length = %d, want %d", len(encoded), 1+len(payload))
@@ -29,8 +18,8 @@ func TestEncodeDecodePayload_ProtocolPayloadOnly(t *testing.T) {
 	if err != nil {
 		t.Fatalf("DecodePayload() error = %v", err)
 	}
-	if protocol != ProtocolRPC {
-		t.Fatalf("protocol = %d, want %d", protocol, ProtocolRPC)
+	if protocol != protocolRPC {
+		t.Fatalf("protocol = %d, want %d", protocol, protocolRPC)
 	}
 	if !bytes.Equal(decoded, payload) {
 		t.Fatalf("decoded payload mismatch")
@@ -41,21 +30,6 @@ func TestDecodePayload_Empty(t *testing.T) {
 	_, _, err := DecodePayload(nil)
 	if err != ErrMessageTooShort {
 		t.Fatalf("DecodePayload(nil) err = %v, want %v", err, ErrMessageTooShort)
-	}
-}
-
-func TestIsFoundationProtocol(t *testing.T) {
-	if !IsFoundationProtocol(ProtocolRPC) {
-		t.Fatal("ProtocolRPC should be whitelisted")
-	}
-	if !IsFoundationProtocol(ProtocolEVENT) {
-		t.Fatal("ProtocolEVENT should be whitelisted")
-	}
-	if !IsFoundationProtocol(ProtocolOPUS) {
-		t.Fatal("ProtocolOPUS should be whitelisted")
-	}
-	if IsFoundationProtocol(0x40) {
-		t.Fatal("0x40 should not be whitelisted")
 	}
 }
 
@@ -78,5 +52,99 @@ func TestTransportMessageRoundTrip(t *testing.T) {
 	}
 	if !bytes.Equal(parsed.Ciphertext, ciphertext) {
 		t.Fatalf("ciphertext mismatch")
+	}
+}
+
+func TestParseTransportMessageRejectsInvalidInput(t *testing.T) {
+	short := make([]byte, TransportHeaderSize+TagSize-1)
+	if _, err := ParseTransportMessage(short); err != ErrMessageTooShort {
+		t.Fatalf("ParseTransportMessage(short) err=%v, want %v", err, ErrMessageTooShort)
+	}
+
+	wire := BuildTransportMessage(1, 2, []byte("ciphertext-with-tag"))
+	wire[0] = MessageTypeHandshakeInit
+	if _, err := ParseTransportMessage(wire); err != ErrInvalidMessageType {
+		t.Fatalf("ParseTransportMessage(wrong type) err=%v, want %v", err, ErrInvalidMessageType)
+	}
+}
+
+func TestHandshakeInitRoundTrip(t *testing.T) {
+	var ephemeral Key
+	for i := range ephemeral {
+		ephemeral[i] = byte(i)
+	}
+	staticEnc := bytes.Repeat([]byte{0xAB}, 48)
+
+	wire := BuildHandshakeInit(7, ephemeral, staticEnc)
+	parsed, err := ParseHandshakeInit(wire)
+	if err != nil {
+		t.Fatalf("ParseHandshakeInit() error = %v", err)
+	}
+
+	if parsed.SenderIndex != 7 {
+		t.Fatalf("SenderIndex = %d, want 7", parsed.SenderIndex)
+	}
+	if parsed.Ephemeral != ephemeral {
+		t.Fatal("Ephemeral mismatch")
+	}
+	if !bytes.Equal(parsed.Static, staticEnc) {
+		t.Fatal("Static mismatch")
+	}
+}
+
+func TestParseHandshakeInitRejectsInvalidInput(t *testing.T) {
+	if _, err := ParseHandshakeInit(make([]byte, HandshakeInitSize-1)); err != ErrMessageTooShort {
+		t.Fatalf("ParseHandshakeInit(short) err=%v, want %v", err, ErrMessageTooShort)
+	}
+
+	wire := make([]byte, HandshakeInitSize)
+	wire[0] = MessageTypeTransport
+	if _, err := ParseHandshakeInit(wire); err != ErrInvalidMessageType {
+		t.Fatalf("ParseHandshakeInit(wrong type) err=%v, want %v", err, ErrInvalidMessageType)
+	}
+}
+
+func TestHandshakeRespRoundTrip(t *testing.T) {
+	var ephemeral Key
+	for i := range ephemeral {
+		ephemeral[i] = byte(255 - i)
+	}
+	empty := bytes.Repeat([]byte{0xCD}, 16)
+
+	wire := BuildHandshakeResp(3, 9, ephemeral, empty)
+	parsed, err := ParseHandshakeResp(wire)
+	if err != nil {
+		t.Fatalf("ParseHandshakeResp() error = %v", err)
+	}
+
+	if parsed.SenderIndex != 3 || parsed.ReceiverIndex != 9 {
+		t.Fatalf("indexes = (%d,%d), want (3,9)", parsed.SenderIndex, parsed.ReceiverIndex)
+	}
+	if parsed.Ephemeral != ephemeral {
+		t.Fatal("Ephemeral mismatch")
+	}
+	if !bytes.Equal(parsed.Empty, empty) {
+		t.Fatal("Empty mismatch")
+	}
+}
+
+func TestParseHandshakeRespRejectsInvalidInput(t *testing.T) {
+	if _, err := ParseHandshakeResp(make([]byte, HandshakeRespSize-1)); err != ErrMessageTooShort {
+		t.Fatalf("ParseHandshakeResp(short) err=%v, want %v", err, ErrMessageTooShort)
+	}
+
+	wire := make([]byte, HandshakeRespSize)
+	wire[0] = MessageTypeCookieReply
+	if _, err := ParseHandshakeResp(wire); err != ErrInvalidMessageType {
+		t.Fatalf("ParseHandshakeResp(wrong type) err=%v, want %v", err, ErrInvalidMessageType)
+	}
+}
+
+func TestGetMessageType(t *testing.T) {
+	if _, err := GetMessageType(nil); err != ErrMessageTooShort {
+		t.Fatalf("GetMessageType(nil) err=%v, want %v", err, ErrMessageTooShort)
+	}
+	if got, err := GetMessageType([]byte{MessageTypeTransport}); err != nil || got != MessageTypeTransport {
+		t.Fatalf("GetMessageType(valid) = (%d,%v), want (%d,nil)", got, err, MessageTypeTransport)
 	}
 }

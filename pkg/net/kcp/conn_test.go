@@ -10,6 +10,38 @@ import (
 	"time"
 )
 
+func TestKCPConn_AccessorsAndDeadlines(t *testing.T) {
+	a, b := connPair(0)
+	defer b.Close()
+
+	addr := kcpConnAddr("custom")
+	if addr.Network() != "kcp" {
+		t.Fatalf("kcpConnAddr.Network()=%q, want %q", addr.Network(), "kcp")
+	}
+	if addr.String() != "custom" {
+		t.Fatalf("kcpConnAddr.String()=%q, want %q", addr.String(), "custom")
+	}
+
+	if a.IsClosed() {
+		t.Fatal("IsClosed() should be false before Close")
+	}
+	if a.LocalAddr().Network() != "kcp" || a.RemoteAddr().Network() != "kcp" {
+		t.Fatal("LocalAddr/RemoteAddr should use kcp network")
+	}
+
+	dl := time.Now().Add(500 * time.Millisecond)
+	if err := a.SetDeadline(dl); err != nil {
+		t.Fatalf("SetDeadline failed: %v", err)
+	}
+
+	if err := a.Close(); err != nil {
+		t.Fatalf("Close failed: %v", err)
+	}
+	if !a.IsClosed() {
+		t.Fatal("IsClosed() should be true after Close")
+	}
+}
+
 // connPair creates a connected pair of KCPConns for testing.
 // Packets from A are delivered to B and vice versa.
 // loss controls simulated packet drop rate (0.0 = no loss).

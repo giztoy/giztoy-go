@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"io"
+	"math"
 	"net"
 	"testing"
 	"time"
@@ -241,3 +242,308 @@ func TestKcpMux_InvalidFrameClosesStreamWithInvalidReason(t *testing.T) {
 		t.Fatalf("expected invalid-close error, got %v", err)
 	}
 }
+
+func TestKcpMux_ClosedStateOperations(t *testing.T) {
+	mux := NewKcpMux(0, true, KcpMuxConfig{}, nil, nil)
+	if err := mux.Close(); err != nil {
+		t.Fatalf("Close failed: %v", err)
+	}
+
+	if _, err := mux.Open(); !errors.Is(err, ErrServiceMuxClosed) {
+		t.Fatalf("Open(after Close) err=%v, want %v", err, ErrServiceMuxClosed)
+	}
+	if _, err := mux.Accept(); !errors.Is(err, ErrServiceMuxClosed) {
+		t.Fatalf("Accept(after Close) err=%v, want %v", err, ErrServiceMuxClosed)
+	}
+
+	frame := binary.AppendUvarint(nil, 0)
+	frame = append(frame, kcpMuxFrameOpen)
+	if err := mux.Input(frame); !errors.Is(err, ErrServiceMuxClosed) {
+		t.Fatalf("Input(after Close) err=%v, want %v", err, ErrServiceMuxClosed)
+	}
+}
+
+func TestKcpMux_MaxActiveStreamsRejectsExtraRemoteOpen(t *testing.T) {
+	client, server := kcpMuxPair(t, KcpMuxConfig{MaxActiveStreams: 1})
+	defer client.Close()
+	defer server.Close()
+
+	stream1, err := client.Open()
+	if err != nil {
+		t.Fatalf("Open(first) failed: %v", err)
+	}
+	defer stream1.Close()
+	serverStream1 := acceptWithTimeout(t, server, 2*time.Second)
+	defer serverStream1.Close()
+
+	stream2, err := client.Open()
+	if err != nil {
+		t.Fatalf("Open(second) failed: %v", err)
+	}
+	defer stream2.Close()
+
+	buf := make([]byte, 1)
+	_ = stream2.SetReadDeadline(time.Now().Add(2 * time.Second))
+	_, err = stream2.Read(buf)
+	if err == nil || errors.Is(err, io.EOF) {
+		t.Fatalf("expected abort-like error for second stream, got %v", err)
+	}
+	if got := server.NumStreams(); got != 1 {
+		t.Fatalf("server NumStreams=%d, want 1", got)
+	}
+}
+
+func TestKcpMux_AcceptBacklogFullRejectsExtraRemoteOpen(t *testing.T) {
+	client, server := kcpMuxPair(t, KcpMuxConfig{AcceptBacklog: 1, MaxActiveStreams: 4})
+	defer client.Close()
+	defer server.Close()
+
+	stream1, err := client.Open()
+	if err != nil {
+		t.Fatalf("Open(first) failed: %v", err)
+	}
+	defer stream1.Close()
+
+	stream2, err := client.Open()
+	if err != nil {
+		t.Fatalf("Open(second) failed: %v", err)
+	}
+	defer stream2.Close()
+
+	buf := make([]byte, 1)
+	_ = stream2.SetReadDeadline(time.Now().Add(2 * time.Second))
+	_, err = stream2.Read(buf)
+	if err == nil || errors.Is(err, io.EOF) {
+		t.Fatalf("expected abort-like error for backlog overflow, got %v", err)
+	}
+
+	serverStream1 := acceptWithTimeout(t, server, 2*time.Second)
+	defer serverStream1.Close()
+}
+
+func TestDecodeMuxFrameRejectsMalformedInput(t *testing.T) {
+	tests := []struct {
+		name string
+		data []byte
+	}{
+		{name: "empty", data: nil},
+		{name: "varint only", data: []byte{0x01}},
+		{name: "overflowing stream id", data: append(binary.AppendUvarint(nil, math.MaxUint32+1), 0x00)},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			if _, _, _, err := decodeMuxFrame(tc.data); !errors.Is(err, ErrInvalidServiceFrame) {
+				t.Fatalf("decodeMuxFrame(%s) err=%v, want %v", tc.name, err, ErrInvalidServiceFrame)
+			}
+		})
+	}
+}
+
+func TestKcpMux_GracefulRemoteCloseMapsReadAndWriteErrors(t *testing.T) {
+	client, server := kcpMuxPair(t, KcpMuxConfig{})
+	defer client.Close()
+	defer server.Close()
+
+	clientStream, err := client.Open()
+	if err != nil {
+		t.Fatalf("Open failed: %v", err)
+	}
+	defer clientStream.Close()
+	serverStream := acceptWithTimeout(t, server, 2*time.Second)
+	defer serverStream.Close()
+
+	if err := serverStream.Close(); err != nil {
+		t.Fatalf("serverStream.Close failed: %v", err)
+	}
+
+	buf := make([]byte, 1)
+	_ = clientStream.SetReadDeadline(time.Now().Add(2 * time.Second))
+	_, err = clientStream.Read(buf)
+	if !errors.Is(err, io.EOF) {
+		t.Fatalf("clientStream.Read after remote close err=%v, want %v", err, io.EOF)
+	}
+
+	_, err = clientStream.Write([]byte("x"))
+	if !errors.Is(err, io.ErrClosedPipe) {
+		t.Fatalf("clientStream.Write after remote close err=%v, want %v", err, io.ErrClosedPipe)
+	}
+}
+
+func TestKcpMux_StreamAccessors(t *testing.T) {
+	client, server := kcpMuxPair(t, KcpMuxConfig{})
+	defer client.Close()
+	defer server.Close()
+
+	clientStream, err := client.Open()
+	if err != nil {
+		t.Fatalf("Open failed: %v", err)
+	}
+	defer clientStream.Close()
+	serverStream := acceptWithTimeout(t, server, 2*time.Second)
+	defer serverStream.Close()
+
+	if clientStream.LocalAddr().Network() != "kcp" || clientStream.RemoteAddr().Network() != "kcp" {
+		t.Fatal("stream LocalAddr/RemoteAddr should use kcp network")
+	}
+
+	dl := time.Now().Add(500 * time.Millisecond)
+	if err := clientStream.SetDeadline(dl); err != nil {
+		t.Fatalf("SetDeadline failed: %v", err)
+	}
+	if err := clientStream.SetWriteDeadline(dl); err != nil {
+		t.Fatalf("SetWriteDeadline failed: %v", err)
+	}
+}
+
+func TestKcpMux_SendFrameReportsOutputErrors(t *testing.T) {
+	wantErr := errors.New("boom")
+	reported := make(chan error, 1)
+	mux := NewKcpMux(0, true, KcpMuxConfig{}, func(service uint64, data []byte) error {
+		return wantErr
+	}, func(service uint64, err error) {
+		reported <- err
+	})
+	defer mux.Close()
+
+	if err := mux.sendFrame(1, kcpMuxFrameOpen, nil); !errors.Is(err, wantErr) {
+		t.Fatalf("sendFrame err=%v, want %v", err, wantErr)
+	}
+
+	select {
+	case err := <-reported:
+		if !errors.Is(err, wantErr) {
+			t.Fatalf("reported err=%v, want %v", err, wantErr)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("expected reported output error")
+	}
+}
+
+func TestKcpMux_AcceptIgnoresStaleQueueEntries(t *testing.T) {
+	mux := NewKcpMux(0, true, KcpMuxConfig{}, nil, nil)
+	defer mux.Close()
+
+	done := make(chan error, 1)
+	go func() {
+		_, err := mux.Accept()
+		done <- err
+	}()
+
+	mux.acceptCh <- 99
+	time.Sleep(50 * time.Millisecond)
+	if err := mux.Close(); err != nil {
+		t.Fatalf("Close failed: %v", err)
+	}
+
+	select {
+	case err := <-done:
+		if !errors.Is(err, ErrServiceMuxClosed) {
+			t.Fatalf("Accept stale queue err=%v, want %v", err, ErrServiceMuxClosed)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("Accept did not exit after Close")
+	}
+}
+
+func TestKcpMux_AllocateLocalStreamIDWraps(t *testing.T) {
+	mux := NewKcpMux(0, true, KcpMuxConfig{}, nil, nil)
+	defer mux.Close()
+
+	mux.mu.Lock()
+	mux.nextLocalStreamID = math.MaxUint32
+	streamID, err := mux.allocateLocalStreamIDLocked()
+	next := mux.nextLocalStreamID
+	mux.mu.Unlock()
+
+	if err != nil {
+		t.Fatalf("allocateLocalStreamIDLocked failed: %v", err)
+	}
+	if streamID != math.MaxUint32 {
+		t.Fatalf("streamID=%d, want %d", streamID, uint64(math.MaxUint32))
+	}
+	if next != 1 {
+		t.Fatalf("nextLocalStreamID=%d, want 1 after wrap", next)
+	}
+}
+
+func TestKcpMux_ReportOutputIgnoresNil(t *testing.T) {
+	mux := NewKcpMux(0, true, KcpMuxConfig{}, nil, func(service uint64, err error) {
+		t.Fatalf("reportErr should not be called for nil error")
+	})
+	defer mux.Close()
+
+	mux.reportOutput(nil)
+}
+
+func TestKcpMux_OpenRemovesStreamOnOutputError(t *testing.T) {
+	wantErr := errors.New("open failed")
+	mux := NewKcpMux(0, true, KcpMuxConfig{}, func(service uint64, data []byte) error {
+		return wantErr
+	}, nil)
+	defer mux.Close()
+
+	if _, err := mux.Open(); !errors.Is(err, wantErr) {
+		t.Fatalf("Open err=%v, want %v", err, wantErr)
+	}
+	if got := mux.NumStreams(); got != 0 {
+		t.Fatalf("NumStreams=%d, want 0 after failed Open", got)
+	}
+}
+
+func TestKcpMux_InputInvalidFramesForExistingAndUnknownStreams(t *testing.T) {
+	client, server := kcpMuxPair(t, KcpMuxConfig{})
+	defer client.Close()
+	defer server.Close()
+
+	clientStream, err := client.Open()
+	if err != nil {
+		t.Fatalf("Open failed: %v", err)
+	}
+	defer clientStream.Close()
+	serverStream := acceptWithTimeout(t, server, 2*time.Second)
+	defer serverStream.Close()
+
+	frame := binary.AppendUvarint(nil, 1)
+	frame = append(frame, kcpMuxFrameOpen, 0x01)
+	if err := server.Input(frame); err != nil {
+		t.Fatalf("Input(existing invalid open payload) failed: %v", err)
+	}
+
+	buf := make([]byte, 1)
+	_ = clientStream.SetReadDeadline(time.Now().Add(2 * time.Second))
+	if _, err := clientStream.Read(buf); err == nil || errors.Is(err, io.EOF) {
+		t.Fatalf("expected invalid-close error after malformed open, got %v", err)
+	}
+
+	unknownData := binary.AppendUvarint(nil, 99)
+	unknownData = append(unknownData, kcpMuxFrameData, 0x01)
+	if err := server.Input(unknownData); err != nil {
+		t.Fatalf("Input(unknown data stream) failed: %v", err)
+	}
+}
+
+func TestKcpMux_CloseStreamTwiceAndMissingStream(t *testing.T) {
+	client, server := kcpMuxPair(t, KcpMuxConfig{})
+	defer client.Close()
+	defer server.Close()
+
+	stream, err := client.Open()
+	if err != nil {
+		t.Fatalf("Open failed: %v", err)
+	}
+	defer stream.Close()
+	serverStream := acceptWithTimeout(t, server, 2*time.Second)
+	defer serverStream.Close()
+
+	if err := client.closeStream(1); err != nil {
+		t.Fatalf("closeStream(first) failed: %v", err)
+	}
+	if err := client.closeStream(1); err != nil {
+		t.Fatalf("closeStream(second) failed: %v", err)
+	}
+	if err := client.closeStream(999); err != nil {
+		t.Fatalf("closeStream(missing) failed: %v", err)
+	}
+}
+

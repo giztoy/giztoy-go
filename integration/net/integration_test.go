@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/haivivi/giztoy/go/integration/testutil"
-	gnet "github.com/haivivi/giztoy/go/pkg/net/core"
+	"github.com/haivivi/giztoy/go/pkg/net/core"
 	"github.com/haivivi/giztoy/go/pkg/net/noise"
 )
 
@@ -25,7 +25,7 @@ func TestIntegration_ConnectionPoolCapacity(t *testing.T) {
 	server := testutil.NewUDPNode(t, serverKey)
 	defer server.Close()
 
-	clients := make([]*gnet.UDP, 0, peerCount)
+	clients := make([]*core.UDP, 0, peerCount)
 	clientKeys := make([]*noise.KeyPair, 0, peerCount)
 	defer func() {
 		for _, c := range clients {
@@ -49,9 +49,9 @@ func TestIntegration_ConnectionPoolCapacity(t *testing.T) {
 		t.Fatalf("server peer count=%d, want >= %d", got, peerCount)
 	}
 
-	for i := 0; i < peerCount; i++ {
+	for i := range peerCount {
 		msg := []byte(fmt.Sprintf("peer-%02d", i))
-		n, err := clients[i].Write(serverKey.Public, noise.ProtocolEVENT, msg)
+		n, err := testutil.MustServiceMux(t, clients[i], serverKey.Public).Write(core.ProtocolEVENT, msg)
 		if err != nil {
 			t.Fatalf("client[%d] Write failed: %v", i, err)
 		}
@@ -60,8 +60,8 @@ func TestIntegration_ConnectionPoolCapacity(t *testing.T) {
 		}
 
 		proto, got := testutil.ReadFromPeerWithTimeout(t, server, clientKeys[i].Public, 3*time.Second)
-		if proto != noise.ProtocolEVENT {
-			t.Fatalf("server received proto=%d from client[%d], want %d", proto, i, noise.ProtocolEVENT)
+		if proto != core.ProtocolEVENT {
+			t.Fatalf("server received proto=%d from client[%d], want %d", proto, i, core.ProtocolEVENT)
 		}
 		if !bytes.Equal(got, msg) {
 			t.Fatalf("server payload mismatch from client[%d]: got=%q want=%q", i, string(got), string(msg))
@@ -100,13 +100,13 @@ func TestIntegration_NetworkInterruptionReconnect(t *testing.T) {
 	}
 
 	msg := []byte("after-reconnect")
-	if _, err := clientV2.Write(serverKey.Public, noise.ProtocolEVENT, msg); err != nil {
+	if _, err := testutil.MustServiceMux(t, clientV2, serverKey.Public).Write(core.ProtocolEVENT, msg); err != nil {
 		t.Fatalf("clientV2 Write failed: %v", err)
 	}
 
 	proto, got := testutil.ReadFromPeerWithTimeout(t, server, clientKey.Public, 3*time.Second)
-	if proto != noise.ProtocolEVENT {
-		t.Fatalf("server proto after reconnect=%d, want %d", proto, noise.ProtocolEVENT)
+	if proto != core.ProtocolEVENT {
+		t.Fatalf("server proto after reconnect=%d, want %d", proto, core.ProtocolEVENT)
 	}
 	if !bytes.Equal(got, msg) {
 		t.Fatalf("server payload after reconnect mismatch: got=%q want=%q", string(got), string(msg))
@@ -143,7 +143,7 @@ func TestIntegration_KCPService0Stream(t *testing.T) {
 	acceptCh := make(chan net.Conn, 1)
 	errCh := make(chan error, 1)
 	go func() {
-		stream, err := server.AcceptStreamOn(clientKey.Public, 0)
+		stream, err := testutil.MustServiceMux(t, server, clientKey.Public).AcceptStream(0)
 		if err != nil {
 			errCh <- err
 			return
@@ -151,7 +151,7 @@ func TestIntegration_KCPService0Stream(t *testing.T) {
 		acceptCh <- stream
 	}()
 
-	clientStream, err := client.OpenStream(serverKey.Public, 0)
+	clientStream, err := testutil.MustServiceMux(t, client, serverKey.Public).OpenStream(0)
 	if err != nil {
 		t.Fatalf("client OpenStream(service=0) failed: %v", err)
 	}
@@ -167,9 +167,9 @@ func TestIntegration_KCPService0Stream(t *testing.T) {
 	case serverStream = <-acceptCh:
 		defer serverStream.Close()
 	case err := <-errCh:
-		t.Fatalf("server AcceptStreamOn failed: %v", err)
+		t.Fatalf("server AcceptStream failed: %v", err)
 	case <-time.After(5 * time.Second):
-		t.Fatal("server AcceptStreamOn timeout")
+		t.Fatal("server AcceptStream timeout")
 	}
 
 	if got := testutil.ReadExactWithTimeout(t, serverStream, len(request), 5*time.Second); !bytes.Equal(got, request) {
@@ -207,7 +207,7 @@ func TestIntegration_KCPStreamActiveClose(t *testing.T) {
 	acceptCh := make(chan net.Conn, 1)
 	errCh := make(chan error, 1)
 	go func() {
-		stream, err := server.AcceptStreamOn(clientKey.Public, 0)
+		stream, err := testutil.MustServiceMux(t, server, clientKey.Public).AcceptStream(0)
 		if err != nil {
 			errCh <- err
 			return
@@ -215,7 +215,7 @@ func TestIntegration_KCPStreamActiveClose(t *testing.T) {
 		acceptCh <- stream
 	}()
 
-	clientStream, err := client.OpenStream(serverKey.Public, 0)
+	clientStream, err := testutil.MustServiceMux(t, client, serverKey.Public).OpenStream(0)
 	if err != nil {
 		t.Fatalf("client OpenStream failed: %v", err)
 	}
@@ -230,9 +230,9 @@ func TestIntegration_KCPStreamActiveClose(t *testing.T) {
 	case serverStream = <-acceptCh:
 		defer serverStream.Close()
 	case err := <-errCh:
-		t.Fatalf("server AcceptStreamOn failed: %v", err)
+		t.Fatalf("server AcceptStream failed: %v", err)
 	case <-time.After(5 * time.Second):
-		t.Fatal("server AcceptStreamOn timeout")
+		t.Fatal("server AcceptStream timeout")
 	}
 
 	if got := testutil.ReadExactWithTimeout(t, serverStream, 1, 5*time.Second); !bytes.Equal(got, []byte("x")) {
@@ -301,7 +301,7 @@ func TestIntegration_KCPMultiStreamSoak(t *testing.T) {
 			go func() {
 				defer wg.Done()
 				for i := 0; i < perService; i++ {
-					stream, err := server.AcceptStreamOn(clientKey.Public, svc)
+					stream, err := testutil.MustServiceMux(t, server, clientKey.Public).AcceptStream(svc)
 					if err != nil {
 						errCh <- err
 						return
@@ -328,7 +328,7 @@ func TestIntegration_KCPMultiStreamSoak(t *testing.T) {
 				wg.Add(1)
 				go func(service uint64, msg []byte) {
 					defer wg.Done()
-					clientStream, err := client.OpenStream(serverKey.Public, service)
+					clientStream, err := testutil.MustServiceMux(t, client, serverKey.Public).OpenStream(service)
 					if err != nil {
 						errCh <- err
 						return
@@ -379,10 +379,12 @@ func TestIntegration_KCPService0AndNonZeroConcurrentActivity(t *testing.T) {
 
 	errCh := make(chan error, 4)
 	done := make(chan string, 2)
+	svc0RespRead := make(chan struct{})
+	svc7RespRead := make(chan struct{})
 	var clientWG sync.WaitGroup
 
 	go func() {
-		stream, err := server.AcceptStreamOn(clientKey.Public, 0)
+		stream, err := testutil.MustServiceMux(t, server, clientKey.Public).AcceptStream(0)
 		if err != nil {
 			errCh <- err
 			return
@@ -399,11 +401,12 @@ func TestIntegration_KCPService0AndNonZeroConcurrentActivity(t *testing.T) {
 			errCh <- err
 			return
 		}
+		<-svc0RespRead
 		done <- "svc0"
 	}()
 
 	go func() {
-		stream, err := server.AcceptStreamOn(clientKey.Public, 7)
+		stream, err := testutil.MustServiceMux(t, server, clientKey.Public).AcceptStream(7)
 		if err != nil {
 			errCh <- err
 			return
@@ -420,6 +423,7 @@ func TestIntegration_KCPService0AndNonZeroConcurrentActivity(t *testing.T) {
 			errCh <- err
 			return
 		}
+		<-svc7RespRead
 		done <- "svc7"
 	}()
 
@@ -428,7 +432,7 @@ func TestIntegration_KCPService0AndNonZeroConcurrentActivity(t *testing.T) {
 	clientWG.Add(1)
 	go func() {
 		defer clientWG.Done()
-		stream, err := client.OpenStream(serverKey.Public, 0)
+		stream, err := testutil.MustServiceMux(t, client, serverKey.Public).OpenStream(0)
 		if err != nil {
 			errCh <- err
 			return
@@ -443,13 +447,15 @@ func TestIntegration_KCPService0AndNonZeroConcurrentActivity(t *testing.T) {
 		resp := []byte(`{"ok":true}`)
 		if got := testutil.ReadExactWithTimeout(t, stream, len(resp), 5*time.Second); !bytes.Equal(got, resp) {
 			errCh <- fmt.Errorf("service 0 resp mismatch: got=%q want=%q", got, resp)
+			return
 		}
+		close(svc0RespRead)
 	}()
 
 	clientWG.Add(1)
 	go func() {
 		defer clientWG.Done()
-		stream, err := client.OpenStream(serverKey.Public, 7)
+		stream, err := testutil.MustServiceMux(t, client, serverKey.Public).OpenStream(7)
 		if err != nil {
 			errCh <- err
 			return
@@ -464,7 +470,9 @@ func TestIntegration_KCPService0AndNonZeroConcurrentActivity(t *testing.T) {
 		resp := []byte("nonzero-response")
 		if got := testutil.ReadExactWithTimeout(t, stream, len(resp), 5*time.Second); !bytes.Equal(got, resp) {
 			errCh <- fmt.Errorf("service 7 resp mismatch: got=%q want=%q", got, resp)
+			return
 		}
+		close(svc7RespRead)
 	}()
 
 	for i := 0; i < 2; i++ {
@@ -508,7 +516,7 @@ func TestIntegration_KCPNonZeroServiceStream(t *testing.T) {
 	acceptCh := make(chan net.Conn, 1)
 	errCh := make(chan error, 1)
 	go func() {
-		accepted, err := server.AcceptStreamOn(clientKey.Public, 7)
+		accepted, err := testutil.MustServiceMux(t, server, clientKey.Public).AcceptStream(7)
 		if err != nil {
 			errCh <- err
 			return
@@ -518,7 +526,7 @@ func TestIntegration_KCPNonZeroServiceStream(t *testing.T) {
 
 	time.Sleep(50 * time.Millisecond)
 
-	stream, err := client.OpenStream(serverKey.Public, 7)
+	stream, err := testutil.MustServiceMux(t, client, serverKey.Public).OpenStream(7)
 	if err != nil {
 		t.Fatalf("OpenStream(service=7) err=%v", err)
 	}
@@ -533,9 +541,9 @@ func TestIntegration_KCPNonZeroServiceStream(t *testing.T) {
 	select {
 	case accepted = <-acceptCh:
 	case err := <-errCh:
-		t.Fatalf("AcceptStreamOn(7) err=%v", err)
+		t.Fatalf("AcceptStream(7) err=%v", err)
 	case <-time.After(5 * time.Second):
-		t.Fatal("AcceptStreamOn(7) timeout")
+		t.Fatal("AcceptStream(7) timeout")
 	}
 	defer accepted.Close()
 
@@ -564,13 +572,13 @@ func TestIntegration_RPCBidirectionalOverKCPStream(t *testing.T) {
 
 	testutil.ConnectNodes(t, client, clientKey, server, serverKey)
 
-	assertRPC := func(caller, callee *gnet.UDP, callerPK, calleePK noise.PublicKey, req, resp []byte) {
+	assertRPC := func(caller, callee *core.UDP, callerPK, calleePK noise.PublicKey, req, resp []byte) {
 		t.Helper()
 
 		acceptCh := make(chan net.Conn, 1)
 		errCh := make(chan error, 1)
 		go func() {
-			stream, err := callee.AcceptStreamOn(callerPK, 0)
+			stream, err := testutil.MustServiceMux(t, callee, callerPK).AcceptStream(0)
 			if err != nil {
 				errCh <- err
 				return
@@ -578,7 +586,7 @@ func TestIntegration_RPCBidirectionalOverKCPStream(t *testing.T) {
 			acceptCh <- stream
 		}()
 
-		callerStream, err := caller.OpenStream(calleePK, 0)
+		callerStream, err := testutil.MustServiceMux(t, caller, calleePK).OpenStream(0)
 		if err != nil {
 			t.Fatalf("OpenStream failed: %v", err)
 		}
@@ -638,13 +646,13 @@ func TestIntegration_EVENTFireAndForgetBidirectional(t *testing.T) {
 	start := time.Now()
 	for i := 0; i < burst; i++ {
 		msg := []byte(fmt.Sprintf("event-c2s-%02d", i))
-		if _, err := client.Write(serverKey.Public, noise.ProtocolEVENT, msg); err != nil {
+		if _, err := testutil.MustServiceMux(t, client, serverKey.Public).Write(core.ProtocolEVENT, msg); err != nil {
 			t.Fatalf("client EVENT write[%d] failed: %v", i, err)
 		}
 	}
 	for i := 0; i < burst; i++ {
 		msg := []byte(fmt.Sprintf("event-s2c-%02d", i))
-		if _, err := server.Write(clientKey.Public, noise.ProtocolEVENT, msg); err != nil {
+		if _, err := testutil.MustServiceMux(t, server, clientKey.Public).Write(core.ProtocolEVENT, msg); err != nil {
 			t.Fatalf("server EVENT write[%d] failed: %v", i, err)
 		}
 	}
@@ -655,8 +663,8 @@ func TestIntegration_EVENTFireAndForgetBidirectional(t *testing.T) {
 	for i := 0; i < burst; i++ {
 		want := []byte(fmt.Sprintf("event-c2s-%02d", i))
 		proto, got := testutil.ReadFromPeerWithTimeout(t, server, clientKey.Public, 3*time.Second)
-		if proto != noise.ProtocolEVENT {
-			t.Fatalf("server EVENT proto[%d]=%d, want %d", i, proto, noise.ProtocolEVENT)
+		if proto != core.ProtocolEVENT {
+			t.Fatalf("server EVENT proto[%d]=%d, want %d", i, proto, core.ProtocolEVENT)
 		}
 		if !bytes.Equal(got, want) {
 			t.Fatalf("server EVENT payload[%d] mismatch: got=%q want=%q", i, string(got), string(want))
@@ -666,8 +674,8 @@ func TestIntegration_EVENTFireAndForgetBidirectional(t *testing.T) {
 	for i := 0; i < burst; i++ {
 		want := []byte(fmt.Sprintf("event-s2c-%02d", i))
 		proto, got := testutil.ReadFromPeerWithTimeout(t, client, serverKey.Public, 3*time.Second)
-		if proto != noise.ProtocolEVENT {
-			t.Fatalf("client EVENT proto[%d]=%d, want %d", i, proto, noise.ProtocolEVENT)
+		if proto != core.ProtocolEVENT {
+			t.Fatalf("client EVENT proto[%d]=%d, want %d", i, proto, core.ProtocolEVENT)
 		}
 		if !bytes.Equal(got, want) {
 			t.Fatalf("client EVENT payload[%d] mismatch: got=%q want=%q", i, string(got), string(want))
@@ -697,7 +705,7 @@ func TestIntegration_OPUSFramesOrdered(t *testing.T) {
 	const frames = 40
 	for i := 0; i < frames; i++ {
 		frame := []byte(fmt.Sprintf("opus-frame-%03d", i))
-		if _, err := client.Write(serverKey.Public, noise.ProtocolOPUS, frame); err != nil {
+		if _, err := testutil.MustServiceMux(t, client, serverKey.Public).Write(core.ProtocolOPUS, frame); err != nil {
 			t.Fatalf("client OPUS write[%d] failed: %v", i, err)
 		}
 	}
@@ -705,8 +713,8 @@ func TestIntegration_OPUSFramesOrdered(t *testing.T) {
 	for i := 0; i < frames; i++ {
 		want := []byte(fmt.Sprintf("opus-frame-%03d", i))
 		proto, got := testutil.ReadFromPeerWithTimeout(t, server, clientKey.Public, 3*time.Second)
-		if proto != noise.ProtocolOPUS {
-			t.Fatalf("server OPUS proto[%d]=%d, want %d", i, proto, noise.ProtocolOPUS)
+		if proto != core.ProtocolOPUS {
+			t.Fatalf("server OPUS proto[%d]=%d, want %d", i, proto, core.ProtocolOPUS)
 		}
 		if !bytes.Equal(got, want) {
 			t.Fatalf("server OPUS payload[%d] mismatch: got=%q want=%q", i, string(got), string(want))
@@ -729,12 +737,13 @@ func TestIntegration_WriteValidationPrecedesPeerLookup(t *testing.T) {
 	u := testutil.NewUDPNode(t, localKey)
 	defer u.Close()
 
-	if _, err := u.Write(remoteKey.Public, noise.ProtocolRPC, []byte("rpc-over-datagram")); err != gnet.ErrRPCMustUseStream {
-		t.Fatalf("Write(RPC datagram) err=%v, want %v", err, gnet.ErrRPCMustUseStream)
+	smux := core.NewServiceMux(remoteKey.Public, core.ServiceMuxConfig{})
+	if _, err := smux.Write(core.ProtocolRPC, []byte("rpc-over-datagram")); err != core.ErrRPCMustUseStream {
+		t.Fatalf("Write(RPC datagram) err=%v, want %v", err, core.ErrRPCMustUseStream)
 	}
 
-	if _, err := u.Write(remoteKey.Public, 0x7f, []byte("unsupported")); err != gnet.ErrUnsupportedProtocol {
-		t.Fatalf("Write(unsupported protocol) err=%v, want %v", err, gnet.ErrUnsupportedProtocol)
+	if _, err := smux.Write(0x7f, []byte("unsupported")); err != core.ErrUnsupportedProtocol {
+		t.Fatalf("Write(unsupported protocol) err=%v, want %v", err, core.ErrUnsupportedProtocol)
 	}
 }
 
@@ -753,17 +762,8 @@ func TestIntegration_UnknownPeerOperations(t *testing.T) {
 	u := testutil.NewUDPNode(t, localKey)
 	defer u.Close()
 
-	if _, err := u.Write(unknownKey.Public, noise.ProtocolEVENT, []byte("x")); err != gnet.ErrPeerNotFound {
-		t.Fatalf("Write(unknown peer) err=%v, want %v", err, gnet.ErrPeerNotFound)
-	}
-
-	buf := make([]byte, 8)
-	if _, _, err := u.Read(unknownKey.Public, buf); err != gnet.ErrPeerNotFound {
-		t.Fatalf("Read(unknown peer) err=%v, want %v", err, gnet.ErrPeerNotFound)
-	}
-
-	if _, err := u.OpenStream(unknownKey.Public, 0); err != gnet.ErrPeerNotFound {
-		t.Fatalf("OpenStream(unknown peer) err=%v, want %v", err, gnet.ErrPeerNotFound)
+	if _, err := u.GetServiceMux(unknownKey.Public); err != core.ErrPeerNotFound {
+		t.Fatalf("GetServiceMux(unknown peer) err=%v, want %v", err, core.ErrPeerNotFound)
 	}
 
 }
@@ -789,8 +789,8 @@ func TestIntegration_StreamBeforeSession(t *testing.T) {
 	client.SetPeerEndpoint(serverKey.Public, server.HostInfo().Addr)
 	server.SetPeerEndpoint(clientKey.Public, client.HostInfo().Addr)
 
-	if _, err := client.OpenStream(serverKey.Public, 0); err != gnet.ErrNoSession {
-		t.Fatalf("OpenStream(before session) err=%v, want %v", err, gnet.ErrNoSession)
+	if _, err := client.GetServiceMux(serverKey.Public); err != core.ErrNoSession {
+		t.Fatalf("OpenStream(before session) err=%v, want %v", err, core.ErrNoSession)
 	}
 
 }
@@ -812,17 +812,8 @@ func TestIntegration_ClosedNodeOperations(t *testing.T) {
 		t.Fatalf("Close failed: %v", err)
 	}
 
-	if _, err := u.Write(peerKey.Public, noise.ProtocolEVENT, []byte("x")); err != gnet.ErrClosed {
-		t.Fatalf("Write(after close) err=%v, want %v", err, gnet.ErrClosed)
-	}
-
-	if _, err := u.OpenStream(peerKey.Public, 0); err != gnet.ErrClosed {
-		t.Fatalf("OpenStream(after close) err=%v, want %v", err, gnet.ErrClosed)
-	}
-
-	buf := make([]byte, 8)
-	if _, _, err := u.Read(peerKey.Public, buf); err != gnet.ErrClosed {
-		t.Fatalf("Read(after close) err=%v, want %v", err, gnet.ErrClosed)
+	if _, err := u.GetServiceMux(peerKey.Public); err != core.ErrClosed {
+		t.Fatalf("GetServiceMux(after close) err=%v, want %v", err, core.ErrClosed)
 	}
 }
 
@@ -849,13 +840,13 @@ func TestIntegration_ZeroLengthPayloads(t *testing.T) {
 		name  string
 		proto byte
 	}{
-		{name: "EVENT empty payload", proto: noise.ProtocolEVENT},
-		{name: "OPUS empty payload", proto: noise.ProtocolOPUS},
+		{name: "EVENT empty payload", proto: core.ProtocolEVENT},
+		{name: "OPUS empty payload", proto: core.ProtocolOPUS},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			n, err := client.Write(serverKey.Public, tc.proto, nil)
+			n, err := testutil.MustServiceMux(t, client, serverKey.Public).Write(tc.proto, nil)
 			if err != nil {
 				t.Fatalf("Write(empty payload) failed: %v", err)
 			}

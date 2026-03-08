@@ -178,7 +178,7 @@ func TestRekeyInitiatorFlow(t *testing.T) {
 
 	// Test that communication still works with new session
 	testData := []byte("message after rekey")
-	if err := initiator.Send(noise.ProtocolEVENT, testData); err != nil {
+	if err := initiator.Send(ProtocolEVENT, testData); err != nil {
 		t.Fatalf("Send after rekey error = %v", err)
 	}
 
@@ -186,7 +186,7 @@ func TestRekeyInitiatorFlow(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Recv after rekey error = %v", err)
 	}
-	if proto != noise.ProtocolEVENT || !bytes.Equal(payload, testData) {
+	if proto != ProtocolEVENT || !bytes.Equal(payload, testData) {
 		t.Errorf("Message mismatch after rekey")
 	}
 }
@@ -394,7 +394,7 @@ func TestRekeyWithDataExchange(t *testing.T) {
 
 	// Exchange data before rekey
 	preRekeyData := []byte("before rekey")
-	if err := initiator.Send(noise.ProtocolEVENT, preRekeyData); err != nil {
+	if err := initiator.Send(ProtocolEVENT, preRekeyData); err != nil {
 		t.Fatalf("Send before rekey error = %v", err)
 	}
 	proto, payload, _ := responder.Recv()
@@ -418,7 +418,7 @@ func TestRekeyWithDataExchange(t *testing.T) {
 
 	// Exchange data after rekey
 	postRekeyData := []byte("after rekey")
-	if err := initiator.Send(noise.ProtocolEVENT, postRekeyData); err != nil {
+	if err := initiator.Send(ProtocolEVENT, postRekeyData); err != nil {
 		t.Fatalf("Send after rekey error = %v", err)
 	}
 	proto, payload, err := responder.Recv()
@@ -430,14 +430,14 @@ func TestRekeyWithDataExchange(t *testing.T) {
 	}
 
 	// Bidirectional
-	if err := responder.Send(noise.ProtocolEVENT, postRekeyData); err != nil {
+	if err := responder.Send(ProtocolEVENT, postRekeyData); err != nil {
 		t.Fatalf("Responder send after rekey error = %v", err)
 	}
 	proto, payload, err = initiator.Recv()
 	if err != nil {
 		t.Fatalf("Initiator recv after rekey error = %v", err)
 	}
-	if proto != noise.ProtocolEVENT || !bytes.Equal(payload, postRekeyData) {
+	if proto != ProtocolEVENT || !bytes.Equal(payload, postRekeyData) {
 		t.Error("Bidirectional data mismatch after rekey")
 	}
 }
@@ -464,7 +464,7 @@ func TestMultipleRekeys(t *testing.T) {
 
 		// Verify communication
 		testData := []byte("test")
-		if err := initiator.Send(noise.ProtocolEVENT, testData); err != nil {
+		if err := initiator.Send(ProtocolEVENT, testData); err != nil {
 			t.Fatalf("Rekey %d: send error = %v", i, err)
 		}
 		_, payload, err := responder.Recv()

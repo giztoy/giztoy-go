@@ -100,10 +100,13 @@ func (t *MockTransport) RecvFrom(buf []byte) (int, noise.Addr, error) {
 	select {
 	case <-t.done:
 		return 0, nil, ErrMockTransportClosed
-	case pkt, ok := <-t.inbox:
-		if !ok {
-			return 0, nil, ErrMockTransportClosed
-		}
+	default:
+	}
+
+	select {
+	case <-t.done:
+		return 0, nil, ErrMockTransportClosed
+	case pkt := <-t.inbox:
 		n := copy(buf, pkt.data)
 		return n, pkt.from, nil
 	}
@@ -119,8 +122,7 @@ func (t *MockTransport) Close() error {
 	}
 
 	t.closed = true
-	close(t.done)  // Signal closure to all goroutines
-	close(t.inbox) // Close inbox to unblock RecvFrom
+	close(t.done)
 	return nil
 }
 

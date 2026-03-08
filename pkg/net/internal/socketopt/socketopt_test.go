@@ -116,3 +116,46 @@ func TestBatchConnFallbackOnNonLinux(t *testing.T) {
 		t.Fatalf("ReceivedFrom fallback=%v, want nil", got)
 	}
 }
+
+func TestOptimizationReportStringVariants(t *testing.T) {
+	report := &OptimizationReport{
+		Entries: []OptimizationEntry{
+			{Name: "rcv", Applied: true, Detail: "SO_RCVBUF=1"},
+			{Name: "snd", Err: errors.New("unsupported")},
+			{Name: "busy", Detail: "disabled"},
+			{Name: "gro"},
+		},
+	}
+
+	text := report.String()
+	if !strings.Contains(text, "[ok]") {
+		t.Fatalf("report missing ok entry: %s", text)
+	}
+	if !strings.Contains(text, "[not available: unsupported]") {
+		t.Fatalf("report missing error entry: %s", text)
+	}
+	if !strings.Contains(text, "[disabled]") {
+		t.Fatalf("report missing detail-only entry: %s", text)
+	}
+	if !strings.Contains(text, "[skipped]") {
+		t.Fatalf("report missing skipped entry: %s", text)
+	}
+}
+
+func TestApplyUsesFallbackBufferSizes(t *testing.T) {
+	conn, err := net.ListenUDP("udp", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1)})
+	if err != nil {
+		t.Fatalf("ListenUDP failed: %v", err)
+	}
+	defer conn.Close()
+
+	report := Apply(conn, Config{RecvBufSize: -1, SendBufSize: 0})
+	if report == nil || len(report.Entries) < 2 {
+		t.Fatalf("Apply fallback report=%v, want at least 2 entries", report)
+	}
+
+	text := report.String()
+	if !strings.Contains(text, "SO_RCVBUF=") || !strings.Contains(text, "SO_SNDBUF=") {
+		t.Fatalf("report string missing socket buffer details: %s", text)
+	}
+}

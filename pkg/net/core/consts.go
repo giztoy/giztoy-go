@@ -57,7 +57,8 @@ const (
 	// DecryptedChanSize is the buffer size for decrypted packets to ReadFrom.
 	DecryptedChanSize = 256
 
-	// InboundChanSize is the buffer size for non-KCP packets routed to Peer.Read().
-	// This should be large enough to handle burst traffic while Peer.Read() catches up.
+	// InboundChanSize is the buffer size for direct EVENT/OPUS packets queued in
+	// each ServiceMux serviceState's eventInbound / opusInbound channels.
+	// This should be large enough to handle burst traffic while readers catch up.
 	InboundChanSize = 8192
 )

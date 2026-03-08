@@ -103,7 +103,7 @@ func TestRPCRouteErrorCounterOnSmuxInputFailure(t *testing.T) {
 	before := server.HostInfo().RPCRouteErrors
 	frame := binary.AppendUvarint(nil, 1)
 	frame = append(frame, 0)
-	if err := client.sendToPeer(clientPeer, noise.ProtocolRPC, frame); err != nil {
+	if err := client.sendToPeer(clientPeer, ProtocolRPC, frame); err != nil {
 		t.Fatalf("sendToPeer(RPC) failed: %v", err)
 	}
 
@@ -130,14 +130,23 @@ func TestInboundDropCounterWhenPeerQueueFull(t *testing.T) {
 		t.Fatal("server peer not found")
 	}
 
-	serverPeer.mu.Lock()
-	serverPeer.inboundChan = make(chan protoPacket, 1)
-	serverPeer.inboundChan <- protoPacket{protocol: noise.ProtocolEVENT, payload: []byte("seed")}
-	serverPeer.mu.Unlock()
+	if serverPeer.serviceMux == nil {
+		t.Fatal("server service mux not initialized")
+	}
+
+	for i := 0; i < InboundChanSize; i++ {
+		if err := serverPeer.serviceMux.Input(0, ProtocolEVENT, []byte("seed")); err != nil {
+			t.Fatalf("failed to fill service mux inbound queue at %d: %v", i, err)
+		}
+	}
 
 	before := server.HostInfo().DroppedInboundPackets
-	if _, err := client.Write(serverKey.Public, noise.ProtocolEVENT, []byte("drop-me")); err != nil {
-		t.Fatalf("client.Write(EVENT) failed: %v", err)
+	clientMux, err := client.GetServiceMux(serverKey.Public)
+	if err != nil {
+		t.Fatalf("client.GetServiceMux failed: %v", err)
+	}
+	if _, err := clientMux.Write(ProtocolEVENT, []byte("drop-me")); err != nil {
+		t.Fatalf("client mux Write(EVENT) failed: %v", err)
 	}
 
 	deadline := time.Now().Add(2 * time.Second)

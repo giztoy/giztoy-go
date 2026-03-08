@@ -121,6 +121,13 @@ func (l *Listener) pollNewPeer() *Conn {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 
+	for pk := range l.known {
+		info := l.udp.PeerInfo(pk)
+		if info == nil || info.State == core.PeerStateFailed {
+			delete(l.known, pk)
+		}
+	}
+
 	for p := range l.udp.Peers() {
 		if p == nil || p.Info == nil {
 			continue

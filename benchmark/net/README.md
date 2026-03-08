@@ -5,12 +5,6 @@ This directory contains benchmark suites for `pkg/net` protocol stacks:
 1. `KCP` (raw KCP over UDP)
 2. `Noise` transport
 3. `KCP over Noise`
-4. `Yamux over KCP over Noise`
-
-The suite also includes a composite concurrency benchmark for:
-
-- multiple KCP services in parallel
-- multiple yamux streams inside each KCP service
 
 ---
 
@@ -19,8 +13,6 @@ The suite also includes a composite concurrency benchmark for:
 ```text
 benchmark/net/
 ├── *_bench_test.go
-├── SMOKE_RESULT.md
-├── FULL_RESULT.md
 └── internal/
     ├── framework/   # UDP harness, matrix config, metrics
     ├── adapters/    # Protocol stack adapters
@@ -99,9 +91,6 @@ Important:
 | `BENCH_NET_PAYLOAD_SIZES` | Payload sizes in bytes | smoke:`1024`, full:`64,1024,4096` |
 | `BENCH_NET_LOSS_RATES` | In-process loss rates | `0` |
 | `BENCH_NET_PARALLEL_STREAMS` | Stream parallelism | smoke:`1,8`, full:`1,8,32` |
-| `BENCH_NET_COMPOSITE_LEVELS` | Fallback diagonal levels (L => L KCP × L yamux) | smoke:`10`, full:`10,100` |
-| `BENCH_NET_KCP_SERVICE_LEVELS` | KCP service levels for composite benchmark | smoke:`10`, full:`10,100` |
-| `BENCH_NET_YAMUX_PER_KCP_LEVELS` | Yamux-per-KCP levels for composite benchmark | smoke:`10`, full:`10,100` |
 | `BENCH_NET_MAX_TOTAL_STREAMS` | Safety cap for total composite streams | `100000` |
 | `BENCH_NET_UDP_BASE_PORT` | UDP base port (A=base, B=base+1) | `41000` |
 
@@ -109,15 +98,5 @@ Important:
 
 ## Result Files
 
-Benchmark reports are kept separate from this README:
+Published benchmark reports default to files under `benchmark/net/`, and report tables use a short `Key` column (`R01`, `R02`, ...), while full benchmark names are placed in the final `Details` column for readability.
 
-- `benchmark/net/SMOKE_RESULT.md`
-- `benchmark/net/FULL_RESULT.md`
-
-Report table format uses a short `Key` column (`R01`, `R02`, ...), while full benchmark names are placed in the final `Details` column for readability.
-
-Notes on extreme concurrency (optional, via env overrides):
-
-- `1000 × 1000` means **1,000,000** streams total.
-- This case is included in the matrix definition but may be skipped by default if it exceeds `BENCH_NET_MAX_TOTAL_STREAMS`.
-- To force the run, set e.g. `BENCH_NET_MAX_TOTAL_STREAMS=1000000` explicitly.

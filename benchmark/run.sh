@@ -60,7 +60,7 @@ Fixed profile defaults:
 Examples:
   ./benchmark/run.sh --profile clean --scale smoke --no-system-netem
   ./benchmark/run.sh --profile all --scale full --manual --publish-result
-  ./benchmark/run.sh --profile all --scale full --manual --bench 'BenchmarkNet_YamuxOverKCPOverNoise_MultiKCPAggregateThroughput$'
+  ./benchmark/run.sh --profile all --scale full --manual --bench 'BenchmarkNet_KCPOverNoise_'
 EOF
 }
 

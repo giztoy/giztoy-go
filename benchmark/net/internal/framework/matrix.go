@@ -13,9 +13,6 @@ const (
 	envLossRates    = "BENCH_NET_LOSS_RATES"
 	envParallels    = "BENCH_NET_PARALLEL_STREAMS"
 	envScale        = "BENCH_NET_SCALE"
-	envKCPLevels    = "BENCH_NET_KCP_SERVICE_LEVELS"
-	envYamuxLevels  = "BENCH_NET_YAMUX_PER_KCP_LEVELS"
-	envComposite    = "BENCH_NET_COMPOSITE_LEVELS"
 	envMaxTotal     = "BENCH_NET_MAX_TOTAL_STREAMS"
 )
 
@@ -104,41 +101,6 @@ func ParallelStreams() []int {
 		defaults = []int{1, 8}
 	}
 	return parseIntList(envParallels, defaults)
-}
-
-// CompositeLevels returns levels for multi-KCP x multi-yamux benchmarks.
-// Each level L means: L KCP services and L yamux streams per service.
-//
-// Env override example:
-//
-//	BENCH_NET_COMPOSITE_LEVELS=10,100,1000
-func CompositeLevels() []int {
-	defaults := []int{10, 100}
-	switch BenchmarkScale() {
-	case ScaleSmoke:
-		defaults = []int{10}
-	}
-	return parseIntList(envComposite, defaults)
-}
-
-// KCPServiceLevels returns KCP service concurrency levels.
-//
-// Env override example:
-//
-//	BENCH_NET_KCP_SERVICE_LEVELS=10,100,1000
-func KCPServiceLevels() []int {
-	defaults := CompositeLevels()
-	return parseIntList(envKCPLevels, defaults)
-}
-
-// YamuxPerKCPLevels returns yamux streams-per-KCP levels.
-//
-// Env override example:
-//
-//	BENCH_NET_YAMUX_PER_KCP_LEVELS=10,100,1000
-func YamuxPerKCPLevels() []int {
-	defaults := CompositeLevels()
-	return parseIntList(envYamuxLevels, defaults)
 }
 
 // MaxTotalStreams returns the safety limit for total opened streams.

@@ -3,6 +3,7 @@ package testutil
 
 import (
 	"io"
+	"net"
 	"testing"
 	"time"
 
@@ -70,6 +71,16 @@ func WaitPeerState(t *testing.T, u *gnet.UDP, pk noise.PublicKey, want gnet.Peer
 	t.Fatalf("peer state not ready before timeout: want=%s, got=%s", want, info.State)
 }
 
+func MustServiceMux(t *testing.T, u *gnet.UDP, pk noise.PublicKey) *gnet.ServiceMux {
+	t.Helper()
+
+	smux, err := u.GetServiceMux(pk)
+	if err != nil {
+		t.Fatalf("GetServiceMux failed: %v", err)
+	}
+	return smux
+}
+
 // ReadFromPeerWithTimeout 从指定 peer 读取数据（带超时）
 func ReadFromPeerWithTimeout(t *testing.T, u *gnet.UDP, pk noise.PublicKey, timeout time.Duration) (byte, []byte) {
 	t.Helper()
@@ -80,10 +91,11 @@ func ReadFromPeerWithTimeout(t *testing.T, u *gnet.UDP, pk noise.PublicKey, time
 		err     error
 	}
 
+	smux := MustServiceMux(t, u, pk)
 	ch := make(chan result, 1)
 	go func() {
 		buf := make([]byte, 65535)
-		proto, n, err := u.Read(pk, buf)
+		proto, n, err := smux.Read(buf)
 		if err != nil {
 			ch <- result{err: err}
 			return
@@ -103,6 +115,24 @@ func ReadFromPeerWithTimeout(t *testing.T, u *gnet.UDP, pk noise.PublicKey, time
 		t.Fatalf("Read timeout after %s", timeout)
 		return 0, nil
 	}
+}
+
+func OpenStream(t *testing.T, u *gnet.UDP, pk noise.PublicKey, service uint64) net.Conn {
+	t.Helper()
+	stream, err := MustServiceMux(t, u, pk).OpenStream(service)
+	if err != nil {
+		t.Fatalf("OpenStream(service=%d) failed: %v", service, err)
+	}
+	return stream
+}
+
+func AcceptStream(t *testing.T, u *gnet.UDP, pk noise.PublicKey, service uint64) net.Conn {
+	t.Helper()
+	stream, err := MustServiceMux(t, u, pk).AcceptStream(service)
+	if err != nil {
+		t.Fatalf("AcceptStream(service=%d) failed: %v", service, err)
+	}
+	return stream
 }
 
 // ReadExactWithTimeout 从 reader 读取指定字节数（带超时）

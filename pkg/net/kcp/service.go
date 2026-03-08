@@ -13,6 +13,7 @@ var (
 	ErrServiceNotFound     = errors.New("kcp: service not found")
 	ErrServiceRejected     = errors.New("kcp: service rejected")
 	ErrAcceptQueueClosed   = errors.New("kcp: accept queue closed")
+	ErrInboundQueueFull    = errors.New("kcp: inbound queue full")
 	ErrInvalidServiceFrame = errors.New("kcp: invalid service frame")
 )
 
@@ -97,7 +98,6 @@ func (m *ServiceMux) OpenStream(service uint64) (net.Conn, error) {
 	return state.mux.Open()
 }
 
-// AcceptStream accepts the next incoming stream for the given service.
 func (m *ServiceMux) AcceptStream(service uint64) (net.Conn, error) {
 	if m.closed.Load() {
 		return nil, ErrServiceMuxClosed

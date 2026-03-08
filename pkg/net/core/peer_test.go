@@ -99,21 +99,13 @@ func TestPeerOpenStreamAcceptStream(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 
 	// Open stream from client
-	clientStream, err := client.OpenStream(serverKey.Public, 0)
-	if err != nil {
-		t.Fatalf("Failed to open stream: %v", err)
-	}
+	clientStream := mustOpenStream(t, client, serverKey.Public, 0)
 	defer clientStream.Close()
 
 	serverStreamChan := make(chan io.ReadWriteCloser, 1)
 	serverErrChan := make(chan error, 1)
 	go func() {
-		stream, err := server.AcceptStreamOn(clientKey.Public, 0)
-		if err != nil {
-			serverErrChan <- err
-			return
-		}
-		serverStreamChan <- stream
+		serverStreamChan <- mustAcceptStream(t, server, clientKey.Public, 0)
 	}()
 
 	// Write data from client
@@ -212,7 +204,7 @@ func TestPeerReadWrite(t *testing.T) {
 
 	// Test Write with custom protocol
 	testData := []byte("Hello with custom protocol!")
-	testProto := byte(noise.ProtocolEVENT) // Use chat protocol
+	testProto := byte(ProtocolEVENT) // Use chat protocol
 
 	// Start Read goroutine on server
 	readResultChan := make(chan struct {
@@ -223,7 +215,8 @@ func TestPeerReadWrite(t *testing.T) {
 	}, 1)
 	go func() {
 		buf := make([]byte, 1024)
-		proto, n, err := server.Read(clientKey.Public, buf)
+		smux := mustServiceMux(t, server, clientKey.Public)
+		proto, n, err := smux.Read(buf)
 		readResultChan <- struct {
 			proto   byte
 			n       int
@@ -233,7 +226,7 @@ func TestPeerReadWrite(t *testing.T) {
 	}()
 
 	// Write from client
-	n, err := client.Write(serverKey.Public, testProto, testData)
+	n, err := mustServiceMux(t, client, serverKey.Public).Write(testProto, testData)
 	if err != nil {
 		t.Fatalf("Failed to write: %v", err)
 	}
@@ -263,7 +256,7 @@ func TestPeerWriteRejectsUnsupportedProtocol(t *testing.T) {
 	defer server.Close()
 	defer client.Close()
 
-	if _, err := client.Write(serverKey.Public, 0x55, []byte("invalid")); err != ErrUnsupportedProtocol {
+	if _, err := mustServiceMux(t, client, serverKey.Public).Write(0x55, []byte("invalid")); err != ErrUnsupportedProtocol {
 		t.Fatalf("Write(unsupported protocol) err=%v, want %v", err, ErrUnsupportedProtocol)
 	}
 }
@@ -276,20 +269,12 @@ func TestOpenStreamNonZeroService(t *testing.T) {
 	acceptedCh := make(chan net.Conn, 1)
 	errCh := make(chan error, 1)
 	go func() {
-		accepted, err := server.AcceptStreamOn(clientKey.Public, 7)
-		if err != nil {
-			errCh <- err
-			return
-		}
-		acceptedCh <- accepted
+		acceptedCh <- mustAcceptStream(t, server, clientKey.Public, 7)
 	}()
 
 	time.Sleep(50 * time.Millisecond)
 
-	stream, err := client.OpenStream(serverKey.Public, 7)
-	if err != nil {
-		t.Fatalf("OpenStream(service=7) err=%v", err)
-	}
+	stream := mustOpenStream(t, client, serverKey.Public, 7)
 	defer stream.Close()
 
 	if _, err := stream.Write([]byte("hello")); err != nil {
@@ -300,9 +285,9 @@ func TestOpenStreamNonZeroService(t *testing.T) {
 	select {
 	case accepted = <-acceptedCh:
 	case err := <-errCh:
-		t.Fatalf("AcceptStreamOn(7) err=%v", err)
+		t.Fatalf("AcceptStream(7) err=%v", err)
 	case <-time.After(5 * time.Second):
-		t.Fatal("AcceptStreamOn(7) timeout")
+		t.Fatal("AcceptStream(7) timeout")
 	}
 	defer accepted.Close()
 
@@ -334,7 +319,7 @@ func TestPeer_MultiServiceConcurrentStreams(t *testing.T) {
 		go func() {
 			defer acceptWG.Done()
 			for i := 0; i < perService; i++ {
-				stream, err := server.AcceptStreamOn(clientKey.Public, svc)
+				stream, err := mustServiceMux(t, server, clientKey.Public).AcceptStream(svc)
 				if err != nil {
 					errCh <- err
 					return
@@ -367,7 +352,7 @@ func TestPeer_MultiServiceConcurrentStreams(t *testing.T) {
 			openWG.Add(1)
 			go func(service uint64, msg []byte) {
 				defer openWG.Done()
-				stream, err := client.OpenStream(serverKey.Public, service)
+				stream, err := mustServiceMux(t, client, serverKey.Public).OpenStream(service)
 				if err != nil {
 					errCh <- err
 					return
@@ -411,7 +396,7 @@ func TestPeer_MultiServiceConcurrentBidirectionalNoCrossTalk(t *testing.T) {
 		acceptWG.Add(1)
 		go func() {
 			defer acceptWG.Done()
-			stream, err := server.AcceptStreamOn(clientKey.Public, svc)
+			stream, err := mustServiceMux(t, server, clientKey.Public).AcceptStream(svc)
 			if err != nil {
 				errCh <- err
 				return
@@ -445,7 +430,7 @@ func TestPeer_MultiServiceConcurrentBidirectionalNoCrossTalk(t *testing.T) {
 		openWG.Add(1)
 		go func() {
 			defer openWG.Done()
-			stream, err := client.OpenStream(serverKey.Public, svc)
+			stream, err := mustServiceMux(t, client, serverKey.Public).OpenStream(svc)
 			if err != nil {
 				errCh <- err
 				return

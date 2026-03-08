@@ -10,7 +10,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/haivivi/giztoy/go/pkg/net/kcp"
 	"github.com/haivivi/giztoy/go/pkg/net/noise"
 )
 
@@ -55,7 +54,7 @@ type HostInfo struct {
 	// Observability counters (network hot path)
 	DroppedOutputPackets  uint64 // dropped due to full outputChan
 	DroppedDecryptPackets uint64 // dropped due to full decryptChan
-	DroppedInboundPackets uint64 // dropped due to full peer inboundChan
+	DroppedInboundPackets uint64 // dropped from ServiceMux direct-packet routing
 	RPCRouteErrors        uint64 // failed to route RPC into ServiceMux
 	KCPOutputErrors       uint64 // ServiceMux Output callback returned error
 }
@@ -86,7 +85,7 @@ var (
 	ErrNoData          = errors.New("net: no data available")
 )
 
-// protoPacket represents a received packet with its protocol byte.
+// protoPacket represents a received non-KCP packet with its protocol byte.
 type protoPacket struct {
 	protocol byte
 	payload  []byte
@@ -142,6 +141,8 @@ var packetPool = sync.Pool{
 	},
 }
 
+var afterDecryptTransportDecryptHook func()
+
 // acquirePacket gets a packet from the pool and resets it.
 func acquirePacket() *packet {
 	outstandingPackets.Add(1)
@@ -189,7 +190,8 @@ type UDP struct {
 	socketConfig SocketConfig
 
 	// Options
-	allowUnknown bool
+	allowUnknown     bool
+	serviceMuxConfig ServiceMuxConfig
 
 	// Peer management
 	mu      sync.RWMutex
@@ -230,15 +232,13 @@ type peerState struct {
 	session  *noise.Session
 	hsState  *noise.HandshakeState // during handshake
 	state    PeerState
+	removed  bool
 	rxBytes  uint64
 	txBytes  uint64
 	lastSeen time.Time
 
 	// Stream multiplexing (initialized when session is established)
-	serviceMux *kcp.ServiceMux
-
-	// Protocol routing for non-KCP packets
-	inboundChan chan protoPacket // incoming non-KCP packets
+	serviceMux *ServiceMux
 }
 
 // pendingHandshake tracks an outgoing handshake.
@@ -260,6 +260,7 @@ type options struct {
 	rawChanSize       int // 0 = use RawChanSize constant
 	decryptedChanSize int // 0 = use DecryptedChanSize constant
 	socketConfig      SocketConfig
+	serviceMuxConfig  ServiceMuxConfig
 }
 
 // WithBindAddr sets the local address to bind to.
@@ -309,6 +310,14 @@ func WithSocketConfig(cfg SocketConfig) Option {
 	}
 }
 
+// WithServiceMuxConfig injects the per-peer ServiceMux configuration template.
+// Transport-owned fields are filled by UDP when a peer session is established.
+func WithServiceMuxConfig(cfg ServiceMuxConfig) Option {
+	return func(o *options) {
+		o.serviceMuxConfig = cfg
+	}
+}
+
 // NewUDP creates a new UDP network.
 func NewUDP(key *noise.KeyPair, opts ...Option) (*UDP, error) {
 	if key == nil {
@@ -348,16 +357,17 @@ func NewUDP(key *noise.KeyPair, opts ...Option) (*UDP, error) {
 	}
 
 	u := &UDP{
-		socket:       socket,
-		localKey:     key,
-		socketConfig: socketConfig,
-		allowUnknown: o.allowUnknown,
-		peers:        make(map[noise.PublicKey]*peerState),
-		byIndex:      make(map[uint32]*peerState),
-		pending:      make(map[uint32]*pendingHandshake),
-		decryptChan:  make(chan *packet, rawSize),
-		outputChan:   make(chan *packet, decryptedSize),
-		closeChan:    make(chan struct{}),
+		socket:           socket,
+		localKey:         key,
+		socketConfig:     socketConfig,
+		allowUnknown:     o.allowUnknown,
+		serviceMuxConfig: o.serviceMuxConfig,
+		peers:            make(map[noise.PublicKey]*peerState),
+		byIndex:          make(map[uint32]*peerState),
+		pending:          make(map[uint32]*pendingHandshake),
+		decryptChan:      make(chan *packet, rawSize),
+		outputChan:       make(chan *packet, decryptedSize),
+		closeChan:        make(chan struct{}),
 	}
 	u.lastSeen.Store(time.Time{})
 
@@ -419,23 +429,46 @@ func (u *UDP) SetPeerEndpoint(pk noise.PublicKey, endpoint net.Addr) {
 
 // RemovePeer removes a peer and its associated state.
 func (u *UDP) RemovePeer(pk noise.PublicKey) {
-	u.mu.Lock()
-	defer u.mu.Unlock()
+	var smux *ServiceMux
+	var session *noise.Session
+	var peer *peerState
 
-	peer, exists := u.peers[pk]
+	u.mu.Lock()
+	var exists bool
+	peer, exists = u.peers[pk]
 	if !exists {
+		u.mu.Unlock()
 		return
 	}
+	delete(u.peers, pk)
 
-	// Remove from index map if has session
-	peer.mu.RLock()
-	session := peer.session
-	peer.mu.RUnlock()
-	if session != nil {
-		delete(u.byIndex, session.LocalIndex())
+	peer.mu.Lock()
+	smux = peer.serviceMux
+	session = peer.session
+	peer.mu.Unlock()
+	u.mu.Unlock()
+
+	if smux != nil {
+		_ = smux.Close()
 	}
 
-	delete(u.peers, pk)
+	u.mu.Lock()
+	peer.mu.Lock()
+	peer.removed = true
+	peer.state = PeerStateFailed
+	if session != nil {
+		if current, ok := u.byIndex[session.LocalIndex()]; ok && current == peer {
+			delete(u.byIndex, session.LocalIndex())
+		}
+		if peer.session == session {
+			peer.session = nil
+		}
+	}
+	if peer.serviceMux == smux {
+		peer.serviceMux = nil
+	}
+	peer.mu.Unlock()
+	u.mu.Unlock()
 }
 
 // HostInfo returns information about the local host.
@@ -549,7 +582,7 @@ func (u *UDP) WriteTo(pk noise.PublicKey, data []byte) error {
 		return ErrPeerNotFound
 	}
 
-	return u.sendToPeer(peer, noise.ProtocolEVENT, data)
+	return u.sendToPeer(peer, ProtocolEVENT, data)
 }
 
 // ReadFrom reads the next decrypted message from any peer.
@@ -702,7 +735,6 @@ func (u *UDP) handleHandshakeInit(data []byte, from *net.UDPAddr) {
 	peer.endpoint = from
 	peer.session = session
 	peer.serviceMux = smux
-	peer.inboundChan = make(chan protoPacket, InboundChanSize)
 	peer.state = PeerStateEstablished
 	peer.lastSeen = time.Now()
 	peer.mu.Unlock()
@@ -784,7 +816,6 @@ func (u *UDP) handleHandshakeResp(data []byte, from *net.UDPAddr) {
 	peer.endpoint = from // Roaming: update endpoint
 	peer.session = session
 	peer.serviceMux = smux
-	peer.inboundChan = make(chan protoPacket, InboundChanSize)
 	peer.state = PeerStateEstablished
 	peer.lastSeen = time.Now()
 	peer.mu.Unlock()
@@ -900,7 +931,7 @@ func (u *UDP) Close() error {
 	// so in-flight CLOSE_ACK frames from the UDP decrypt path can still route back.
 	type peerMuxRef struct {
 		peer *peerState
-		smux *kcp.ServiceMux
+		smux *ServiceMux
 	}
 	refs := make([]peerMuxRef, 0)
 	u.mu.RLock()
@@ -1154,7 +1185,7 @@ func (u *UDP) processPacket(pkt *packet) {
 }
 
 // decryptTransport decrypts a transport message and fills pkt fields.
-// Also routes KCP packets to mux and non-KCP to inboundChan.
+// Also routes RPC/KCP packets to the service mux and enqueues direct UDP packets there.
 func (u *UDP) decryptTransport(pkt *packet, data []byte, from *net.UDPAddr) {
 	msg, err := noise.ParseTransportMessage(data)
 	if err != nil {
@@ -1187,19 +1218,22 @@ func (u *UDP) decryptTransport(pkt *packet, data []byte, from *net.UDPAddr) {
 		pkt.err = err
 		return
 	}
+	if afterDecryptTransportDecryptHook != nil {
+		afterDecryptTransportDecryptHook()
+	}
 
-	// Update peer state (roaming + stats) and get mux/inboundChan
+	// Update peer state (roaming + stats) and get mux
 	peer.mu.Lock()
+	if peer.removed {
+		peer.mu.Unlock()
+		pkt.err = ErrPeerNotFound
+		return
+	}
 	if peer.endpoint == nil || peer.endpoint.String() != from.String() {
 		peer.endpoint = from // Roaming
 	}
 	peer.rxBytes += uint64(len(data))
 	peer.lastSeen = time.Now()
-	// Initialize inboundChan if needed (for Peer.Read callers)
-	if peer.inboundChan == nil {
-		peer.inboundChan = make(chan protoPacket, InboundChanSize)
-	}
-	inboundChan := peer.inboundChan
 	smux := peer.serviceMux
 	peer.mu.Unlock()
 
@@ -1222,7 +1256,7 @@ func (u *UDP) decryptTransport(pkt *packet, data []byte, from *net.UDPAddr) {
 	pkt.payloadN = len(payload)
 	// RPC protocol is routed through KCP streams, not the raw passthrough path.
 	// Wire format: service_varint + kcp_data
-	if protocol == noise.ProtocolRPC {
+	if protocol == ProtocolRPC {
 		if smux == nil {
 			u.rpcRouteErrors.Add(1)
 			pkt.err = ErrNoSession
@@ -1234,7 +1268,7 @@ func (u *UDP) decryptTransport(pkt *packet, data []byte, from *net.UDPAddr) {
 			pkt.err = err
 			return
 		}
-		if err := smux.Input(service, payload[n:]); err != nil {
+		if err := smux.Input(service, protocol, payload[n:]); err != nil {
 			u.rpcRouteErrors.Add(1)
 			pkt.err = err
 			return
@@ -1243,17 +1277,18 @@ func (u *UDP) decryptTransport(pkt *packet, data []byte, from *net.UDPAddr) {
 		return
 	}
 
-	if !noise.IsFoundationProtocol(protocol) {
+	if !IsFoundationProtocol(protocol) {
 		pkt.err = ErrUnsupportedProtocol
 		return
 	}
 
-	// Non-KCP packets are delivered to caller and Peer.Read path.
-	if inboundChan != nil {
-		select {
-		case inboundChan <- protoPacket{protocol: protocol, payload: pkt.payload}:
-		default:
-			u.droppedInboundPackets.Add(1)
-		}
+	// Non-KCP packets are delivered through the peer service mux.
+	if smux == nil {
+		u.droppedInboundPackets.Add(1)
+		pkt.err = ErrNoData
+		return
+	}
+	if err := smux.Input(0, protocol, pkt.payload); err != nil {
+		u.droppedInboundPackets.Add(1)
 	}
 }

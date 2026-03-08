@@ -60,7 +60,7 @@ func TestConnSendNotEstablished(t *testing.T) {
 
 	// With the new queuing logic, Send() on a new connection queues the packet
 	// and returns ErrNotEstablished since no handshake is in progress
-	err := conn.Send(noise.ProtocolEVENT, []byte("hello"))
+	err := conn.Send(ProtocolEVENT, []byte("hello"))
 	if err != ErrNotEstablished {
 		t.Errorf("Send() error = %v, want ErrNotEstablished", err)
 	}
@@ -232,7 +232,7 @@ func TestDialAndCommunication(t *testing.T) {
 		testData := []byte("Hello from initiator!")
 
 		// Send from initiator
-		if err := initiatorConn.Send(noise.ProtocolEVENT, testData); err != nil {
+		if err := initiatorConn.Send(ProtocolEVENT, testData); err != nil {
 			t.Fatalf("Send() error = %v", err)
 		}
 
@@ -242,8 +242,8 @@ func TestDialAndCommunication(t *testing.T) {
 			t.Fatalf("Recv() error = %v", err)
 		}
 
-		if proto != noise.ProtocolEVENT {
-			t.Errorf("protocol = %d, want %d", proto, noise.ProtocolEVENT)
+		if proto != ProtocolEVENT {
+			t.Errorf("protocol = %d, want %d", proto, ProtocolEVENT)
 		}
 		if !bytes.Equal(payload, testData) {
 			t.Errorf("payload = %s, want %s", string(payload), string(testData))
@@ -254,7 +254,7 @@ func TestDialAndCommunication(t *testing.T) {
 		testData := []byte("Hello from responder!")
 
 		// Send from responder
-		if err := responderConn.Send(noise.ProtocolEVENT, testData); err != nil {
+		if err := responderConn.Send(ProtocolEVENT, testData); err != nil {
 			t.Fatalf("Send() error = %v", err)
 		}
 
@@ -264,8 +264,8 @@ func TestDialAndCommunication(t *testing.T) {
 			t.Fatalf("Recv() error = %v", err)
 		}
 
-		if proto != noise.ProtocolEVENT {
-			t.Errorf("protocol = %d, want %d", proto, noise.ProtocolEVENT)
+		if proto != ProtocolEVENT {
+			t.Errorf("protocol = %d, want %d", proto, ProtocolEVENT)
 		}
 		if !bytes.Equal(payload, testData) {
 			t.Errorf("payload = %s, want %s", string(payload), string(testData))
@@ -331,24 +331,24 @@ func TestConnMultipleMessages(t *testing.T) {
 	for i := 0; i < 100; i++ {
 		// Initiator -> Responder
 		msg := []byte("message")
-		initiatorConn.Send(noise.ProtocolEVENT, msg)
+		initiatorConn.Send(ProtocolEVENT, msg)
 
 		proto, payload, err := responderConn.Recv()
 		if err != nil {
 			t.Fatalf("Message %d: Recv() error = %v", i, err)
 		}
-		if proto != noise.ProtocolEVENT || !bytes.Equal(payload, msg) {
+		if proto != ProtocolEVENT || !bytes.Equal(payload, msg) {
 			t.Fatalf("Message %d: mismatch", i)
 		}
 
 		// Responder -> Initiator
-		responderConn.Send(noise.ProtocolOPUS, msg)
+		responderConn.Send(ProtocolOPUS, msg)
 
 		proto, payload, err = initiatorConn.Recv()
 		if err != nil {
 			t.Fatalf("Message %d: Recv() error = %v", i, err)
 		}
-		if proto != noise.ProtocolOPUS || !bytes.Equal(payload, msg) {
+		if proto != ProtocolOPUS || !bytes.Equal(payload, msg) {
 			t.Fatalf("Message %d: mismatch", i)
 		}
 	}
@@ -363,7 +363,7 @@ func TestConnSendClosed(t *testing.T) {
 	conn, _ := newConn(key, transport, nil, noise.PublicKey{})
 	conn.Close()
 
-	err := conn.Send(noise.ProtocolEVENT, []byte("hello"))
+	err := conn.Send(ProtocolEVENT, []byte("hello"))
 	if err != ErrConnClosed {
 		t.Errorf("Send() error = %v, want ErrConnClosed", err)
 	}
@@ -424,7 +424,7 @@ func TestConnPendingPacketsFlushed(t *testing.T) {
 
 	// Queue a packet (will return ErrNotEstablished but packet is queued)
 	testData := []byte("queued message")
-	err := initiatorConn.Send(noise.ProtocolEVENT, testData)
+	err := initiatorConn.Send(ProtocolEVENT, testData)
 	if err != ErrNotEstablished {
 		t.Fatalf("Send() error = %v, want ErrNotEstablished", err)
 	}
@@ -508,7 +508,7 @@ func TestConnPendingPacketsFlushed(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Recv() error = %v", err)
 	}
-	if proto != noise.ProtocolEVENT || !bytes.Equal(payload, testData) {
+	if proto != ProtocolEVENT || !bytes.Equal(payload, testData) {
 		t.Errorf("Received wrong data: proto=%d, payload=%s", proto, string(payload))
 	}
 }
@@ -588,7 +588,7 @@ func TestConnPreviousSessionDecrypt(t *testing.T) {
 
 	// Encrypt a message
 	testData := []byte("message from previous session")
-	plaintext := noise.EncodePayload(noise.ProtocolEVENT, testData)
+	plaintext := noise.EncodePayload(ProtocolEVENT, testData)
 	ciphertext, counter, _ := peerSession.Encrypt(plaintext)
 	wireMsg := noise.BuildTransportMessage(100, counter, ciphertext) // ReceiverIndex = our prev session
 
@@ -600,7 +600,7 @@ func TestConnPreviousSessionDecrypt(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Recv() with previous session error = %v", err)
 	}
-	if proto != noise.ProtocolEVENT || !bytes.Equal(payload, testData) {
+	if proto != ProtocolEVENT || !bytes.Equal(payload, testData) {
 		t.Errorf("Received wrong data from previous session")
 	}
 }
@@ -965,7 +965,7 @@ func TestConnSendWithRekeyTrigger(t *testing.T) {
 	conn.mu.Unlock()
 
 	// Send should succeed and trigger rekey
-	err := conn.Send(noise.ProtocolEVENT, []byte("test"))
+	err := conn.Send(ProtocolEVENT, []byte("test"))
 	if err != nil {
 		t.Fatalf("Send() error = %v", err)
 	}
@@ -1006,7 +1006,7 @@ func TestConnSendQueuedWhenHandshaking(t *testing.T) {
 	conn.mu.Unlock()
 
 	// Send should queue the packet (handshaking but no session)
-	err := conn.Send(noise.ProtocolEVENT, []byte("queued"))
+	err := conn.Send(ProtocolEVENT, []byte("queued"))
 	// Should not error, packet is queued
 	if err != nil && err != ErrNotEstablished {
 		t.Errorf("Send() error = %v", err)
@@ -1150,7 +1150,7 @@ func TestConnRecvWithHandshakeState(t *testing.T) {
 	})
 
 	testData := []byte("test message")
-	plaintext := noise.EncodePayload(noise.ProtocolEVENT, testData)
+	plaintext := noise.EncodePayload(ProtocolEVENT, testData)
 	ciphertext, counter, _ := peerSession.Encrypt(plaintext)
 	wireMsg := noise.BuildTransportMessage(100, counter, ciphertext)
 	clientTransport.InjectPacket(wireMsg, serverTransport.LocalAddr())
@@ -1159,7 +1159,7 @@ func TestConnRecvWithHandshakeState(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Recv() transport message error = %v", err)
 	}
-	if proto != noise.ProtocolEVENT || !bytes.Equal(payload, testData) {
+	if proto != ProtocolEVENT || !bytes.Equal(payload, testData) {
 		t.Error("Transport message mismatch")
 	}
 }
@@ -1206,7 +1206,7 @@ func TestConnHandleTransportMessageRekeyTrigger(t *testing.T) {
 	})
 
 	testData := []byte("test")
-	plaintext := noise.EncodePayload(noise.ProtocolEVENT, testData)
+	plaintext := noise.EncodePayload(ProtocolEVENT, testData)
 	ciphertext, counter, _ := peerSession.Encrypt(plaintext)
 	wireMsg := noise.BuildTransportMessage(100, counter, ciphertext)
 	clientTransport.InjectPacket(wireMsg, serverTransport.LocalAddr())
@@ -1416,7 +1416,7 @@ func TestConnSendMessageCountRekey(t *testing.T) {
 	// Just test that the logic path exists
 
 	// Send a message
-	err := conn.Send(noise.ProtocolEVENT, []byte("test"))
+	err := conn.Send(ProtocolEVENT, []byte("test"))
 	if err != nil {
 		t.Errorf("Send() error = %v", err)
 	}

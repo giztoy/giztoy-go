@@ -208,7 +208,7 @@ func TestClosedChanGoroutineLeak(t *testing.T) {
 		// Accept in background
 		accepted := make(chan io.ReadWriteCloser, 1)
 		go func() {
-			s, err := server.AcceptStreamOn(clientKey.Public, 0)
+			s, err := mustServiceMux(t, server, clientKey.Public).AcceptStream(0)
 			if err != nil {
 				return
 			}
@@ -216,7 +216,7 @@ func TestClosedChanGoroutineLeak(t *testing.T) {
 		}()
 
 		time.Sleep(20 * time.Millisecond)
-		cs, err := client.OpenStream(serverKey.Public, 0)
+		cs, err := mustServiceMux(t, client, serverKey.Public).OpenStream(0)
 		if err != nil {
 			t.Fatalf("OpenStream %d: %v", i, err)
 		}

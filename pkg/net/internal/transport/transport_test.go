@@ -127,3 +127,56 @@ func TestMockTransportBasic(t *testing.T) {
 		t.Fatalf("Close isolated failed: %v", err)
 	}
 }
+
+func TestUDPTransport_RecvAfterClose(t *testing.T) {
+	tr, err := NewUDPTransport("127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("NewUDPTransport failed: %v", err)
+	}
+
+	if err := tr.Close(); err != nil {
+		t.Fatalf("Close failed: %v", err)
+	}
+
+	buf := make([]byte, 16)
+	if _, _, err := tr.RecvFrom(buf); err == nil {
+		t.Fatal("RecvFrom after Close should fail")
+	}
+}
+
+func TestMockTransport_InboxFullAndClosedPaths(t *testing.T) {
+	t1 := NewMockTransport("peer1")
+	t2 := NewMockTransport("peer2")
+	t1.Connect(t2)
+	defer t1.Close()
+	defer t2.Close()
+
+	for i := 0; i < cap(t2.inbox); i++ {
+		if err := t1.SendTo([]byte("x"), t2.LocalAddr()); err != nil {
+			t.Fatalf("SendTo fill[%d] failed: %v", i, err)
+		}
+	}
+
+	if err := t1.SendTo([]byte("overflow"), t2.LocalAddr()); err != ErrMockInboxFull {
+		t.Fatalf("SendTo on full inbox err=%v, want %v", err, ErrMockInboxFull)
+	}
+	if err := t2.InjectPacket([]byte("overflow"), NewMockAddr("sender")); err != ErrMockInboxFull {
+		t.Fatalf("InjectPacket on full inbox err=%v, want %v", err, ErrMockInboxFull)
+	}
+
+	if err := t2.Close(); err != nil {
+		t.Fatalf("Close failed: %v", err)
+	}
+	if err := t2.InjectPacket([]byte("x"), NewMockAddr("sender")); err != ErrMockTransportClosed {
+		t.Fatalf("InjectPacket after close err=%v, want %v", err, ErrMockTransportClosed)
+	}
+
+	closed := NewMockTransport("closed")
+	if err := closed.Close(); err != nil {
+		t.Fatalf("Close(closed) failed: %v", err)
+	}
+	buf := make([]byte, 8)
+	if _, _, err := closed.RecvFrom(buf); err != ErrMockTransportClosed {
+		t.Fatalf("RecvFrom after close err=%v, want %v", err, ErrMockTransportClosed)
+	}
+}

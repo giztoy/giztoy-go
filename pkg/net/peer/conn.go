@@ -2,29 +2,33 @@ package peer
 
 import (
 	"net"
+	"sync/atomic"
 
 	"github.com/haivivi/giztoy/go/pkg/net/core"
 	"github.com/haivivi/giztoy/go/pkg/net/noise"
 )
 
 type Conn struct {
-	udp *core.UDP
-	pk  noise.PublicKey
+	udp    *core.UDP
+	pk     noise.PublicKey
+	closed atomic.Bool
 }
 
 func (c *Conn) OpenService(service uint64) (net.Conn, error) {
-	if err := c.validate(); err != nil {
+	smux, err := c.serviceMux()
+	if err != nil {
 		return nil, err
 	}
-	return c.udp.OpenStream(c.pk, service)
+	return smux.OpenStream(service)
 }
 
 // AcceptService is the peer-layer wrapper around the per-service accept path.
 func (c *Conn) AcceptService(service uint64) (net.Conn, error) {
-	if err := c.validate(); err != nil {
+	smux, err := c.serviceMux()
+	if err != nil {
 		return nil, err
 	}
-	return c.udp.AcceptStreamOn(c.pk, service)
+	return smux.AcceptStream(service)
 }
 
 func (c *Conn) OpenRPC() (net.Conn, error) {
@@ -45,7 +49,11 @@ func (c *Conn) SendEvent(evt Event) error {
 		return err
 	}
 
-	_, err = c.udp.Write(c.pk, noise.ProtocolEVENT, payload)
+	smux, err := c.serviceMux()
+	if err != nil {
+		return err
+	}
+	_, err = smux.Write(core.ProtocolEVENT, payload)
 	return err
 }
 
@@ -54,15 +62,15 @@ func (c *Conn) ReadEvent() (Event, error) {
 		return Event{}, err
 	}
 
-	buf := make([]byte, noise.MaxPayloadSize)
-	proto, n, err := c.udp.Read(c.pk, buf)
+	smux, err := c.serviceMux()
 	if err != nil {
 		return Event{}, err
 	}
-	if proto != noise.ProtocolEVENT {
-		return Event{}, ErrUnexpectedProtocol
+	buf := make([]byte, noise.MaxPayloadSize)
+	n, err := smux.ReadProtocol(core.ProtocolEVENT, buf)
+	if err != nil {
+		return Event{}, err
 	}
-
 	return DecodeEvent(buf[:n])
 }
 
@@ -74,7 +82,11 @@ func (c *Conn) SendOpusFrame(frame StampedOpusFrame) error {
 		return err
 	}
 
-	_, err := c.udp.Write(c.pk, noise.ProtocolOPUS, frame)
+	smux, err := c.serviceMux()
+	if err != nil {
+		return err
+	}
+	_, err = smux.Write(core.ProtocolOPUS, frame)
 	return err
 }
 
@@ -83,22 +95,25 @@ func (c *Conn) ReadOpusFrame() (StampedOpusFrame, error) {
 		return nil, err
 	}
 
-	buf := make([]byte, noise.MaxPayloadSize)
-	proto, n, err := c.udp.Read(c.pk, buf)
+	smux, err := c.serviceMux()
 	if err != nil {
 		return nil, err
 	}
-	if proto != noise.ProtocolOPUS {
-		return nil, ErrUnexpectedProtocol
+	buf := make([]byte, noise.MaxPayloadSize)
+	n, err := smux.ReadProtocol(core.ProtocolOPUS, buf)
+	if err != nil {
+		return nil, err
 	}
-
 	return ParseStampedOpusFrame(buf[:n])
 }
 
+// Close only closes this handle; the underlying peer/session stays alive until
+// the owning UDP transport is closed or the peer is explicitly removed there.
 func (c *Conn) Close() error {
 	if err := c.validate(); err != nil {
 		return err
 	}
+	c.closed.Store(true)
 	return nil
 }
 
@@ -113,5 +128,15 @@ func (c *Conn) validate() error {
 	if c == nil || c.udp == nil {
 		return ErrNilConn
 	}
+	if c.closed.Load() {
+		return ErrConnClosed
+	}
 	return nil
+}
+
+func (c *Conn) serviceMux() (*core.ServiceMux, error) {
+	if err := c.validate(); err != nil {
+		return nil, err
+	}
+	return c.udp.GetServiceMux(c.pk)
 }

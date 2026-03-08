@@ -9,6 +9,25 @@ import (
 	"github.com/haivivi/giztoy/go/pkg/net/noise"
 )
 
+func buildHandshakeInitForListener(t *testing.T, initiator *noise.KeyPair, responder noise.PublicKey, senderIdx uint32) []byte {
+	t.Helper()
+
+	hs, err := noise.NewHandshakeState(noise.Config{
+		Pattern:      noise.PatternIK,
+		Initiator:    true,
+		LocalStatic:  initiator,
+		RemoteStatic: &responder,
+	})
+	if err != nil {
+		t.Fatalf("NewHandshakeState failed: %v", err)
+	}
+	msg1, err := hs.WriteMessage(nil)
+	if err != nil {
+		t.Fatalf("WriteMessage failed: %v", err)
+	}
+	return noise.BuildHandshakeInit(senderIdx, hs.LocalEphemeral(), msg1[noise.KeySize:])
+}
+
 func TestNewListenerMissingLocalKey(t *testing.T) {
 	_, err := NewListener(ListenerConfig{
 		Transport: NewMockTransport("test"),
@@ -357,4 +376,84 @@ func TestListenerIgnoresInvalidMessages(t *testing.T) {
 	// Close both to clean up
 	clientConn.Close()
 	serverConn.Close()
+}
+
+func TestListenerHandleHandshakeInit_AcceptQueueFullDropsExtraConn(t *testing.T) {
+	serverKey, _ := noise.GenerateKeyPair()
+	transport := NewMockTransport("server")
+	peerTransport := NewMockTransport("peer")
+	transport.Connect(peerTransport)
+	defer transport.Close()
+	defer peerTransport.Close()
+
+	listener, err := NewListener(ListenerConfig{
+		LocalKey:        serverKey,
+		Transport:       transport,
+		AcceptQueueSize: 1,
+	})
+	if err != nil {
+		t.Fatalf("NewListener() error = %v", err)
+	}
+	defer listener.Close()
+
+	client1, _ := noise.GenerateKeyPair()
+	client2, _ := noise.GenerateKeyPair()
+
+	listener.handleHandshakeInit(buildHandshakeInitForListener(t, client1, serverKey.Public, 1), NewMockAddr("c1"))
+	listener.handleHandshakeInit(buildHandshakeInitForListener(t, client2, serverKey.Public, 2), NewMockAddr("c2"))
+
+	if got := len(listener.ready); got != 1 {
+		t.Fatalf("ready queue len=%d, want 1", got)
+	}
+	if got := listener.manager.Count(); got != 1 {
+		t.Fatalf("session manager count=%d, want 1 after queue overflow cleanup", got)
+	}
+	if got := len(listener.conns); got != 1 {
+		t.Fatalf("live conn count=%d, want 1 after queue overflow cleanup", got)
+	}
+}
+
+func TestListenerHandleTransport_DeliverAndDropPaths(t *testing.T) {
+	localKey, _ := noise.GenerateKeyPair()
+	transport := NewMockTransport("listener")
+	defer transport.Close()
+
+	listener, err := NewListener(ListenerConfig{
+		LocalKey:  localKey,
+		Transport: transport,
+	})
+	if err != nil {
+		t.Fatalf("NewListener() error = %v", err)
+	}
+	defer listener.Close()
+
+	remoteKey, _ := noise.GenerateKeyPair()
+	conn, err := newConn(localKey, transport, NewMockAddr("remote"), remoteKey.Public)
+	if err != nil {
+		t.Fatalf("newConn() error = %v", err)
+	}
+	conn.mu.Lock()
+	conn.state = ConnStateEstablished
+	inbound := make(chan inboundPacket, 1)
+	conn.inbound = inbound
+	conn.mu.Unlock()
+
+	listener.mu.Lock()
+	listener.conns[conn.LocalIndex()] = conn
+	listener.mu.Unlock()
+
+	msg := noise.BuildTransportMessage(conn.LocalIndex(), 7, []byte("0123456789abcdef"))
+	listener.handleTransport(msg, NewMockAddr("remote"))
+
+	select {
+	case pkt := <-inbound:
+		if pkt.msg.Counter != 7 {
+			t.Fatalf("counter=%d, want 7", pkt.msg.Counter)
+		}
+	case <-time.After(1 * time.Second):
+		t.Fatal("expected inbound transport delivery")
+	}
+
+	inbound <- inboundPacket{}
+	listener.handleTransport(msg, NewMockAddr("remote"))
 }

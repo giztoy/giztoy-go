@@ -17,28 +17,6 @@ const (
 	MessageTypeTransport byte = 4
 )
 
-// Protocol field values (inside encrypted payload).
-//
-// Wire format after Noise decryption:
-//
-//	protocol(1B) | payload(N)
-const (
-	ProtocolRPC   byte = 0x01
-	ProtocolEVENT byte = 0x03
-	ProtocolOPUS  byte = 0x10
-)
-
-// IsFoundationProtocol reports whether protocol is part of the
-// foundation phase whitelist.
-func IsFoundationProtocol(protocol byte) bool {
-	switch protocol {
-	case ProtocolRPC, ProtocolEVENT, ProtocolOPUS:
-		return true
-	default:
-		return false
-	}
-}
-
 // Message size constants.
 const (
 	// HandshakeInitSize is the size of a handshake initiation message.

@@ -81,60 +81,6 @@ func TestSmoke_KCPNoisePair_DataPath(t *testing.T) {
 	}
 }
 
-func TestSmoke_YamuxKCPNoise_StreamDataPath(t *testing.T) {
-	pair, err := adapters.NewYamuxKCPNoisePair(0)
-	if err != nil {
-		t.Fatalf("new yamux-kcp-noise pair failed: %v", err)
-	}
-	defer func() { _ = pair.Close() }()
-
-	serverAcceptCh := make(chan io.ReadWriteCloser, 1)
-	serverErrCh := make(chan error, 1)
-	go func() {
-		s, err := pair.Server.AcceptStream(0)
-		if err != nil {
-			serverErrCh <- err
-			return
-		}
-		serverAcceptCh <- s
-	}()
-
-	time.Sleep(20 * time.Millisecond)
-
-	clientStream, err := pair.Client.OpenStream(0)
-	if err != nil {
-		t.Fatalf("client open stream failed: %v", err)
-	}
-	defer clientStream.Close()
-
-	req := []byte("smoke-yamux-req")
-	if _, err := clientStream.Write(req); err != nil {
-		t.Fatalf("client write req failed: %v", err)
-	}
-
-	var serverStream io.ReadWriteCloser
-	select {
-	case serverStream = <-serverAcceptCh:
-	case err := <-serverErrCh:
-		t.Fatalf("server accept stream failed: %v", err)
-	case <-time.After(2 * time.Second):
-		t.Fatal("server accept stream timeout")
-	}
-	defer serverStream.Close()
-
-	if got := readExactWithTimeout(t, serverStream, len(req), 2*time.Second); !bytes.Equal(got, req) {
-		t.Fatalf("server recv req mismatch: got=%q want=%q", got, req)
-	}
-
-	resp := []byte("smoke-yamux-resp")
-	if _, err := serverStream.Write(resp); err != nil {
-		t.Fatalf("server write resp failed: %v", err)
-	}
-	if got := readExactWithTimeout(t, clientStream, len(resp), 2*time.Second); !bytes.Equal(got, resp) {
-		t.Fatalf("client recv resp mismatch: got=%q want=%q", got, resp)
-	}
-}
-
 func readExactWithTimeout(t *testing.T, r io.Reader, n int, timeout time.Duration) []byte {
 	t.Helper()
 

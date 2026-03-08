@@ -394,7 +394,7 @@ func TestConnOpenAcceptRPC(t *testing.T) {
 	}
 }
 
-func TestConnValidationAndProtocolErrorPaths(t *testing.T) {
+func TestConnValidationAndPerProtocolReads(t *testing.T) {
 	pair := newConnectedPeerPair(t)
 	defer pair.Close()
 
@@ -413,15 +413,49 @@ func TestConnValidationAndProtocolErrorPaths(t *testing.T) {
 	if err := pair.clientConn.SendEvent(Event{V: PrologueVersion, Name: "event-as-opus"}); err != nil {
 		t.Fatalf("SendEvent failed: %v", err)
 	}
-	if _, err := pair.serverConn.ReadOpusFrame(); !errors.Is(err, ErrUnexpectedProtocol) {
-		t.Fatalf("ReadOpusFrame(non-opus) err=%v, want %v", err, ErrUnexpectedProtocol)
+	opusCh := make(chan StampedOpusFrame, 1)
+	opusErrCh := make(chan error, 1)
+	go func() {
+		frame, err := pair.serverConn.ReadOpusFrame()
+		if err != nil {
+			opusErrCh <- err
+			return
+		}
+		opusCh <- frame
+	}()
+
+	select {
+	case err := <-opusErrCh:
+		t.Fatalf("ReadOpusFrame(event queued first) err=%v", err)
+	case <-opusCh:
+		t.Fatal("ReadOpusFrame should not consume EVENT packets")
+	case <-time.After(150 * time.Millisecond):
 	}
 
 	if err := pair.clientConn.SendOpusFrame(StampOpusFrame([]byte{0xF8}, 100)); err != nil {
 		t.Fatalf("SendOpusFrame(valid) failed: %v", err)
 	}
-	if _, err := pair.serverConn.ReadEvent(); !errors.Is(err, ErrUnexpectedProtocol) {
-		t.Fatalf("ReadEvent(non-event) err=%v, want %v", err, ErrUnexpectedProtocol)
+
+	select {
+	case err := <-opusErrCh:
+		t.Fatalf("ReadOpusFrame(valid opus) err=%v", err)
+	case gotFrame := <-opusCh:
+		if gotFrame.Stamp() != 100 {
+			t.Fatalf("ReadOpusFrame stamp=%d, want 100", gotFrame.Stamp())
+		}
+		if !bytes.Equal(gotFrame.Frame(), []byte{0xF8}) {
+			t.Fatalf("ReadOpusFrame payload=%v, want %v", gotFrame.Frame(), []byte{0xF8})
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("ReadOpusFrame(valid opus) timeout")
+	}
+
+	gotEvent, err := pair.serverConn.ReadEvent()
+	if err != nil {
+		t.Fatalf("ReadEvent(queued event) err=%v", err)
+	}
+	if gotEvent.Name != "event-as-opus" {
+		t.Fatalf("ReadEvent name=%q, want %q", gotEvent.Name, "event-as-opus")
 	}
 
 	if _, err := (&Conn{pk: pair.serverKey.Public}).OpenRPC(); !errors.Is(err, ErrNilConn) {
@@ -573,6 +607,120 @@ func TestConnUnderlyingErrorPropagation(t *testing.T) {
 	}
 	if err := pair.clientConn.SendEvent(Event{V: PrologueVersion, Name: "x"}); !errors.Is(err, core.ErrClosed) {
 		t.Fatalf("SendEvent(after close) err=%v, want %v", err, core.ErrClosed)
+	}
+}
+
+func TestConnCloseIsHandleLocal(t *testing.T) {
+	pair := newConnectedPeerPair(t)
+	defer pair.Close()
+
+	secondHandle, err := pair.clientListener.Peer(pair.serverKey.Public)
+	if err != nil {
+		t.Fatalf("clientListener.Peer failed: %v", err)
+	}
+
+	if err := pair.clientConn.Close(); err != nil {
+		t.Fatalf("clientConn.Close failed: %v", err)
+	}
+	if _, err := pair.clientConn.OpenRPC(); !errors.Is(err, ErrConnClosed) {
+		t.Fatalf("OpenRPC(after Conn.Close) err=%v, want %v", err, ErrConnClosed)
+	}
+	if err := pair.clientConn.SendEvent(Event{V: PrologueVersion, Name: "x"}); !errors.Is(err, ErrConnClosed) {
+		t.Fatalf("SendEvent(after Conn.Close) err=%v, want %v", err, ErrConnClosed)
+	}
+
+	evt := Event{V: PrologueVersion, Name: "still-open"}
+	if err := secondHandle.SendEvent(evt); err != nil {
+		t.Fatalf("second handle SendEvent failed: %v", err)
+	}
+	gotEvent, err := pair.serverConn.ReadEvent()
+	if err != nil {
+		t.Fatalf("server ReadEvent failed: %v", err)
+	}
+	if gotEvent.Name != evt.Name {
+		t.Fatalf("ReadEvent name=%q, want %q", gotEvent.Name, evt.Name)
+	}
+}
+
+func TestConnCloseDoesNotAffectOpenRPCStreams(t *testing.T) {
+	pair := newConnectedPeerPair(t)
+	defer pair.Close()
+
+	acceptCh := make(chan net.Conn, 1)
+	errCh := make(chan error, 1)
+	go func() {
+		stream, err := pair.serverConn.AcceptRPC()
+		if err != nil {
+			errCh <- err
+			return
+		}
+		acceptCh <- stream
+	}()
+
+	clientStream, err := pair.clientConn.OpenRPC()
+	if err != nil {
+		t.Fatalf("client OpenRPC failed: %v", err)
+	}
+	defer clientStream.Close()
+
+	if _, err := clientStream.Write([]byte("x")); err != nil {
+		t.Fatalf("client stream priming write failed: %v", err)
+	}
+
+	var serverStream net.Conn
+	select {
+	case serverStream = <-acceptCh:
+		defer serverStream.Close()
+	case err := <-errCh:
+		t.Fatalf("server AcceptRPC failed: %v", err)
+	case <-time.After(5 * time.Second):
+		t.Fatal("server AcceptRPC timeout")
+	}
+
+	if got := readExactWithTimeout(t, serverStream, 1, 5*time.Second); !bytes.Equal(got, []byte("x")) {
+		t.Fatalf("server stream priming payload mismatch: got=%q want=%q", string(got), "x")
+	}
+
+	if err := pair.clientConn.Close(); err != nil {
+		t.Fatalf("clientConn.Close failed: %v", err)
+	}
+
+	if _, err := clientStream.Write([]byte("y")); err != nil {
+		t.Fatalf("client stream write after Conn.Close failed: %v", err)
+	}
+	if got := readExactWithTimeout(t, serverStream, 1, 5*time.Second); !bytes.Equal(got, []byte("y")) {
+		t.Fatalf("server stream payload after Conn.Close mismatch: got=%q want=%q", string(got), "y")
+	}
+}
+
+func TestListenerDoesNotAcceptSamePeerAgainOnReconnect(t *testing.T) {
+	pair := newConnectedPeerPair(t)
+	defer pair.Close()
+
+	acceptCh := make(chan *Conn, 1)
+	errCh := make(chan error, 1)
+	go func() {
+		conn, err := pair.serverListener.Accept()
+		if err != nil {
+			errCh <- err
+			return
+		}
+		acceptCh <- conn
+	}()
+
+	if err := pair.clientUDP.Connect(pair.serverKey.Public); err != nil {
+		t.Fatalf("Reconnect failed: %v", err)
+	}
+
+	waitEstablished(t, pair.serverUDP, pair.clientKey.Public)
+	waitEstablished(t, pair.clientUDP, pair.serverKey.Public)
+
+	select {
+	case conn := <-acceptCh:
+		t.Fatalf("Listener.Accept unexpectedly returned duplicate peer %v after reconnect", conn.PublicKey())
+	case err := <-errCh:
+		t.Fatalf("Listener.Accept failed during reconnect: %v", err)
+	case <-time.After(300 * time.Millisecond):
 	}
 }
 

@@ -385,14 +385,14 @@ func (m *KcpMux) closeStream(streamID uint64) error {
 		return m.waitForCloseAck(streamID, ch)
 	}
 	entry.localClose = true
-	entry.conn.closeSignal(ErrConnClosedLocal)
-	go entry.conn.finalizeClose()
 	entry.closeAckCh = make(chan struct{})
 	ch := entry.closeAckCh
 	m.resetIdleTimerLocked(entry)
 	entry.mu.Unlock()
 	m.mu.Unlock()
 
+	entry.conn.closeSignal(ErrConnClosedLocal)
+	go entry.conn.finalizeClose()
 	m.sendClose(streamID, streamCloseReasonClose)
 	return m.waitForCloseAck(streamID, ch)
 }

@@ -28,7 +28,7 @@ func serviceMuxPair() (client, server *ServiceMux) {
 	return clientMux, serverMux
 }
 
-func readExactWithTimeout(t *testing.T, r io.Reader, n int, timeout time.Duration) []byte {
+func readServiceMuxExactWithTimeout(t *testing.T, r io.Reader, n int, timeout time.Duration) []byte {
 	t.Helper()
 
 	buf := make([]byte, n)
@@ -61,7 +61,7 @@ func TestServiceMux_OpenCreatesDistinctStreams(t *testing.T) {
 		go func() {
 			conn, err := server.AcceptStream(serviceID)
 			if err != nil {
-				t.Errorf("AcceptStreamOn failed: %v", err)
+				t.Errorf("AcceptStream failed: %v", err)
 				return
 			}
 			acceptedCh <- conn
@@ -109,7 +109,7 @@ func TestServiceMux_AcceptStreamRoutesSpecificService(t *testing.T) {
 	go func() {
 		conn, err := server.AcceptStream(serviceA)
 		if err != nil {
-			t.Errorf("AcceptStreamOn(%d) failed: %v", serviceA, err)
+			t.Errorf("AcceptStream(%d) failed: %v", serviceA, err)
 			return
 		}
 		gotA <- conn
@@ -125,7 +125,7 @@ func TestServiceMux_AcceptStreamRoutesSpecificService(t *testing.T) {
 
 	select {
 	case <-gotA:
-		t.Fatalf("AcceptStreamOn(%d) should not receive service %d", serviceA, serviceB)
+		t.Fatalf("AcceptStream(%d) should not receive service %d", serviceA, serviceB)
 	case <-time.After(150 * time.Millisecond):
 	}
 
@@ -139,7 +139,7 @@ func TestServiceMux_AcceptStreamRoutesSpecificService(t *testing.T) {
 	case conn := <-gotA:
 		defer conn.Close()
 	case <-time.After(2 * time.Second):
-		t.Fatalf("AcceptStreamOn(%d) did not unblock", serviceA)
+		t.Fatalf("AcceptStream(%d) did not unblock", serviceA)
 	}
 }
 
@@ -152,7 +152,7 @@ func TestServiceMux_BidirectionalDataPath(t *testing.T) {
 	go func() {
 		conn, err := server.AcceptStream(0)
 		if err != nil {
-			t.Errorf("AcceptStreamOn failed: %v", err)
+			t.Errorf("AcceptStream failed: %v", err)
 			return
 		}
 		acceptedCh <- conn
@@ -173,7 +173,7 @@ func TestServiceMux_BidirectionalDataPath(t *testing.T) {
 	if _, err := clientStream.Write(request); err != nil {
 		t.Fatalf("client write failed: %v", err)
 	}
-	if got := readExactWithTimeout(t, serverStream, len(request), 5*time.Second); !bytes.Equal(got, request) {
+	if got := readServiceMuxExactWithTimeout(t, serverStream, len(request), 5*time.Second); !bytes.Equal(got, request) {
 		t.Fatalf("server recv req mismatch: got=%q want=%q", got, request)
 	}
 
@@ -181,7 +181,7 @@ func TestServiceMux_BidirectionalDataPath(t *testing.T) {
 	if _, err := serverStream.Write(response); err != nil {
 		t.Fatalf("server write failed: %v", err)
 	}
-	if got := readExactWithTimeout(t, clientStream, len(response), 5*time.Second); !bytes.Equal(got, response) {
+	if got := readServiceMuxExactWithTimeout(t, clientStream, len(response), 5*time.Second); !bytes.Equal(got, response) {
 		t.Fatalf("client recv resp mismatch: got=%q want=%q", got, response)
 	}
 }
@@ -257,9 +257,9 @@ func TestServiceMux_CloseUnblocksAcceptOn(t *testing.T) {
 	select {
 	case err := <-done:
 		if !errors.Is(err, ErrServiceMuxClosed) {
-			t.Fatalf("AcceptStreamOn err=%v, want %v", err, ErrServiceMuxClosed)
+			t.Fatalf("AcceptStream err=%v, want %v", err, ErrServiceMuxClosed)
 		}
 	case <-time.After(2 * time.Second):
-		t.Fatal("AcceptStreamOn did not unblock on Close")
+		t.Fatal("AcceptStream did not unblock on Close")
 	}
 }

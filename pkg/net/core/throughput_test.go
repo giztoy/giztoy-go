@@ -69,7 +69,7 @@ func TestUDPStreamThroughput(t *testing.T) {
 	serverStreamCh := make(chan io.ReadWriteCloser, 1)
 	serverErrCh := make(chan error, 1)
 	go func() {
-		s, err := server.AcceptStreamOn(clientKey.Public, 0)
+		s, err := mustServiceMux(t, server, clientKey.Public).AcceptStream(0)
 		if err != nil {
 			serverErrCh <- err
 			return
@@ -79,7 +79,7 @@ func TestUDPStreamThroughput(t *testing.T) {
 
 	time.Sleep(50 * time.Millisecond)
 
-	clientStream, err := client.OpenStream(serverKey.Public, 0)
+	clientStream, err := mustServiceMux(t, client, serverKey.Public).OpenStream(0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -97,7 +97,7 @@ func TestUDPStreamThroughput(t *testing.T) {
 	case err := <-serverErrCh:
 		t.Fatal(err)
 	case <-time.After(5 * time.Second):
-		t.Fatal("timeout waiting for AcceptStreamOn")
+		t.Fatal("timeout waiting for AcceptStream")
 	}
 
 	var wg sync.WaitGroup
