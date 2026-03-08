@@ -88,6 +88,19 @@ func TestSmoke_YamuxKCPNoise_StreamDataPath(t *testing.T) {
 	}
 	defer func() { _ = pair.Close() }()
 
+	serverAcceptCh := make(chan io.ReadWriteCloser, 1)
+	serverErrCh := make(chan error, 1)
+	go func() {
+		s, err := pair.Server.AcceptStream(0)
+		if err != nil {
+			serverErrCh <- err
+			return
+		}
+		serverAcceptCh <- s
+	}()
+
+	time.Sleep(20 * time.Millisecond)
+
 	clientStream, err := pair.Client.OpenStream(0)
 	if err != nil {
 		t.Fatalf("client open stream failed: %v", err)
@@ -99,14 +112,15 @@ func TestSmoke_YamuxKCPNoise_StreamDataPath(t *testing.T) {
 		t.Fatalf("client write req failed: %v", err)
 	}
 
-	serverStream, service, err := pair.Server.AcceptStream()
-	if err != nil {
+	var serverStream io.ReadWriteCloser
+	select {
+	case serverStream = <-serverAcceptCh:
+	case err := <-serverErrCh:
 		t.Fatalf("server accept stream failed: %v", err)
+	case <-time.After(2 * time.Second):
+		t.Fatal("server accept stream timeout")
 	}
 	defer serverStream.Close()
-	if service != 0 {
-		t.Fatalf("accepted service=%d, want 0", service)
-	}
 
 	if got := readExactWithTimeout(t, serverStream, len(req), 2*time.Second); !bytes.Equal(got, req) {
 		t.Fatalf("server recv req mismatch: got=%q want=%q", got, req)

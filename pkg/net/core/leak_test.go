@@ -208,7 +208,7 @@ func TestClosedChanGoroutineLeak(t *testing.T) {
 		// Accept in background
 		accepted := make(chan io.ReadWriteCloser, 1)
 		go func() {
-			s, _, err := server.AcceptStream(clientKey.Public)
+			s, err := server.AcceptStreamOn(clientKey.Public, 0)
 			if err != nil {
 				return
 			}

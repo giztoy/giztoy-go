@@ -1,12 +1,38 @@
 package core
 
 import (
+	"bytes"
+	"fmt"
 	"io"
+	"net"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/haivivi/giztoy/go/pkg/net/noise"
 )
+
+func readExactWithTimeout(t *testing.T, r io.Reader, n int, timeout time.Duration) []byte {
+	t.Helper()
+
+	buf := make([]byte, n)
+	errCh := make(chan error, 1)
+	go func() {
+		_, err := io.ReadFull(r, buf)
+		errCh <- err
+	}()
+
+	select {
+	case err := <-errCh:
+		if err != nil {
+			t.Fatalf("ReadFull failed: %v", err)
+		}
+		return buf
+	case <-time.After(timeout):
+		t.Fatalf("ReadFull timeout after %s", timeout)
+		return nil
+	}
+}
 
 func TestPeerOpenStreamAcceptStream(t *testing.T) {
 	// Generate key pairs
@@ -82,7 +108,7 @@ func TestPeerOpenStreamAcceptStream(t *testing.T) {
 	serverStreamChan := make(chan io.ReadWriteCloser, 1)
 	serverErrChan := make(chan error, 1)
 	go func() {
-		stream, _, err := server.AcceptStream(clientKey.Public)
+		stream, err := server.AcceptStreamOn(clientKey.Public, 0)
 		if err != nil {
 			serverErrChan <- err
 			return
@@ -247,6 +273,19 @@ func TestOpenStreamNonZeroService(t *testing.T) {
 	defer server.Close()
 	defer client.Close()
 
+	acceptedCh := make(chan net.Conn, 1)
+	errCh := make(chan error, 1)
+	go func() {
+		accepted, err := server.AcceptStreamOn(clientKey.Public, 7)
+		if err != nil {
+			errCh <- err
+			return
+		}
+		acceptedCh <- accepted
+	}()
+
+	time.Sleep(50 * time.Millisecond)
+
 	stream, err := client.OpenStream(serverKey.Public, 7)
 	if err != nil {
 		t.Fatalf("OpenStream(service=7) err=%v", err)
@@ -257,9 +296,13 @@ func TestOpenStreamNonZeroService(t *testing.T) {
 		t.Fatalf("Write failed: %v", err)
 	}
 
-	accepted, err := server.AcceptStreamOn(clientKey.Public, 7)
-	if err != nil {
+	var accepted net.Conn
+	select {
+	case accepted = <-acceptedCh:
+	case err := <-errCh:
 		t.Fatalf("AcceptStreamOn(7) err=%v", err)
+	case <-time.After(5 * time.Second):
+		t.Fatal("AcceptStreamOn(7) timeout")
 	}
 	defer accepted.Close()
 
@@ -270,5 +313,171 @@ func TestOpenStreamNonZeroService(t *testing.T) {
 	}
 	if string(buf[:n]) != "hello" {
 		t.Fatalf("Read got=%q, want %q", string(buf[:n]), "hello")
+	}
+}
+
+func TestPeer_MultiServiceConcurrentStreams(t *testing.T) {
+	server, client, serverKey, clientKey := createConnectedPair(t)
+	defer server.Close()
+	defer client.Close()
+
+	services := []uint64{0, 7}
+	perService := 3
+	expected := make(map[string]struct{}, len(services)*perService)
+	received := make(chan string, len(services)*perService)
+	errCh := make(chan error, len(services)*perService*2)
+
+	var acceptWG sync.WaitGroup
+	for _, serviceID := range services {
+		svc := serviceID
+		acceptWG.Add(1)
+		go func() {
+			defer acceptWG.Done()
+			for i := 0; i < perService; i++ {
+				stream, err := server.AcceptStreamOn(clientKey.Public, svc)
+				if err != nil {
+					errCh <- err
+					return
+				}
+				if err := stream.SetReadDeadline(time.Now().Add(5 * time.Second)); err != nil {
+					errCh <- err
+					_ = stream.Close()
+					return
+				}
+				buf := make([]byte, 128)
+				n, err := stream.Read(buf)
+				if err != nil {
+					errCh <- err
+					_ = stream.Close()
+					return
+				}
+				received <- fmt.Sprintf("%d:%s", svc, string(buf[:n]))
+				_ = stream.Close()
+			}
+		}()
+	}
+
+	time.Sleep(50 * time.Millisecond)
+
+	var openWG sync.WaitGroup
+	for _, serviceID := range services {
+		for i := 0; i < perService; i++ {
+			payload := []byte(fmt.Sprintf("service-%d-stream-%d", serviceID, i))
+			expected[fmt.Sprintf("%d:%s", serviceID, string(payload))] = struct{}{}
+			openWG.Add(1)
+			go func(service uint64, msg []byte) {
+				defer openWG.Done()
+				stream, err := client.OpenStream(serverKey.Public, service)
+				if err != nil {
+					errCh <- err
+					return
+				}
+				if _, err := stream.Write(msg); err != nil {
+					errCh <- err
+				}
+			}(serviceID, payload)
+		}
+	}
+
+	openWG.Wait()
+	acceptWG.Wait()
+	close(errCh)
+	for err := range errCh {
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	close(received)
+	for got := range received {
+		delete(expected, got)
+	}
+	if len(expected) != 0 {
+		t.Fatalf("missing payloads: %v", expected)
+	}
+}
+
+func TestPeer_MultiServiceConcurrentBidirectionalNoCrossTalk(t *testing.T) {
+	server, client, serverKey, clientKey := createConnectedPair(t)
+	defer server.Close()
+	defer client.Close()
+
+	services := []uint64{0, 7}
+	errCh := make(chan error, len(services)*4)
+
+	var acceptWG sync.WaitGroup
+	for _, serviceID := range services {
+		svc := serviceID
+		acceptWG.Add(1)
+		go func() {
+			defer acceptWG.Done()
+			stream, err := server.AcceptStreamOn(clientKey.Public, svc)
+			if err != nil {
+				errCh <- err
+				return
+			}
+
+			req := []byte(fmt.Sprintf("req-%d", svc))
+			got := readExactWithTimeout(t, stream, len(req), 5*time.Second)
+			if !bytes.Equal(got, req) {
+				errCh <- fmt.Errorf("service %d request mismatch: got=%q want=%q", svc, got, req)
+				return
+			}
+
+			resp := []byte(fmt.Sprintf("resp-%d", svc))
+			if _, err := stream.Write(resp); err != nil {
+				errCh <- err
+				return
+			}
+		}()
+	}
+
+	time.Sleep(50 * time.Millisecond)
+
+	type result struct {
+		service uint64
+		resp    []byte
+	}
+	resultCh := make(chan result, len(services))
+	var openWG sync.WaitGroup
+	for _, serviceID := range services {
+		svc := serviceID
+		openWG.Add(1)
+		go func() {
+			defer openWG.Done()
+			stream, err := client.OpenStream(serverKey.Public, svc)
+			if err != nil {
+				errCh <- err
+				return
+			}
+			defer stream.Close()
+
+			req := []byte(fmt.Sprintf("req-%d", svc))
+			if _, err := stream.Write(req); err != nil {
+				errCh <- err
+				return
+			}
+
+			resp := readExactWithTimeout(t, stream, len(fmt.Sprintf("resp-%d", svc)), 5*time.Second)
+			_ = stream.Close()
+			resultCh <- result{service: svc, resp: resp}
+		}()
+	}
+
+	openWG.Wait()
+	acceptWG.Wait()
+	close(errCh)
+	for err := range errCh {
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	close(resultCh)
+	for got := range resultCh {
+		want := []byte(fmt.Sprintf("resp-%d", got.service))
+		if !bytes.Equal(got.resp, want) {
+			t.Fatalf("service %d response mismatch: got=%q want=%q", got.service, got.resp, want)
+		}
 	}
 }

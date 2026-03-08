@@ -13,8 +13,8 @@ import (
 // ServiceStreamOpenFunc opens a stream on a specific service (KCP lane).
 type ServiceStreamOpenFunc func(service uint64) (net.Conn, error)
 
-// ServiceStreamAcceptFunc accepts one incoming stream and its service id.
-type ServiceStreamAcceptFunc func() (net.Conn, uint64, error)
+// ServiceStreamAcceptFunc accepts one incoming stream on a specific service.
+type ServiceStreamAcceptFunc func(service uint64) (net.Conn, error)
 
 // BenchmarkServiceCompositeAggregateThroughput benchmarks aggregate throughput
 // under composite concurrency:
@@ -45,15 +45,10 @@ func BenchmarkServiceCompositeAggregateThroughput(
 			if err != nil {
 				b.Fatalf("open service=%d stream=%d failed: %v", svc, st, err)
 			}
-			s, gotService, err := accept()
+			s, err := accept(uint64(svc))
 			if err != nil {
 				_ = c.Close()
 				b.Fatalf("accept service=%d stream=%d failed: %v", svc, st, err)
-			}
-			if gotService != uint64(svc) {
-				_ = c.Close()
-				_ = s.Close()
-				b.Fatalf("accept service mismatch: got=%d want=%d", gotService, svc)
 			}
 			clientStreams = append(clientStreams, c)
 			serverStreams = append(serverStreams, s)

@@ -1,6 +1,7 @@
 package core
 
 import (
+	"encoding/binary"
 	"testing"
 	"time"
 
@@ -100,7 +101,9 @@ func TestRPCRouteErrorCounterOnSmuxInputFailure(t *testing.T) {
 	}
 
 	before := server.HostInfo().RPCRouteErrors
-	if err := client.sendToPeer(clientPeer, noise.ProtocolRPC, []byte("rpc-route-err")); err != nil {
+	frame := binary.AppendUvarint(nil, 1)
+	frame = append(frame, 0)
+	if err := client.sendToPeer(clientPeer, noise.ProtocolRPC, frame); err != nil {
 		t.Fatalf("sendToPeer(RPC) failed: %v", err)
 	}
 
@@ -163,14 +166,9 @@ func TestKCPOutputErrorCounterFromServiceMux(t *testing.T) {
 	smux := u.createServiceMux(peer)
 	defer smux.Close()
 
-	stream, err := smux.OpenStream(0)
-	if err != nil {
-		t.Fatalf("OpenStream(service=0) failed: %v", err)
+	if _, err := smux.OpenStream(0); err == nil {
+		t.Fatal("OpenStream(service=0) should fail without a peer endpoint")
 	}
-	defer stream.Close()
-
-	_ = stream.SetWriteDeadline(time.Now().Add(200 * time.Millisecond))
-	_, _ = stream.Write([]byte("trigger-output-error"))
 
 	deadline := time.Now().Add(2 * time.Second)
 	for time.Now().Before(deadline) {

@@ -19,6 +19,7 @@ func (c *Conn) OpenService(service uint64) (net.Conn, error) {
 	return c.udp.OpenStream(c.pk, service)
 }
 
+// AcceptService is the peer-layer wrapper around the per-service accept path.
 func (c *Conn) AcceptService(service uint64) (net.Conn, error) {
 	if err := c.validate(); err != nil {
 		return nil, err

@@ -2,11 +2,15 @@ package client
 
 import (
 	"context"
+	"net"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/haivivi/giztoy/go/internal/server"
+	"github.com/haivivi/giztoy/go/pkg/net/core"
 	"github.com/haivivi/giztoy/go/pkg/net/noise"
+	"github.com/haivivi/giztoy/go/pkg/net/peer"
 )
 
 func TestDialAndPing(t *testing.T) {
@@ -93,4 +97,151 @@ func getServerAddr(t *testing.T, srv *server.Server) string {
 	// Since Server doesn't export listener, we need to add a method or use reflection.
 	// For now, let's just add a ListenAddr method to Server.
 	return srv.ListenAddr()
+}
+
+func startReadLoop(u *core.UDP) {
+	go func() {
+		buf := make([]byte, 65535)
+		for {
+			if _, _, err := u.ReadFrom(buf); err != nil {
+				return
+			}
+		}
+	}()
+}
+
+func startMockRPCServer(t *testing.T, handler func(net.Conn)) (string, noise.PublicKey, func()) {
+	t.Helper()
+
+	serverKey, err := noise.GenerateKeyPair()
+	if err != nil {
+		t.Fatalf("GenerateKeyPair(server): %v", err)
+	}
+
+	serverUDP, err := core.NewUDP(serverKey, core.WithBindAddr("127.0.0.1:0"), core.WithAllowUnknown(true))
+	if err != nil {
+		t.Fatalf("NewUDP(server): %v", err)
+	}
+	startReadLoop(serverUDP)
+
+	serverListener, err := peer.Wrap(serverUDP)
+	if err != nil {
+		_ = serverUDP.Close()
+		t.Fatalf("Wrap(server): %v", err)
+	}
+
+	go func() {
+		conn, err := serverListener.Accept()
+		if err != nil {
+			return
+		}
+		stream, err := conn.AcceptService(0)
+		if err != nil {
+			return
+		}
+		handler(stream)
+	}()
+
+	closeFn := func() {
+		_ = serverListener.Close()
+		_ = serverUDP.Close()
+	}
+	return serverUDP.HostInfo().Addr.String(), serverKey.Public, closeFn
+}
+
+func dialMockClient(t *testing.T, handler func(net.Conn)) *Client {
+	t.Helper()
+
+	addr, serverPK, closeServer := startMockRPCServer(t, handler)
+	t.Cleanup(closeServer)
+
+	clientKey, err := noise.GenerateKeyPair()
+	if err != nil {
+		t.Fatalf("GenerateKeyPair(client): %v", err)
+	}
+
+	c, err := Dial(clientKey, addr, serverPK)
+	if err != nil {
+		t.Fatalf("Dial err=%v", err)
+	}
+	t.Cleanup(func() { _ = c.Close() })
+	return c
+}
+
+func TestPingAfterClose(t *testing.T) {
+	c := dialMockClient(t, func(stream net.Conn) {
+		defer stream.Close()
+		_, _ = server.ReadFrame(stream)
+	})
+
+	if err := c.Close(); err != nil {
+		t.Fatalf("Close err=%v", err)
+	}
+
+	if _, err := c.Ping(); err == nil {
+		t.Fatal("Ping after Close should fail")
+	}
+}
+
+func TestPingServerError(t *testing.T) {
+	c := dialMockClient(t, func(stream net.Conn) {
+		_, _ = server.ReadFrame(stream)
+		resp := &server.RPCResponse{
+			V:  1,
+			ID: "ping",
+			Error: &server.RPCError{
+				Code:    -1,
+				Message: "boom",
+			},
+		}
+		_ = server.WriteRPCResponse(stream, resp)
+	})
+
+	if _, err := c.Ping(); err == nil || err.Error() != "client: server error: boom" {
+		t.Fatalf("Ping server error=%v", err)
+	}
+}
+
+func TestPingBadResponseJSON(t *testing.T) {
+	c := dialMockClient(t, func(stream net.Conn) {
+		_, _ = server.ReadFrame(stream)
+		_ = server.WriteFrame(stream, []byte("{bad-json"))
+	})
+
+	if _, err := c.Ping(); err == nil || !contains(err, "client: unmarshal:") {
+		t.Fatalf("Ping bad response err=%v", err)
+	}
+}
+
+func TestPingBadResultJSON(t *testing.T) {
+	c := dialMockClient(t, func(stream net.Conn) {
+		_, _ = server.ReadFrame(stream)
+		_ = server.WriteFrame(stream, []byte(`{"v":1,"id":"ping","result":{bad-result}`))
+	})
+
+	if _, err := c.Ping(); err == nil || !contains(err, "client: unmarshal:") {
+		t.Fatalf("Ping bad result err=%v", err)
+	}
+}
+
+func TestPingReadError(t *testing.T) {
+	c := dialMockClient(t, func(stream net.Conn) {
+		_, _ = server.ReadFrame(stream)
+		_ = stream.Close()
+	})
+
+	if _, err := c.Ping(); err == nil || !contains(err, "client: read:") {
+		t.Fatalf("Ping read error=%v", err)
+	}
+}
+
+func TestClientCloseNilSafe(t *testing.T) {
+	var c Client
+	if err := c.Close(); err != nil {
+		t.Fatalf("Close nil-safe err=%v", err)
+	}
+}
+
+func contains(err error, want string) bool {
+	return err != nil && strings.Contains(err.Error(), want)
 }

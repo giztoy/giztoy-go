@@ -2,6 +2,7 @@ package core
 
 import (
 	"fmt"
+	"io"
 	"sync"
 	"testing"
 	"time"
@@ -60,18 +61,29 @@ func TestUDPStreamThroughput(t *testing.T) {
 	}
 	time.Sleep(100 * time.Millisecond)
 
-	// Open stream
-	clientStream, err := client.OpenStream(serverKey.Public, 0)
-	if err != nil {
-		t.Fatal(err)
-	}
-
 	chunk := make([]byte, chunkSize)
 	for i := range chunk {
 		chunk[i] = byte(i & 0xFF)
 	}
 
-	// Write an initial chunk to trigger the server-side AcceptStream.
+	serverStreamCh := make(chan io.ReadWriteCloser, 1)
+	serverErrCh := make(chan error, 1)
+	go func() {
+		s, err := server.AcceptStreamOn(clientKey.Public, 0)
+		if err != nil {
+			serverErrCh <- err
+			return
+		}
+		serverStreamCh <- s
+	}()
+
+	time.Sleep(50 * time.Millisecond)
+
+	clientStream, err := client.OpenStream(serverKey.Public, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	written := 0
 	n, err := clientStream.Write(chunk)
 	if err != nil {
@@ -79,9 +91,13 @@ func TestUDPStreamThroughput(t *testing.T) {
 	}
 	written += n
 
-	serverStream, _, err := server.AcceptStream(clientKey.Public)
-	if err != nil {
+	var serverStream io.ReadWriteCloser
+	select {
+	case serverStream = <-serverStreamCh:
+	case err := <-serverErrCh:
 		t.Fatal(err)
+	case <-time.After(5 * time.Second):
+		t.Fatal("timeout waiting for AcceptStreamOn")
 	}
 
 	var wg sync.WaitGroup

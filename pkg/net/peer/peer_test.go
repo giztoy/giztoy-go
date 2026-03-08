@@ -428,17 +428,32 @@ func TestConnValidationAndProtocolErrorPaths(t *testing.T) {
 		t.Fatalf("OpenRPC(nil udp) err=%v, want %v", err, ErrNilConn)
 	}
 
-	smux, err := pair.serverUDP.GetServiceMux(pair.clientKey.Public)
+	acceptCh := make(chan net.Conn, 1)
+	errCh := make(chan error, 1)
+	go func() {
+		svcStream, err := pair.serverConn.AcceptService(1)
+		if err != nil {
+			errCh <- err
+			return
+		}
+		acceptCh <- svcStream
+	}()
+
+	time.Sleep(50 * time.Millisecond)
+
+	clientStream, err := pair.clientConn.OpenService(1)
 	if err != nil {
-		t.Fatalf("server GetServiceMux failed: %v", err)
+		t.Fatalf("OpenService(1) failed: %v", err)
 	}
-	if err := smux.Input(1, []byte{0x00, 0x01, 0x02}); err != nil {
-		t.Fatalf("smux.Input(service=1) failed: %v", err)
-	}
-	// AcceptService(1) should accept the service=1 stream injected above.
-	svcStream, err := pair.serverConn.AcceptService(1)
-	if err != nil {
+	defer clientStream.Close()
+
+	var svcStream net.Conn
+	select {
+	case svcStream = <-acceptCh:
+	case err := <-errCh:
 		t.Fatalf("AcceptService(1) err=%v", err)
+	case <-time.After(5 * time.Second):
+		t.Fatal("AcceptService(1) timeout")
 	}
 	_ = svcStream.Close()
 }

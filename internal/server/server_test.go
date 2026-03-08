@@ -3,6 +3,8 @@ package server
 import (
 	"context"
 	"encoding/json"
+	"io"
+	"log"
 	"net"
 	"testing"
 	"time"
@@ -184,6 +186,61 @@ func TestDefaultConfig(t *testing.T) {
 	}
 }
 
+func TestServerListenAddrBeforeRun(t *testing.T) {
+	srv, err := New(Config{DataDir: t.TempDir(), ListenAddr: "127.0.0.1:0"})
+	if err != nil {
+		t.Fatalf("New err=%v", err)
+	}
+	if got := srv.ListenAddr(); got != "" {
+		t.Fatalf("ListenAddr before Run=%q, want empty", got)
+	}
+}
+
+func TestServerRunListenError(t *testing.T) {
+	srv, err := New(Config{DataDir: t.TempDir(), ListenAddr: "bad-listen-addr"})
+	if err != nil {
+		t.Fatalf("New err=%v", err)
+	}
+
+	if err := srv.Run(context.Background()); err == nil {
+		t.Fatal("Run with bad listen addr should fail")
+	}
+}
+
+func TestHandleStreamReadError(t *testing.T) {
+	srv := &Server{logger: log.New(io.Discard, "", 0)}
+	serverSide, clientSide := net.Pipe()
+	done := make(chan struct{})
+	go func() {
+		srv.handleStream(serverSide)
+		close(done)
+	}()
+
+	_ = clientSide.Close()
+
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("handleStream did not return after read failure")
+	}
+}
+
+func TestHandlePeerPingWriteError(t *testing.T) {
+	srv := &Server{logger: log.New(io.Discard, "", 0)}
+	srv.handlePeerPing(errConn{writeErr: io.ErrClosedPipe}, &RPCRequest{ID: "ping"})
+}
+
+func TestWriteRPCResponseMarshalError(t *testing.T) {
+	resp := &RPCResponse{
+		V:      1,
+		ID:     "bad",
+		Result: json.RawMessage("{bad-result"),
+	}
+	if err := WriteRPCResponse(io.Discard, resp); err == nil {
+		t.Fatal("WriteRPCResponse(marshal error) should fail")
+	}
+}
+
 func parseUDPAddr(addr string) (*net.UDPAddr, error) {
 	return net.ResolveUDPAddr("udp", addr)
 }
@@ -200,3 +257,21 @@ func waitForHandshake(t *testing.T, u *core.UDP, pk noise.PublicKey, timeout tim
 	}
 	t.Fatalf("handshake with %s did not complete within %v", pk.ShortString(), timeout)
 }
+
+type errConn struct {
+	writeErr error
+}
+
+func (c errConn) Read(_ []byte) (int, error)         { return 0, io.EOF }
+func (c errConn) Write(_ []byte) (int, error)        { return 0, c.writeErr }
+func (c errConn) Close() error                       { return nil }
+func (c errConn) LocalAddr() net.Addr                { return dummyAddr("local") }
+func (c errConn) RemoteAddr() net.Addr               { return dummyAddr("remote") }
+func (c errConn) SetDeadline(_ time.Time) error      { return nil }
+func (c errConn) SetReadDeadline(_ time.Time) error  { return nil }
+func (c errConn) SetWriteDeadline(_ time.Time) error { return nil }
+
+type dummyAddr string
+
+func (a dummyAddr) Network() string { return string(a) }
+func (a dummyAddr) String() string  { return string(a) }

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"net"
+	"sync"
 	"testing"
 	"time"
 
@@ -265,6 +266,226 @@ func TestIntegration_KCPStreamActiveClose(t *testing.T) {
 	}
 }
 
+// TestIntegration_KCPMultiStreamSoak runs a short end-to-end stream churn test
+// to catch regressions in open/accept/close under concurrent load.
+func TestIntegration_KCPMultiStreamSoak(t *testing.T) {
+	serverKey, err := noise.GenerateKeyPair()
+	if err != nil {
+		t.Fatalf("Generate server key failed: %v", err)
+	}
+	clientKey, err := noise.GenerateKeyPair()
+	if err != nil {
+		t.Fatalf("Generate client key failed: %v", err)
+	}
+
+	server := testutil.NewUDPNode(t, serverKey)
+	defer server.Close()
+	client := testutil.NewUDPNode(t, clientKey)
+	defer client.Close()
+
+	testutil.ConnectNodes(t, client, clientKey, server, serverKey)
+
+	const rounds = 4
+	const perService = 3
+	services := []uint64{0, 7}
+
+	for round := 0; round < rounds; round++ {
+		var wg sync.WaitGroup
+		errCh := make(chan error, len(services)*perService*2)
+		recvCh := make(chan string, len(services)*perService)
+		expected := make(map[string]struct{}, len(services)*perService)
+
+		for _, serviceID := range services {
+			svc := serviceID
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				for i := 0; i < perService; i++ {
+					stream, err := server.AcceptStreamOn(clientKey.Public, svc)
+					if err != nil {
+						errCh <- err
+						return
+					}
+					buf := make([]byte, 64)
+					n, err := stream.Read(buf)
+					_ = stream.Close()
+					if err != nil {
+						errCh <- err
+						return
+					}
+					recvCh <- fmt.Sprintf("%d:%s", svc, string(buf[:n]))
+				}
+			}()
+		}
+
+		time.Sleep(20 * time.Millisecond)
+
+		for _, serviceID := range services {
+			for i := 0; i < perService; i++ {
+				payload := []byte(fmt.Sprintf("round-%d-service-%d-stream-%d", round, serviceID, i))
+				expected[fmt.Sprintf("%d:%s", serviceID, string(payload))] = struct{}{}
+
+				wg.Add(1)
+				go func(service uint64, msg []byte) {
+					defer wg.Done()
+					clientStream, err := client.OpenStream(serverKey.Public, service)
+					if err != nil {
+						errCh <- err
+						return
+					}
+					if _, err := clientStream.Write(msg); err != nil {
+						errCh <- err
+					}
+				}(serviceID, payload)
+			}
+		}
+
+		wg.Wait()
+		close(errCh)
+		for err := range errCh {
+			if err != nil {
+				t.Fatal(err)
+			}
+		}
+		close(recvCh)
+		for got := range recvCh {
+			delete(expected, got)
+		}
+		if len(expected) != 0 {
+			t.Fatalf("missing payloads after round %d: %v", round, expected)
+		}
+	}
+}
+
+// TestIntegration_KCPService0AndNonZeroConcurrentActivity verifies that
+// service 0 and a non-zero service can be active concurrently on the same peer
+// without cross-talk or blocking each other.
+func TestIntegration_KCPService0AndNonZeroConcurrentActivity(t *testing.T) {
+	serverKey, err := noise.GenerateKeyPair()
+	if err != nil {
+		t.Fatalf("Generate server key failed: %v", err)
+	}
+	clientKey, err := noise.GenerateKeyPair()
+	if err != nil {
+		t.Fatalf("Generate client key failed: %v", err)
+	}
+
+	server := testutil.NewUDPNode(t, serverKey)
+	defer server.Close()
+	client := testutil.NewUDPNode(t, clientKey)
+	defer client.Close()
+
+	testutil.ConnectNodes(t, client, clientKey, server, serverKey)
+
+	errCh := make(chan error, 4)
+	done := make(chan string, 2)
+	var clientWG sync.WaitGroup
+
+	go func() {
+		stream, err := server.AcceptStreamOn(clientKey.Public, 0)
+		if err != nil {
+			errCh <- err
+			return
+		}
+		defer stream.Close()
+
+		req := []byte(`{"method":"ping"}`)
+		if got := testutil.ReadExactWithTimeout(t, stream, len(req), 5*time.Second); !bytes.Equal(got, req) {
+			errCh <- fmt.Errorf("service 0 req mismatch: got=%q want=%q", got, req)
+			return
+		}
+		resp := []byte(`{"ok":true}`)
+		if _, err := stream.Write(resp); err != nil {
+			errCh <- err
+			return
+		}
+		done <- "svc0"
+	}()
+
+	go func() {
+		stream, err := server.AcceptStreamOn(clientKey.Public, 7)
+		if err != nil {
+			errCh <- err
+			return
+		}
+		defer stream.Close()
+
+		req := []byte("nonzero-request")
+		if got := testutil.ReadExactWithTimeout(t, stream, len(req), 5*time.Second); !bytes.Equal(got, req) {
+			errCh <- fmt.Errorf("service 7 req mismatch: got=%q want=%q", got, req)
+			return
+		}
+		resp := []byte("nonzero-response")
+		if _, err := stream.Write(resp); err != nil {
+			errCh <- err
+			return
+		}
+		done <- "svc7"
+	}()
+
+	time.Sleep(20 * time.Millisecond)
+
+	clientWG.Add(1)
+	go func() {
+		defer clientWG.Done()
+		stream, err := client.OpenStream(serverKey.Public, 0)
+		if err != nil {
+			errCh <- err
+			return
+		}
+		defer stream.Close()
+
+		req := []byte(`{"method":"ping"}`)
+		if _, err := stream.Write(req); err != nil {
+			errCh <- err
+			return
+		}
+		resp := []byte(`{"ok":true}`)
+		if got := testutil.ReadExactWithTimeout(t, stream, len(resp), 5*time.Second); !bytes.Equal(got, resp) {
+			errCh <- fmt.Errorf("service 0 resp mismatch: got=%q want=%q", got, resp)
+		}
+	}()
+
+	clientWG.Add(1)
+	go func() {
+		defer clientWG.Done()
+		stream, err := client.OpenStream(serverKey.Public, 7)
+		if err != nil {
+			errCh <- err
+			return
+		}
+		defer stream.Close()
+
+		req := []byte("nonzero-request")
+		if _, err := stream.Write(req); err != nil {
+			errCh <- err
+			return
+		}
+		resp := []byte("nonzero-response")
+		if got := testutil.ReadExactWithTimeout(t, stream, len(resp), 5*time.Second); !bytes.Equal(got, resp) {
+			errCh <- fmt.Errorf("service 7 resp mismatch: got=%q want=%q", got, resp)
+		}
+	}()
+
+	for i := 0; i < 2; i++ {
+		select {
+		case <-done:
+		case err := <-errCh:
+			t.Fatal(err)
+		case <-time.After(5 * time.Second):
+			t.Fatal("concurrent service activity timeout")
+		}
+	}
+
+	clientWG.Wait()
+
+	select {
+	case err := <-errCh:
+		t.Fatal(err)
+	default:
+	}
+}
+
 // TestIntegration_KCPNonZeroServiceStream tests that non-zero service streams
 // can be opened and accepted end-to-end through the foundation layer.
 func TestIntegration_KCPNonZeroServiceStream(t *testing.T) {
@@ -284,6 +505,19 @@ func TestIntegration_KCPNonZeroServiceStream(t *testing.T) {
 
 	testutil.ConnectNodes(t, client, clientKey, server, serverKey)
 
+	acceptCh := make(chan net.Conn, 1)
+	errCh := make(chan error, 1)
+	go func() {
+		accepted, err := server.AcceptStreamOn(clientKey.Public, 7)
+		if err != nil {
+			errCh <- err
+			return
+		}
+		acceptCh <- accepted
+	}()
+
+	time.Sleep(50 * time.Millisecond)
+
 	stream, err := client.OpenStream(serverKey.Public, 7)
 	if err != nil {
 		t.Fatalf("OpenStream(service=7) err=%v", err)
@@ -295,9 +529,13 @@ func TestIntegration_KCPNonZeroServiceStream(t *testing.T) {
 		t.Fatalf("Write failed: %v", err)
 	}
 
-	accepted, err := server.AcceptStreamOn(clientKey.Public, 7)
-	if err != nil {
+	var accepted net.Conn
+	select {
+	case accepted = <-acceptCh:
+	case err := <-errCh:
 		t.Fatalf("AcceptStreamOn(7) err=%v", err)
+	case <-time.After(5 * time.Second):
+		t.Fatal("AcceptStreamOn(7) timeout")
 	}
 	defer accepted.Close()
 
@@ -528,9 +766,6 @@ func TestIntegration_UnknownPeerOperations(t *testing.T) {
 		t.Fatalf("OpenStream(unknown peer) err=%v, want %v", err, gnet.ErrPeerNotFound)
 	}
 
-	if _, _, err := u.AcceptStream(unknownKey.Public); err != gnet.ErrPeerNotFound {
-		t.Fatalf("AcceptStream(unknown peer) err=%v, want %v", err, gnet.ErrPeerNotFound)
-	}
 }
 
 // TestIntegration_StreamBeforeSession verifies that stream operations return
@@ -558,9 +793,6 @@ func TestIntegration_StreamBeforeSession(t *testing.T) {
 		t.Fatalf("OpenStream(before session) err=%v, want %v", err, gnet.ErrNoSession)
 	}
 
-	if _, _, err := server.AcceptStream(clientKey.Public); err != gnet.ErrNoSession {
-		t.Fatalf("AcceptStream(before session) err=%v, want %v", err, gnet.ErrNoSession)
-	}
 }
 
 // TestIntegration_ClosedNodeOperations verifies that Read/Write/OpenStream/
@@ -586,10 +818,6 @@ func TestIntegration_ClosedNodeOperations(t *testing.T) {
 
 	if _, err := u.OpenStream(peerKey.Public, 0); err != gnet.ErrClosed {
 		t.Fatalf("OpenStream(after close) err=%v, want %v", err, gnet.ErrClosed)
-	}
-
-	if _, _, err := u.AcceptStream(peerKey.Public); err != gnet.ErrClosed {
-		t.Fatalf("AcceptStream(after close) err=%v, want %v", err, gnet.ErrClosed)
 	}
 
 	buf := make([]byte, 8)

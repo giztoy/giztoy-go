@@ -127,8 +127,6 @@ func (s *Server) servePeer(ctx context.Context, conn *peer.Conn) {
 }
 
 func (s *Server) handleStream(stream net.Conn) {
-	defer stream.Close()
-
 	req, err := ReadRPCRequest(stream)
 	if err != nil {
 		s.logger.Printf("read rpc: %v", err)

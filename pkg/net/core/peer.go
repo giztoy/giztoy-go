@@ -27,6 +27,11 @@ func (u *UDP) createServiceMux(peer *peerState) *kcp.ServiceMux {
 		OnOutputError: func(_ uint64, _ error) {
 			u.kcpOutputErrors.Add(1)
 		},
+		// During this review-fix round, allow all services to bootstrap so we can
+		// validate multi-service multi-stream behavior before introducing service ACLs.
+		OnNewService: func(service uint64) bool {
+			return true
+		},
 	})
 }
 
@@ -92,12 +97,9 @@ func (u *UDP) sendDirect(peer *peerState, protocol byte, data []byte) error {
 	return u.sendDirectWithService(peer, protocol, 0, data)
 }
 
-// OpenStream opens a direct KCP stream to the specified peer on the given service.
-//
-// Compatibility note:
-// Remote AcceptStream() is notified when inbound packets are observed on the
-// service. Callers should write at least one payload after OpenStream to ensure
-// the peer-side accept unblocks.
+// OpenStream opens a new KCP stream to the specified peer on the given service.
+// Each call creates a distinct stream; the remote side should receive it via
+// the matching per-service accept path for the same service.
 func (u *UDP) OpenStream(pk noise.PublicKey, service uint64) (net.Conn, error) {
 	if u.closed.Load() || u.closing.Load() {
 		return nil, ErrClosed
@@ -126,37 +128,9 @@ func (u *UDP) OpenStream(pk noise.PublicKey, service uint64) (net.Conn, error) {
 	return m.OpenStream(service)
 }
 
-// AcceptStream accepts an incoming direct KCP stream from the specified peer.
-// Returns the stream, service ID, and any error.
-//
-// The accept is edge-triggered by inbound service activity. If the remote peer
-// only opens a stream without writing data, AcceptStream remains blocked.
-func (u *UDP) AcceptStream(pk noise.PublicKey) (net.Conn, uint64, error) {
-	if u.closed.Load() || u.closing.Load() {
-		return nil, 0, ErrClosed
-	}
-
-	u.mu.RLock()
-	peer, exists := u.peers[pk]
-	u.mu.RUnlock()
-
-	if !exists {
-		return nil, 0, ErrPeerNotFound
-	}
-
-	peer.mu.RLock()
-	m := peer.serviceMux
-	peer.mu.RUnlock()
-
-	if m == nil {
-		return nil, 0, ErrNoSession
-	}
-
-	return m.AcceptStream()
-}
-
-// AcceptStreamOn accepts an incoming KCP stream on a specific service from the specified peer.
-// Unlike AcceptStream, this blocks until a stream arrives on the given service ID.
+// AcceptStreamOn is the current code-level entrypoint for accepting an incoming
+// KCP stream on a specific service from the specified peer.
+// This blocks until a stream arrives on the given service ID.
 func (u *UDP) AcceptStreamOn(pk noise.PublicKey, service uint64) (net.Conn, error) {
 	if u.closed.Load() || u.closing.Load() {
 		return nil, ErrClosed
@@ -178,7 +152,7 @@ func (u *UDP) AcceptStreamOn(pk noise.PublicKey, service uint64) (net.Conn, erro
 		return nil, ErrNoSession
 	}
 
-	return m.AcceptStreamOn(service)
+	return m.AcceptStream(service)
 }
 
 // closedChan returns a channel that's closed when UDP is closed.

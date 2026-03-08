@@ -29,8 +29,7 @@ func BenchmarkNet_YamuxOverKCPOverNoise_StreamOpenClose(b *testing.B) {
 					return pair.Client.OpenStream(0)
 				},
 				func() (net.Conn, error) {
-					c, _, err := pair.Server.AcceptStream()
-					return c, err
+					return pair.Server.AcceptStream(0)
 				},
 			)
 			framework.ReportDropMetric(b, pair.Link.LossAB())
@@ -63,8 +62,7 @@ func BenchmarkNet_YamuxOverKCPOverNoise_AggregateThroughput(b *testing.B) {
 							return pair.Client.OpenStream(0)
 						},
 						func() (net.Conn, error) {
-							c, _, err := pair.Server.AcceptStream()
-							return c, err
+							return pair.Server.AcceptStream(0)
 						},
 					)
 					framework.ReportDropMetric(b, pair.Link.LossAB())
@@ -99,8 +97,7 @@ func BenchmarkNet_YamuxOverKCPOverNoise_RPCStyle(b *testing.B) {
 							return pair.Client.OpenStream(0)
 						},
 						func() (net.Conn, error) {
-							c, _, err := pair.Server.AcceptStream()
-							return c, err
+							return pair.Server.AcceptStream(0)
 						},
 					)
 					framework.ReportDropMetric(b, pair.Link.LossAB())
@@ -148,8 +145,8 @@ func BenchmarkNet_YamuxOverKCPOverNoise_MultiKCPAggregateThroughput(b *testing.B
 						func(service uint64) (net.Conn, error) {
 							return pair.Client.OpenStream(service)
 						},
-						func() (net.Conn, uint64, error) {
-							return pair.Server.AcceptStream()
+						func(service uint64) (net.Conn, error) {
+							return pair.Server.AcceptStream(service)
 						},
 					)
 					framework.ReportDropMetric(b, pair.Link.LossAB())
