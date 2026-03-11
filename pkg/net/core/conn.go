@@ -285,8 +285,11 @@ func (c *Conn) failHandshake(err error) error {
 //
 // If the connection is not established, the packet is queued.
 func (c *Conn) Send(protocol byte, payload []byte) error {
-	if protocol == ProtocolRPC {
+	switch protocol {
+	case ProtocolRPC:
 		return ErrRPCMustUseStream
+	case ProtocolHTTP:
+		return ErrHTTPMustUseStream
 	}
 	if !IsFoundationProtocol(protocol) {
 		return ErrUnsupportedProtocol
@@ -552,8 +555,11 @@ func (c *Conn) handleTransportMessage(msg *noise.TransportMessage) (byte, []byte
 	if err != nil {
 		return 0, nil, err
 	}
-	if protocol == ProtocolRPC {
+	switch protocol {
+	case ProtocolRPC:
 		return 0, nil, ErrRPCMustUseStream
+	case ProtocolHTTP:
+		return 0, nil, ErrHTTPMustUseStream
 	}
 	if !IsFoundationProtocol(protocol) {
 		return 0, nil, ErrUnsupportedProtocol

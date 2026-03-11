@@ -1254,9 +1254,9 @@ func (u *UDP) decryptTransport(pkt *packet, data []byte, from *net.UDPAddr) {
 	pkt.payload = make([]byte, len(payload))
 	copy(pkt.payload, payload)
 	pkt.payloadN = len(payload)
-	// RPC protocol is routed through KCP streams, not the raw passthrough path.
+	// Stream protocols are routed through KCP streams, not the raw passthrough path.
 	// Wire format: service_varint + kcp_data
-	if protocol == ProtocolRPC {
+	if IsStreamProtocol(protocol) {
 		if smux == nil {
 			u.rpcRouteErrors.Add(1)
 			pkt.err = ErrNoSession
@@ -1273,7 +1273,7 @@ func (u *UDP) decryptTransport(pkt *packet, data []byte, from *net.UDPAddr) {
 			pkt.err = err
 			return
 		}
-		pkt.err = ErrNoData // RPC data handed off to smux/KCP
+		pkt.err = ErrNoData // Stream protocol data handed off to smux/KCP
 		return
 	}
 

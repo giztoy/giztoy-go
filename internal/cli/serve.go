@@ -11,12 +11,22 @@ import (
 )
 
 func newServeCmd() *cobra.Command {
-	cfg := server.DefaultConfig()
+	defaults := server.DefaultConfig()
+	var dataDir string
+	var listenAddr string
+	var configPath string
 
 	cmd := &cobra.Command{
 		Use:   "serve",
 		Short: "Start the Giztoy server",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			cfg := server.Config{ConfigPath: configPath}
+			if cmd.Flags().Changed("data-dir") {
+				cfg.DataDir = dataDir
+			}
+			if cmd.Flags().Changed("listen") {
+				cfg.ListenAddr = listenAddr
+			}
 			srv, err := server.New(cfg)
 			if err != nil {
 				return err
@@ -29,8 +39,9 @@ func newServeCmd() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVar(&cfg.DataDir, "data-dir", cfg.DataDir, "server data directory")
-	cmd.Flags().StringVar(&cfg.ListenAddr, "listen", cfg.ListenAddr, "UDP listen address")
+	cmd.Flags().StringVar(&dataDir, "data-dir", defaults.DataDir, "server data directory")
+	cmd.Flags().StringVar(&listenAddr, "listen", defaults.ListenAddr, "UDP listen address")
+	cmd.Flags().StringVar(&configPath, "config", "", "server config file")
 
 	return cmd
 }

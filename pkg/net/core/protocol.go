@@ -2,6 +2,7 @@ package core
 
 // Protocol field values carried inside the encrypted transport payload.
 const (
+	ProtocolHTTP  byte = 0x80
 	// ProtocolRPC intentionally uses a high-bit value to keep RPC stream frames
 	// distinct from the low-byte direct packet protocols handled by ServiceMux.
 	ProtocolRPC   byte = 0x81
@@ -13,7 +14,16 @@ const (
 // currently implemented protocol whitelist.
 func IsFoundationProtocol(protocol byte) bool {
 	switch protocol {
-	case ProtocolRPC, ProtocolEVENT, ProtocolOPUS:
+	case ProtocolHTTP, ProtocolRPC, ProtocolEVENT, ProtocolOPUS:
+		return true
+	default:
+		return false
+	}
+}
+
+func IsStreamProtocol(protocol byte) bool {
+	switch protocol {
+	case ProtocolHTTP, ProtocolRPC:
 		return true
 	default:
 		return false

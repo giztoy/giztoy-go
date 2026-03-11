@@ -14,6 +14,8 @@ func NewRootCmd() *cobra.Command {
 		newServeCmd(),
 		newContextCmd(),
 		newPingCmd(),
+		newAdminCmd(),
+		newPlayCmd(),
 	)
 
 	return root

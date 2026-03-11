@@ -12,6 +12,7 @@ import (
 
 var (
 	ErrServiceMuxClosed    = kcp.ErrServiceMuxClosed
+	ErrAcceptQueueClosed   = kcp.ErrAcceptQueueClosed
 	ErrServiceRejected     = kcp.ErrServiceRejected
 	ErrInboundQueueFull    = kcp.ErrInboundQueueFull
 	ErrInvalidServiceFrame = kcp.ErrInvalidServiceFrame
@@ -41,10 +42,12 @@ type ServiceMuxConfig struct {
 }
 
 type serviceState struct {
-	serviceID    uint64
-	mux          *kcp.KcpMux
-	eventInbound chan protoPacket
-	opusInbound  chan protoPacket
+	serviceID        uint64
+	mux              *kcp.KcpMux
+	eventInbound     chan protoPacket
+	opusInbound      chan protoPacket
+	closed           bool
+	acceptingStopped bool
 }
 
 type ServiceMux struct {
@@ -82,11 +85,17 @@ func (m *ServiceMux) Input(service uint64, protocol byte, data []byte) error {
 
 	state, ok := m.getService(service)
 	if ok {
+		if state.closed {
+			return m.rejectUnknownService(service, protocol, data)
+		}
+		if state.acceptingStopped && shouldRejectStoppedService(protocol, data) {
+			return m.rejectUnknownService(service, protocol, data)
+		}
 		return m.inputToService(state, protocol, data)
 	}
 
 	switch protocol {
-	case ProtocolRPC, ProtocolEVENT, ProtocolOPUS:
+	case ProtocolHTTP, ProtocolRPC, ProtocolEVENT, ProtocolOPUS:
 	default:
 		return ErrUnsupportedProtocol
 	}
@@ -163,6 +172,8 @@ func (m *ServiceMux) Write(protocol byte, data []byte) (n int, err error) {
 	switch protocol {
 	case ProtocolRPC:
 		return 0, ErrRPCMustUseStream
+	case ProtocolHTTP:
+		return 0, ErrHTTPMustUseStream
 	case ProtocolEVENT, ProtocolOPUS:
 	default:
 		return 0, ErrUnsupportedProtocol
@@ -206,6 +217,53 @@ func (m *ServiceMux) AcceptStream(service uint64) (net.Conn, error) {
 		return nil, err
 	}
 	return mux.Accept()
+}
+
+func (m *ServiceMux) CloseService(service uint64) error {
+	if m.closed.Load() {
+		return ErrServiceMuxClosed
+	}
+
+	m.mu.Lock()
+	state, ok := m.services[service]
+	if !ok {
+		state = &serviceState{
+			serviceID:    service,
+			eventInbound: make(chan protoPacket, InboundChanSize),
+			opusInbound:  make(chan protoPacket, InboundChanSize),
+		}
+		m.services[service] = state
+	}
+	state.closed = true
+	state.acceptingStopped = true
+	m.mu.Unlock()
+	if state.mux != nil {
+		return state.mux.Close()
+	}
+	return nil
+}
+
+func (m *ServiceMux) StopAcceptingService(service uint64) error {
+	if m.closed.Load() {
+		return ErrServiceMuxClosed
+	}
+
+	m.mu.Lock()
+	state, ok := m.services[service]
+	if !ok {
+		state = &serviceState{
+			serviceID:    service,
+			eventInbound: make(chan protoPacket, InboundChanSize),
+			opusInbound:  make(chan protoPacket, InboundChanSize),
+		}
+		m.services[service] = state
+	}
+	state.acceptingStopped = true
+	m.mu.Unlock()
+	if state.mux == nil {
+		return nil
+	}
+	return state.mux.StopAccepting()
 }
 
 func (m *ServiceMux) Close() error {
@@ -273,6 +331,9 @@ func (m *ServiceMux) getOrCreateService(service uint64) (*serviceState, error) {
 	state, ok := m.services[service]
 	m.mu.RUnlock()
 	if ok {
+		if state.closed {
+			return nil, ErrServiceMuxClosed
+		}
 		return state, nil
 	}
 
@@ -282,6 +343,9 @@ func (m *ServiceMux) getOrCreateService(service uint64) (*serviceState, error) {
 		return nil, ErrServiceMuxClosed
 	}
 	if state, ok := m.services[service]; ok {
+		if state.closed {
+			return nil, ErrServiceMuxClosed
+		}
 		return state, nil
 	}
 
@@ -307,6 +371,9 @@ func (m *ServiceMux) ensureKcpMux(state *serviceState) (*kcp.KcpMux, error) {
 	if state.mux != nil {
 		return state.mux, nil
 	}
+	if state.closed {
+		return nil, ErrServiceMuxClosed
+	}
 
 	state.mux = kcp.NewKcpMux(
 		state.serviceID,
@@ -320,6 +387,11 @@ func (m *ServiceMux) ensureKcpMux(state *serviceState) (*kcp.KcpMux, error) {
 		},
 		m.reportOutputError,
 	)
+	if state.acceptingStopped {
+		if err := state.mux.StopAccepting(); err != nil {
+			return nil, err
+		}
+	}
 	return state.mux, nil
 }
 
@@ -334,7 +406,7 @@ func (m *ServiceMux) reportOutputError(service uint64, err error) {
 }
 
 func (m *ServiceMux) rejectUnknownService(service uint64, protocol byte, data []byte) error {
-	if protocol != ProtocolRPC {
+	if !IsStreamProtocol(protocol) {
 		return ErrServiceRejected
 	}
 
@@ -379,6 +451,14 @@ func decodeServiceMuxFrame(data []byte) (uint64, byte, error) {
 	return streamID, data[n], nil
 }
 
+func shouldRejectStoppedService(protocol byte, data []byte) bool {
+	if !IsStreamProtocol(protocol) {
+		return false
+	}
+	_, frameType, err := decodeServiceMuxFrame(data)
+	return err == nil && frameType == serviceMuxFrameOpen
+}
+
 func (m *ServiceMux) copyDirectPacket(pkt protoPacket, ok bool, buf []byte) (int, error) {
 	if !ok {
 		return 0, ErrServiceMuxClosed
@@ -394,7 +474,7 @@ func (m *ServiceMux) copyDirectPacket(pkt protoPacket, ok bool, buf []byte) (int
 
 func (m *ServiceMux) inputToService(state *serviceState, protocol byte, data []byte) error {
 	switch protocol {
-	case ProtocolRPC:
+	case ProtocolHTTP, ProtocolRPC:
 		mux, err := m.ensureKcpMux(state)
 		if err != nil {
 			return err
@@ -424,6 +504,8 @@ func (s *serviceState) directInbound(protocol byte) (chan protoPacket, error) {
 		return s.opusInbound, nil
 	case ProtocolRPC:
 		return nil, ErrRPCMustUseStream
+	case ProtocolHTTP:
+		return nil, ErrHTTPMustUseStream
 	default:
 		return nil, ErrUnsupportedProtocol
 	}

@@ -48,7 +48,7 @@ var (
 	// ErrSessionExpired indicates the session has expired and cannot be used.
 	ErrSessionExpired = errors.New("net: session expired")
 
-	// ErrUnsupportedProtocol indicates the protocol is outside RPC/EVENT/OPUS whitelist.
+	// ErrUnsupportedProtocol indicates the protocol is outside the foundation whitelist.
 	ErrUnsupportedProtocol = errors.New("net: unsupported protocol")
 
 	// ErrUnsupportedService indicates the requested service is not supported.
@@ -56,4 +56,7 @@ var (
 
 	// ErrRPCMustUseStream indicates RPC traffic must use direct KCP stream.
 	ErrRPCMustUseStream = errors.New("net: rpc must use kcp stream")
+
+	// ErrHTTPMustUseStream indicates HTTP traffic must use direct KCP stream.
+	ErrHTTPMustUseStream = errors.New("net: http must use kcp stream")
 )

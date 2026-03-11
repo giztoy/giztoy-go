@@ -39,7 +39,7 @@ func (u *UDP) sendToPeerWithService(peer *peerState, protocol byte, service uint
 }
 
 // sendDirectWithService sends data directly to a peer with protocol + service.
-// For RPC protocol, the service ID is encoded as a varint prefix in the payload
+// For stream protocols, the service ID is encoded as a varint prefix in the payload
 // so the receiver can route to the correct ServiceMux entry.
 func (u *UDP) sendDirectWithService(peer *peerState, protocol byte, service uint64, data []byte) error {
 	if !IsFoundationProtocol(protocol) {
@@ -59,7 +59,7 @@ func (u *UDP) sendDirectWithService(peer *peerState, protocol byte, service uint
 	}
 
 	wirePayload := data
-	if protocol == ProtocolRPC {
+	if IsStreamProtocol(protocol) {
 		wirePayload = noise.AppendVarint(nil, service)
 		wirePayload = append(wirePayload, data...)
 	}

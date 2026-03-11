@@ -91,8 +91,8 @@ func TestReadRPCRequestBadJSON(t *testing.T) {
 func TestRPCResponseWithError(t *testing.T) {
 	var buf bytes.Buffer
 	resp := &RPCResponse{
-		V:  1,
-		ID: "e1",
+		V:     1,
+		ID:    "e1",
 		Error: &RPCError{Code: -1, Message: "unknown method"},
 	}
 	if err := WriteRPCResponse(&buf, resp); err != nil {

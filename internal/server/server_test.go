@@ -230,6 +230,39 @@ func TestHandlePeerPingWriteError(t *testing.T) {
 	srv.handlePeerPing(errConn{writeErr: io.ErrClosedPipe}, &RPCRequest{ID: "ping"})
 }
 
+func TestMarkPeerOfflineDeletesActivePeer(t *testing.T) {
+	srv := &Server{activePeers: make(map[string]*activePeer)}
+	conn := &peer.Conn{}
+	srv.markPeerOnline("device-pk", conn)
+	if runtime := srv.peerRuntime("device-pk"); !runtime.Online {
+		t.Fatalf("peer should be online before offline mark: %+v", runtime)
+	}
+	srv.markPeerOffline("device-pk", conn)
+	if _, ok := srv.activePeers["device-pk"]; ok {
+		t.Fatal("peer should be removed after disconnect")
+	}
+	if runtime := srv.peerRuntime("device-pk"); runtime.Online || runtime.LastSeenAt != 0 {
+		t.Fatalf("runtime after removal = %+v", runtime)
+	}
+}
+
+func TestMarkPeerOfflineKeepsNewerConnection(t *testing.T) {
+	srv := &Server{activePeers: make(map[string]*activePeer)}
+	oldConn := &peer.Conn{}
+	newConn := &peer.Conn{}
+	srv.markPeerOnline("device-pk", oldConn)
+	srv.markPeerOnline("device-pk", newConn)
+	srv.markPeerOffline("device-pk", oldConn)
+
+	got, ok := srv.activePeer("device-pk")
+	if !ok || got != newConn {
+		t.Fatalf("activePeer after old disconnect = %v, %v", got, ok)
+	}
+	if runtime := srv.peerRuntime("device-pk"); !runtime.Online {
+		t.Fatalf("runtime after old disconnect = %+v", runtime)
+	}
+}
+
 func TestWriteRPCResponseMarshalError(t *testing.T) {
 	resp := &RPCResponse{
 		V:      1,

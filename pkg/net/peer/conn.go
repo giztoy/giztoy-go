@@ -39,6 +39,22 @@ func (c *Conn) AcceptRPC() (net.Conn, error) {
 	return c.AcceptService(0)
 }
 
+func (c *Conn) CloseService(service uint64) error {
+	smux, err := c.serviceMux()
+	if err != nil {
+		return err
+	}
+	return smux.CloseService(service)
+}
+
+func (c *Conn) StopAcceptingService(service uint64) error {
+	smux, err := c.serviceMux()
+	if err != nil {
+		return err
+	}
+	return smux.StopAcceptingService(service)
+}
+
 func (c *Conn) SendEvent(evt Event) error {
 	if err := c.validate(); err != nil {
 		return err

@@ -31,10 +31,10 @@ var (
 )
 
 type KcpMuxConfig struct {
-	CloseAckTimeout  time.Duration
+	CloseAckTimeout   time.Duration
 	IdleStreamTimeout time.Duration
-	AcceptBacklog    int
-	MaxActiveStreams int
+	AcceptBacklog     int
+	MaxActiveStreams  int
 }
 
 type streamEntry struct {
@@ -62,10 +62,13 @@ type KcpMux struct {
 	nextLocalStreamID uint64
 	activeStreams     int
 	acceptCh          chan uint64
+	acceptStopCh      chan struct{}
+	acceptingRemote   bool
 	closeCh           chan struct{}
 	closing           bool
 	closed            bool
 	closeOnce         sync.Once
+	acceptStopOnce    sync.Once
 }
 
 type kcpStream struct {
@@ -102,6 +105,8 @@ func NewKcpMux(serviceID uint64, isClient bool, cfg KcpMuxConfig, output func(se
 		streams:           make(map[uint64]*streamEntry),
 		nextLocalStreamID: initialLocalStreamID(isClient),
 		acceptCh:          make(chan uint64, cfg.AcceptBacklog),
+		acceptStopCh:      make(chan struct{}),
+		acceptingRemote:   true,
 		closeCh:           make(chan struct{}),
 	}
 	return m
@@ -153,6 +158,14 @@ func (m *KcpMux) Accept() (net.Conn, error) {
 			if ok {
 				return conn, nil
 			}
+		case <-m.acceptStopCh:
+			m.mu.Lock()
+			closing := m.closing || m.closed
+			m.mu.Unlock()
+			if closing {
+				return nil, ErrServiceMuxClosed
+			}
+			return nil, ErrAcceptQueueClosed
 		case <-m.closeCh:
 			return nil, ErrServiceMuxClosed
 		}
@@ -245,6 +258,10 @@ func (m *KcpMux) Close() error {
 			m.mu.Unlock()
 			return
 		}
+		m.acceptingRemote = false
+		m.acceptStopOnce.Do(func() {
+			close(m.acceptStopCh)
+		})
 		m.closing = true
 		close(m.closeCh)
 		streamIDs := make([]uint64, 0, len(m.streams))
@@ -264,6 +281,35 @@ func (m *KcpMux) Close() error {
 		m.closed = true
 		m.mu.Unlock()
 	})
+	return nil
+}
+
+func (m *KcpMux) StopAccepting() error {
+	m.mu.Lock()
+	if m.closed || m.closing || !m.acceptingRemote {
+		m.mu.Unlock()
+		return nil
+	}
+	m.acceptingRemote = false
+	queued := make([]uint64, 0)
+	for streamID, entry := range m.streams {
+		entry.mu.Lock()
+		isQueued := entry.queued && !entry.active
+		entry.mu.Unlock()
+		if !isQueued {
+			continue
+		}
+		m.removeStreamLocked(streamID, errStreamAborted)
+		queued = append(queued, streamID)
+	}
+	m.mu.Unlock()
+
+	m.acceptStopOnce.Do(func() {
+		close(m.acceptStopCh)
+	})
+	for _, streamID := range queued {
+		m.sendClose(streamID, streamCloseReasonAbort)
+	}
 	return nil
 }
 
@@ -288,6 +334,9 @@ func (m *KcpMux) acceptQueued(streamID uint64) (net.Conn, bool, error) {
 	if m.closed || m.closing {
 		return nil, false, ErrServiceMuxClosed
 	}
+	if !m.acceptingRemote {
+		return nil, false, ErrAcceptQueueClosed
+	}
 	entry, ok := m.streams[streamID]
 	if !ok {
 		return nil, false, nil
@@ -309,7 +358,7 @@ func (m *KcpMux) handleOpen(streamID uint64) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	if m.closed || m.closing {
+	if m.closed || m.closing || !m.acceptingRemote {
 		go m.sendClose(streamID, streamCloseReasonAbort)
 		return nil
 	}

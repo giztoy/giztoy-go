@@ -1,35 +1,61 @@
 package server
 
 import (
+	"bufio"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"net"
+	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
+	"sync"
 	"time"
 
 	"github.com/haivivi/giztoy/go/internal/identity"
 	"github.com/haivivi/giztoy/go/internal/paths"
+	"github.com/haivivi/giztoy/go/pkg/firmware"
+	"github.com/haivivi/giztoy/go/pkg/gears"
+	"github.com/haivivi/giztoy/go/pkg/kv"
 	"github.com/haivivi/giztoy/go/pkg/net/core"
+	"github.com/haivivi/giztoy/go/pkg/net/httptransport"
 	"github.com/haivivi/giztoy/go/pkg/net/noise"
 	"github.com/haivivi/giztoy/go/pkg/net/peer"
 )
 
 // Config holds server startup parameters.
 type Config struct {
-	DataDir    string
-	ListenAddr string
+	DataDir          string
+	ListenAddr       string
+	ConfigPath       string
+	Stores           map[string]StoreConfig
+	Gears            GearsConfig
+	Depots           DepotsConfig
+	AdminServiceID   uint64
+	ReverseServiceID uint64
+	KVStore          kv.Store
+	FirmwareStore    *firmware.Store
+	FirmwareRoot     string
 }
 
 // DefaultConfig returns a Config with sensible defaults.
 func DefaultConfig() Config {
 	cfgDir, _ := paths.ConfigDir()
 	return Config{
-		DataDir:    filepath.Join(cfgDir, "server"),
-		ListenAddr: ":9820",
+		DataDir:          filepath.Join(cfgDir, "server"),
+		ListenAddr:       ":9820",
+		AdminServiceID:   1,
+		ReverseServiceID: 2,
 	}
+}
+
+type activePeer struct {
+	conn       *peer.Conn
+	lastSeenAt int64
+	online     bool
 }
 
 // Server is the Giztoy server instance.
@@ -39,20 +65,75 @@ type Server struct {
 	listener  *peer.Listener
 	startTime time.Time
 	logger    *log.Logger
+	gears     *gears.Service
+
+	firmwareStore    *firmware.Store
+	firmwareScanner  *firmware.Scanner
+	firmwareUploader *firmware.Uploader
+	firmwareSwitcher *firmware.Switcher
+	firmwareOTA      *firmware.OTAService
+
+	activePeersMu sync.RWMutex
+	activePeers   map[string]*activePeer
 }
 
 // New creates a Server, loading or generating its identity key.
 func New(cfg Config) (*Server, error) {
+	if cfg.ConfigPath != "" {
+		fileCfg, err := LoadConfig(cfg.ConfigPath)
+		if err != nil {
+			return nil, fmt.Errorf("server: load config: %w", err)
+		}
+		cfg = mergeFileConfig(cfg, fileCfg)
+	}
+	defaults := DefaultConfig()
+	if cfg.DataDir == "" {
+		cfg.DataDir = defaults.DataDir
+	}
+	if cfg.ListenAddr == "" {
+		cfg.ListenAddr = defaults.ListenAddr
+	}
+	if cfg.AdminServiceID == 0 {
+		cfg.AdminServiceID = defaults.AdminServiceID
+	}
+	if cfg.ReverseServiceID == 0 {
+		cfg.ReverseServiceID = defaults.ReverseServiceID
+	}
+	if err := cfg.validate(); err != nil {
+		return nil, err
+	}
 	keyPath := filepath.Join(cfg.DataDir, "identity.key")
 	kp, err := identity.LoadOrGenerate(keyPath)
 	if err != nil {
 		return nil, fmt.Errorf("server: identity: %w", err)
 	}
+	gearsKV, err := cfg.gearsStore()
+	if err != nil {
+		return nil, fmt.Errorf("server: gears store: %w", err)
+	}
+	gearStore := gears.NewStore(gearsKV)
+	gearService := gears.NewService(gearStore, cfg.Gears.RegistrationTokens)
+
+	fwStore, err := cfg.firmwareStore()
+	if err != nil {
+		return nil, fmt.Errorf("server: firmware store: %w", err)
+	}
+	if err := os.MkdirAll(fwStore.Root(), 0o755); err != nil {
+		return nil, fmt.Errorf("server: firmware store: %w", err)
+	}
+	fwScanner := firmware.NewScanner(fwStore)
 
 	return &Server{
-		cfg:     cfg,
-		keyPair: kp,
-		logger:  log.New(os.Stderr, "[server] ", log.LstdFlags),
+		cfg:              cfg,
+		keyPair:          kp,
+		logger:           log.New(os.Stderr, "[server] ", log.LstdFlags),
+		gears:            gearService,
+		firmwareStore:    fwStore,
+		firmwareScanner:  fwScanner,
+		firmwareUploader: firmware.NewUploader(fwStore, fwScanner),
+		firmwareSwitcher: firmware.NewSwitcher(fwStore, fwScanner),
+		firmwareOTA:      firmware.NewOTAService(fwStore, fwScanner),
+		activePeers:      make(map[string]*activePeer),
 	}, nil
 }
 
@@ -61,6 +142,9 @@ func (s *Server) Run(ctx context.Context) error {
 	l, err := peer.Listen(s.keyPair,
 		core.WithBindAddr(s.cfg.ListenAddr),
 		core.WithAllowUnknown(true),
+		core.WithServiceMuxConfig(core.ServiceMuxConfig{
+			OnNewService: s.allowPeerService,
+		}),
 	)
 	if err != nil {
 		return fmt.Errorf("server: listen: %w", err)
@@ -77,6 +161,15 @@ func (s *Server) Run(ctx context.Context) error {
 	<-ctx.Done()
 	s.logger.Printf("shutting down")
 	return l.Close()
+}
+
+func (s *Server) allowPeerService(_ noise.PublicKey, service uint64) bool {
+	switch service {
+	case 0, s.cfg.AdminServiceID, s.cfg.ReverseServiceID:
+		return true
+	default:
+		return false
+	}
 }
 
 // PublicKey returns the server's public key.
@@ -111,6 +204,16 @@ func (s *Server) acceptLoop(ctx context.Context) {
 }
 
 func (s *Server) servePeer(ctx context.Context, conn *peer.Conn) {
+	publicKey := conn.PublicKey().String()
+	s.markPeerOnline(publicKey, conn)
+	defer s.markPeerOffline(publicKey, conn)
+
+	go func() {
+		if err := s.serveAdminHTTP(ctx, conn); err != nil && !errors.Is(err, net.ErrClosed) {
+			s.logger.Printf("admin http error from %s: %v", conn.PublicKey().ShortString(), err)
+		}
+	}()
+
 	for {
 		stream, err := conn.AcceptService(0)
 		if err != nil {
@@ -122,8 +225,19 @@ func (s *Server) servePeer(ctx context.Context, conn *peer.Conn) {
 			s.logger.Printf("accept stream error from %s: %v", conn.PublicKey().ShortString(), err)
 			return
 		}
-		go s.handleStream(stream)
+		s.touchPeer(publicKey, conn)
+		go s.handleService0Stream(conn, stream)
 	}
+}
+
+func (s *Server) handleService0Stream(conn *peer.Conn, stream net.Conn) {
+	pk := conn.PublicKey().String()
+	peeked := newPeekConn(stream)
+	if looksLikeHTTP(peeked.reader) {
+		s.serveSingleHTTPConn(pk, peeked, s.publicHandler(pk))
+		return
+	}
+	s.handleStream(peeked)
 }
 
 func (s *Server) handleStream(stream net.Conn) {
@@ -149,6 +263,137 @@ func (s *Server) handleStream(stream net.Conn) {
 	}
 }
 
+func (s *Server) serveSingleHTTPConn(publicKey string, conn net.Conn, handler http.Handler) {
+	listener := &singleConnListener{conn: conn}
+	server := &http.Server{
+		Handler: handler,
+		BaseContext: func(_ net.Listener) context.Context {
+			return withCallerPublicKey(context.Background(), publicKey)
+		},
+	}
+	if err := server.Serve(listener); err != nil && !errors.Is(err, http.ErrServerClosed) && !errors.Is(err, net.ErrClosed) {
+		s.logger.Printf("public http serve error: %v", err)
+	}
+}
+
+func (s *Server) serveAdminHTTP(ctx context.Context, conn *peer.Conn) error {
+	server := httptransport.NewServer(conn, s.cfg.AdminServiceID, s.adminHandler(conn.PublicKey().String()))
+	go func() {
+		<-ctx.Done()
+		_ = server.Shutdown(context.Background())
+	}()
+	return server.Serve()
+}
+
+func (s *Server) markPeerOnline(publicKey string, conn *peer.Conn) {
+	s.activePeersMu.Lock()
+	defer s.activePeersMu.Unlock()
+	s.activePeers[publicKey] = &activePeer{
+		conn:       conn,
+		lastSeenAt: time.Now().UnixMilli(),
+		online:     true,
+	}
+}
+
+func (s *Server) touchPeer(publicKey string, conn *peer.Conn) {
+	s.activePeersMu.Lock()
+	defer s.activePeersMu.Unlock()
+	state, ok := s.activePeers[publicKey]
+	if !ok || state.conn != conn {
+		return
+	}
+	state.lastSeenAt = time.Now().UnixMilli()
+}
+
+func (s *Server) markPeerOffline(publicKey string, conn *peer.Conn) {
+	s.activePeersMu.Lock()
+	defer s.activePeersMu.Unlock()
+	state, ok := s.activePeers[publicKey]
+	if !ok || state.conn != conn {
+		return
+	}
+	delete(s.activePeers, publicKey)
+}
+
+func (s *Server) peerRuntime(publicKey string) gears.Runtime {
+	s.activePeersMu.RLock()
+	defer s.activePeersMu.RUnlock()
+	state, ok := s.activePeers[publicKey]
+	if !ok {
+		return gears.Runtime{}
+	}
+	return gears.Runtime{
+		Online:     state.online,
+		LastSeenAt: state.lastSeenAt,
+	}
+}
+
+func (s *Server) activePeer(publicKey string) (*peer.Conn, bool) {
+	s.activePeersMu.RLock()
+	defer s.activePeersMu.RUnlock()
+	state, ok := s.activePeers[publicKey]
+	if !ok || !state.online || state.conn == nil {
+		return nil, false
+	}
+	return state.conn, true
+}
+
+type peekConn struct {
+	net.Conn
+	reader *bufio.Reader
+}
+
+func newPeekConn(conn net.Conn) *peekConn {
+	return &peekConn{Conn: conn, reader: bufio.NewReader(conn)}
+}
+
+func (c *peekConn) Read(p []byte) (int, error) {
+	return c.reader.Read(p)
+}
+
+func looksLikeHTTP(r *bufio.Reader) bool {
+	peek, err := r.Peek(8)
+	if err != nil && len(peek) == 0 {
+		return false
+	}
+	methods := []string{"GET ", "PUT ", "POST ", "HEAD ", "PATCH ", "DELETE ", "OPTIONS "}
+	upper := strings.ToUpper(string(peek))
+	for _, method := range methods {
+		if strings.HasPrefix(upper, method) {
+			return true
+		}
+	}
+	return false
+}
+
+type singleConnListener struct {
+	conn net.Conn
+	once sync.Once
+}
+
+func (l *singleConnListener) Accept() (net.Conn, error) {
+	var conn net.Conn
+	l.once.Do(func() {
+		conn = l.conn
+		l.conn = nil
+	})
+	if conn == nil {
+		return nil, net.ErrClosed
+	}
+	return conn, nil
+}
+
+func (l *singleConnListener) Close() error {
+	if l.conn != nil {
+		return l.conn.Close()
+	}
+	return nil
+}
+
+func (l *singleConnListener) Addr() net.Addr {
+	return serviceAddr("service0")
+}
+
 // PingResponse is the response payload for peer.ping.
 type PingResponse struct {
 	ServerTime int64 `json:"server_time"`
@@ -170,3 +415,8 @@ func (s *Server) handlePeerPing(stream net.Conn, req *RPCRequest) {
 		s.logger.Printf("write ping: %v", err)
 	}
 }
+
+type serviceAddr string
+
+func (a serviceAddr) Network() string { return string(a) }
+func (a serviceAddr) String() string  { return string(a) }

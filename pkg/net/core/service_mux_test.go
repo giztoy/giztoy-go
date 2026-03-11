@@ -274,6 +274,49 @@ func TestServiceMux_ReadRoutesDirectPackets(t *testing.T) {
 	}
 }
 
+func TestServiceMux_StopAcceptingServiceBeforeInitIsSticky(t *testing.T) {
+	_, server := serviceMuxPair()
+	defer server.Close()
+
+	const serviceID uint64 = 9
+	if err := server.StopAcceptingService(serviceID); err != nil {
+		t.Fatalf("StopAcceptingService error: %v", err)
+	}
+
+	errCh := make(chan error, 1)
+	go func() {
+		_, err := server.AcceptStream(serviceID)
+		errCh <- err
+	}()
+
+	select {
+	case err := <-errCh:
+		if !errors.Is(err, ErrAcceptQueueClosed) {
+			t.Fatalf("AcceptStream err = %v, want %v", err, ErrAcceptQueueClosed)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("AcceptStream should fail immediately after StopAcceptingService")
+	}
+}
+
+func TestServiceMux_CloseServiceBeforeInitIsSticky(t *testing.T) {
+	client, server := serviceMuxPair()
+	defer client.Close()
+	defer server.Close()
+
+	const serviceID uint64 = 10
+	if err := server.CloseService(serviceID); err != nil {
+		t.Fatalf("CloseService error: %v", err)
+	}
+
+	if _, err := server.OpenStream(serviceID); !errors.Is(err, ErrServiceMuxClosed) {
+		t.Fatalf("OpenStream err = %v, want %v", err, ErrServiceMuxClosed)
+	}
+	if _, err := server.AcceptStream(serviceID); !errors.Is(err, ErrServiceMuxClosed) {
+		t.Fatalf("AcceptStream err = %v, want %v", err, ErrServiceMuxClosed)
+	}
+}
+
 func TestServiceMux_ReadDirectPacketsDoesNotCreateKcpMux(t *testing.T) {
 	mux := NewServiceMux(noise.PublicKey{}, ServiceMuxConfig{})
 	defer mux.Close()
