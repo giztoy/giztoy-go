@@ -2,6 +2,8 @@ package cli
 
 import (
 	"bytes"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -41,11 +43,11 @@ func TestServeHelp(t *testing.T) {
 		t.Fatal(err)
 	}
 	out := buf.String()
-	if !strings.Contains(out, "--data-dir") {
-		t.Fatalf("serve help missing '--data-dir': %s", out)
+	if !strings.Contains(out, "serve <dir>") {
+		t.Fatalf("serve help missing '<dir>': %s", out)
 	}
-	if !strings.Contains(out, "--listen") {
-		t.Fatalf("serve help missing '--listen': %s", out)
+	if strings.Contains(out, "--data-dir") || strings.Contains(out, "--listen") || strings.Contains(out, "--config") {
+		t.Fatalf("serve help should not mention removed flags: %s", out)
 	}
 }
 
@@ -160,5 +162,53 @@ func TestContextCreateMissingFlags(t *testing.T) {
 	err := root.Execute()
 	if err == nil {
 		t.Fatal("context create without required flags should fail")
+	}
+}
+
+func TestServeRequiresWorkspaceArg(t *testing.T) {
+	root := NewRootCmd()
+	root.SetArgs([]string{"serve"})
+	err := root.Execute()
+	if err == nil {
+		t.Fatal("serve without workspace arg should fail")
+	}
+}
+
+func TestPrepareServeWorkspace(t *testing.T) {
+	cwd, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		_ = os.Chdir(cwd)
+	})
+
+	workspace := filepath.Join(t.TempDir(), "giztoy-workspace")
+	cfg, err := prepareServeWorkspace(workspace)
+	if err != nil {
+		t.Fatalf("prepareServeWorkspace error: %v", err)
+	}
+	if cfg.DataDir != "." {
+		t.Fatalf("DataDir = %q", cfg.DataDir)
+	}
+	if cfg.ConfigPath != "config.yaml" {
+		t.Fatalf("ConfigPath = %q", cfg.ConfigPath)
+	}
+	gotCwd, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if gotCwd != workspace {
+		resolvedWant, err := filepath.EvalSymlinks(workspace)
+		if err != nil {
+			t.Fatal(err)
+		}
+		resolvedGot, err := filepath.EvalSymlinks(gotCwd)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if resolvedGot != resolvedWant {
+			t.Fatalf("cwd = %q, want %q", gotCwd, workspace)
+		}
 	}
 }

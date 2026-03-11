@@ -114,7 +114,11 @@ func (cfg Config) firmwareStore() (*firmware.Store, error) {
 		if storeCfg.Dir == "" {
 			return nil, fmt.Errorf("server: depots store %q missing dir", cfg.Depots.Store)
 		}
-		return firmware.NewStore(storeCfg.Dir), nil
+		root, err := cfg.workspacePath(storeCfg.Dir)
+		if err != nil {
+			return nil, err
+		}
+		return firmware.NewStore(root), nil
 	}
 	root := cfg.FirmwareRoot
 	if root == "" {
@@ -153,6 +157,34 @@ func (cfg Config) validate() error {
 		if storeCfg.Dir == "" {
 			return fmt.Errorf("server: depots store %q missing dir", cfg.Depots.Store)
 		}
+		if _, err := cfg.workspacePath(storeCfg.Dir); err != nil {
+			return err
+		}
 	}
 	return nil
+}
+
+func (cfg Config) workspacePath(path string) (string, error) {
+	if cfg.DataDir == "" {
+		return "", fmt.Errorf("server: empty data dir")
+	}
+
+	if filepath.IsAbs(path) {
+		resolved, err := filepath.Abs(path)
+		if err != nil {
+			return "", fmt.Errorf("server: resolve path %q: %w", path, err)
+		}
+		return resolved, nil
+	}
+
+	workspace, err := filepath.Abs(cfg.DataDir)
+	if err != nil {
+		return "", fmt.Errorf("server: resolve workspace %q: %w", cfg.DataDir, err)
+	}
+
+	resolved, err := filepath.Abs(filepath.Join(workspace, path))
+	if err != nil {
+		return "", fmt.Errorf("server: resolve path %q: %w", path, err)
+	}
+	return resolved, nil
 }

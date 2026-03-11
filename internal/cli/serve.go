@@ -2,8 +2,10 @@ package cli
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 
 	"github.com/haivivi/giztoy/go/internal/server"
@@ -11,21 +13,14 @@ import (
 )
 
 func newServeCmd() *cobra.Command {
-	defaults := server.DefaultConfig()
-	var dataDir string
-	var listenAddr string
-	var configPath string
-
 	cmd := &cobra.Command{
-		Use:   "serve",
+		Use:   "serve <dir>",
 		Short: "Start the Giztoy server",
+		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			cfg := server.Config{ConfigPath: configPath}
-			if cmd.Flags().Changed("data-dir") {
-				cfg.DataDir = dataDir
-			}
-			if cmd.Flags().Changed("listen") {
-				cfg.ListenAddr = listenAddr
+			cfg, err := prepareServeWorkspace(args[0])
+			if err != nil {
+				return err
 			}
 			srv, err := server.New(cfg)
 			if err != nil {
@@ -39,9 +34,26 @@ func newServeCmd() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVar(&dataDir, "data-dir", defaults.DataDir, "server data directory")
-	cmd.Flags().StringVar(&listenAddr, "listen", defaults.ListenAddr, "UDP listen address")
-	cmd.Flags().StringVar(&configPath, "config", "", "server config file")
-
 	return cmd
+}
+
+func prepareServeWorkspace(workspace string) (server.Config, error) {
+	root, err := filepath.Abs(workspace)
+	if err != nil {
+		return server.Config{}, fmt.Errorf("serve: resolve workspace %q: %w", workspace, err)
+	}
+	if err := os.MkdirAll(root, 0o755); err != nil {
+		return server.Config{}, fmt.Errorf("serve: create workspace %q: %w", root, err)
+	}
+	if err := os.Chdir(root); err != nil {
+		return server.Config{}, fmt.Errorf("serve: chdir workspace %q: %w", root, err)
+	}
+	return workspaceServerConfig(), nil
+}
+
+func workspaceServerConfig() server.Config {
+	return server.Config{
+		DataDir:    ".",
+		ConfigPath: "config.yaml",
+	}
 }

@@ -1,0 +1,65 @@
+# Giztoy server config example.
+#
+# 用法：
+#   giztoy serve <dir>
+#
+# 进程会先切换到 <dir> 作为当前工作目录，
+# 然后默认读取：
+#   ./config.yaml
+#
+# 例如：
+#   giztoy serve ~/data
+
+# UDP 监听地址。
+# 不写时默认值是 ":9820"。
+listen: ":9820"
+
+# 可复用的 store 定义表。
+# gears.store / depots.store 会引用这里的名字。
+stores:
+  # 一个内存 store。
+  # 当前 gears 只支持 memory。
+  gears-memory:
+    kind: memory
+
+  # 一个文件 store。
+  # 当前 depots 必须使用 file。
+  # 相对路径会以启动时传入的工作目录作为根目录解释。
+  # 例如 firmware 实际表示 <dir>/firmware。
+  # 如果你明确写系统绝对路径，也可以指向任意位置。
+  firmware-file:
+    kind: file
+    dir: firmware
+
+# 设备注册、设备配置、索引查询相关配置。
+gears:
+  # 引用 stores 里的一个名字。
+  # 不写时，当前默认退回内存 store。
+  store: gears-memory
+
+  # 注册 token 表。
+  # key 是 token 名称。
+  # value 里当前只支持 role。
+  # 可用角色：admin / device / peer
+  registration-tokens:
+    admin_default:
+      role: admin
+    device_default:
+      role: device
+    peer_default:
+      role: peer
+
+# 固件仓库和 OTA 发布流转相关配置。
+depots:
+  # 引用 stores 里的一个名字。
+  # 当前必须指向 kind: file 的 store。
+  # 不写时，当前默认使用 <dir>/firmware。
+  store: firmware-file
+
+# 注意：
+# - gears 当前默认是内存 store，服务端重启后不会持久化
+# - depots 需要 file store；如果显式配置 store，对应项必须提供 dir
+# - stores.<name>.dir 只对 kind: file 有意义
+# - stores.<name>.dir 如果写相对路径，就相对于启动时传入的工作目录
+# - stores.<name>.dir 如果写绝对路径，就直接使用该绝对路径
+# - registration-tokens 不配置也能启动，但就不能通过 token 直接注册指定角色

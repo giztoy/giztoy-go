@@ -25,7 +25,7 @@ stores:
     kind: memory
   depots:
     kind: file
-    dir: `+filepath.Join(dir, "depots")+`
+    dir: depots
 gears:
   store: mem
 depots:
@@ -63,7 +63,7 @@ depots:
 	if err != nil {
 		t.Fatalf("firmwareStore error: %v", err)
 	}
-	if fwStore.Root() != filepath.Join(dir, "depots") {
+	if fwStore.Root() != filepath.Join(runtimeCfg.DataDir, "depots") {
 		t.Fatalf("firmware root = %q", fwStore.Root())
 	}
 	if _, err := New(Config{
@@ -133,6 +133,18 @@ depots:
 		Depots: DepotsConfig{Store: "bad"},
 	}).firmwareStore(); err == nil {
 		t.Fatal("firmwareStore should fail for non-file store")
+	}
+	workspaceCfg := Config{DataDir: t.TempDir()}
+	if got, err := workspaceCfg.workspacePath("firmware"); err != nil {
+		t.Fatalf("workspacePath relative error: %v", err)
+	} else if got != filepath.Join(workspaceCfg.DataDir, "firmware") {
+		t.Fatalf("workspacePath relative = %q", got)
+	}
+	absPath := filepath.Join(t.TempDir(), "firmware")
+	if got, err := workspaceCfg.workspacePath(absPath); err != nil {
+		t.Fatalf("workspacePath absolute error: %v", err)
+	} else if got != absPath {
+		t.Fatalf("workspacePath absolute = %q", got)
 	}
 }
 
