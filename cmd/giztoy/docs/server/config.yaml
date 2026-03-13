@@ -18,9 +18,16 @@ listen: ":9820"
 # gears.store / depots.store 会引用这里的名字。
 stores:
   # 一个内存 store。
-  # 当前 gears 只支持 memory。
+  # 服务端重启后数据会丢失。
   gears-memory:
     kind: memory
+
+  # 一个 BadgerDB 持久化 store。
+  # 数据写入磁盘，服务端重启后仍然保留。
+  # 相对路径以启动时传入的工作目录作为根目录解释。
+  gears-badger:
+    kind: badger
+    dir: gears-data
 
   # 一个文件 store。
   # 当前 depots 必须使用 file。
@@ -35,7 +42,8 @@ stores:
 gears:
   # 引用 stores 里的一个名字。
   # 不写时，当前默认退回内存 store。
-  store: gears-memory
+  # 可选 gears-memory（内存）或 gears-badger（持久化）。
+  store: gears-badger
 
   # 注册 token 表。
   # key 是 token 名称。
@@ -57,9 +65,11 @@ depots:
   store: firmware-file
 
 # 注意：
-# - gears 当前默认是内存 store，服务端重启后不会持久化
+# - gears 支持 memory（内存）和 badger（持久化）两种 store
+# - memory store 服务端重启后数据会丢失
+# - badger store 数据持久化到磁盘，重启后保留
 # - depots 需要 file store；如果显式配置 store，对应项必须提供 dir
-# - stores.<name>.dir 只对 kind: file 有意义
+# - stores.<name>.dir 对 kind: file 和 kind: badger 有意义
 # - stores.<name>.dir 如果写相对路径，就相对于启动时传入的工作目录
 # - stores.<name>.dir 如果写绝对路径，就直接使用该绝对路径
 # - registration-tokens 不配置也能启动，但就不能通过 token 直接注册指定角色
