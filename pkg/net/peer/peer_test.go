@@ -724,6 +724,30 @@ func TestListenerDoesNotAcceptSamePeerAgainOnReconnect(t *testing.T) {
 	}
 }
 
+func TestListenerAcceptAfterRelease(t *testing.T) {
+	pair := newConnectedPeerPair(t)
+	defer pair.Close()
+
+	// Release the peer so it can be re-accepted.
+	pair.serverListener.Release(pair.clientKey.Public)
+
+	// Reconnect triggers a new handshake and session replacement.
+	if err := pair.clientUDP.Connect(pair.serverKey.Public); err != nil {
+		t.Fatalf("Reconnect failed: %v", err)
+	}
+
+	waitEstablished(t, pair.serverUDP, pair.clientKey.Public)
+	waitEstablished(t, pair.clientUDP, pair.serverKey.Public)
+
+	conn, err := acceptConnWithTimeout(pair.serverListener, 3*time.Second)
+	if err != nil {
+		t.Fatalf("Accept after Release failed: %v", err)
+	}
+	if conn.PublicKey() != pair.clientKey.Public {
+		t.Fatalf("re-accepted peer key mismatch: got=%v want=%v", conn.PublicKey(), pair.clientKey.Public)
+	}
+}
+
 func startReadLoop(u *core.UDP) {
 	go func() {
 		buf := make([]byte, 65535)
