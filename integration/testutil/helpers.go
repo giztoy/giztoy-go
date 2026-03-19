@@ -9,6 +9,7 @@ import (
 
 	gnet "github.com/haivivi/giztoy/go/pkg/net/core"
 	"github.com/haivivi/giztoy/go/pkg/net/noise"
+	"github.com/haivivi/giztoy/go/pkg/net/peer"
 )
 
 // NewUDPNode 创建一个新的 UDP 节点用于测试
@@ -24,6 +25,7 @@ func NewUDPNode(t *testing.T, key *noise.KeyPair) *gnet.UDP {
 	if err != nil {
 		t.Fatalf("NewUDP failed: %v", err)
 	}
+	t.Cleanup(func() { u.Close() })
 
 	go func() {
 		buf := make([]byte, 65535)
@@ -37,6 +39,47 @@ func NewUDPNode(t *testing.T, key *noise.KeyPair) *gnet.UDP {
 	return u
 }
 
+// NewListenerNode creates a peer.Listener for testing. A background read loop
+// is started on the underlying UDP so internal buffers don't fill up.
+func NewListenerNode(t *testing.T, key *noise.KeyPair, opts ...gnet.Option) *peer.Listener {
+	t.Helper()
+
+	defaults := []gnet.Option{
+		gnet.WithBindAddr("127.0.0.1:0"),
+		gnet.WithAllowUnknown(true),
+		gnet.WithDecryptWorkers(1),
+	}
+	l, err := peer.Listen(key, append(defaults, opts...)...)
+	if err != nil {
+		t.Fatalf("peer.Listen failed: %v", err)
+	}
+	t.Cleanup(func() { l.Close() })
+
+	u := l.UDP()
+	go func() {
+		buf := make([]byte, 65535)
+		for {
+			if _, _, err := u.ReadFrom(buf); err != nil {
+				return
+			}
+		}
+	}()
+
+	return l
+}
+
+// ConnectListenerNodes establishes a connection between two Listener nodes.
+func ConnectListenerNodes(t *testing.T, client *peer.Listener, clientKey *noise.KeyPair, server *peer.Listener, serverKey *noise.KeyPair) {
+	t.Helper()
+
+	client.SetPeerEndpoint(serverKey.Public, server.HostInfo().Addr)
+	server.SetPeerEndpoint(clientKey.Public, client.HostInfo().Addr)
+
+	if err := client.Connect(serverKey.Public); err != nil {
+		t.Fatalf("Connect failed: %v", err)
+	}
+}
+
 // ConnectNodes 建立两个 UDP 节点之间的连接
 func ConnectNodes(t *testing.T, client *gnet.UDP, clientKey *noise.KeyPair, server *gnet.UDP, serverKey *noise.KeyPair) {
 	t.Helper()
@@ -47,28 +90,6 @@ func ConnectNodes(t *testing.T, client *gnet.UDP, clientKey *noise.KeyPair, serv
 	if err := client.Connect(serverKey.Public); err != nil {
 		t.Fatalf("Connect failed: %v", err)
 	}
-
-	WaitPeerState(t, client, serverKey.Public, gnet.PeerStateEstablished, 3*time.Second)
-	WaitPeerState(t, server, clientKey.Public, gnet.PeerStateEstablished, 3*time.Second)
-}
-
-// WaitPeerState 等待节点达到指定的 peer 状态
-func WaitPeerState(t *testing.T, u *gnet.UDP, pk noise.PublicKey, want gnet.PeerState, timeout time.Duration) {
-	t.Helper()
-
-	deadline := time.Now().Add(timeout)
-	for time.Now().Before(deadline) {
-		if info := u.PeerInfo(pk); info != nil && info.State == want {
-			return
-		}
-		time.Sleep(10 * time.Millisecond)
-	}
-
-	info := u.PeerInfo(pk)
-	if info == nil {
-		t.Fatalf("peer state not ready before timeout: want=%s, got=<nil>", want)
-	}
-	t.Fatalf("peer state not ready before timeout: want=%s, got=%s", want, info.State)
 }
 
 func MustServiceMux(t *testing.T, u *gnet.UDP, pk noise.PublicKey) *gnet.ServiceMux {

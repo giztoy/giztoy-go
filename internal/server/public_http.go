@@ -36,11 +36,9 @@ func (s *Server) handleServerInfo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
-		"public_key":         s.keyPair.Public.String(),
-		"server_time":        time.Now().UnixMilli(),
-		"build_commit":       BuildCommit,
-		"admin_service_id":   s.cfg.AdminServiceID,
-		"reverse_service_id": s.cfg.ReverseServiceID,
+		"public_key":   s.keyPair.Public.String(),
+		"server_time":  time.Now().UnixMilli(),
+		"build_commit": BuildCommit,
 	})
 }
 

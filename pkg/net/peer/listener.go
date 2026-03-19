@@ -1,59 +1,54 @@
 package peer
 
 import (
+	"net"
 	"sync"
-	"time"
+	"sync/atomic"
 
 	"github.com/haivivi/giztoy/go/pkg/net/core"
 	"github.com/haivivi/giztoy/go/pkg/net/noise"
 )
 
 type Listener struct {
-	mu    sync.Mutex
-	udp   *core.UDP
-	owned bool
+	mu sync.Mutex
 
+	udp       *core.UDP
 	closeOnce sync.Once
 	closedCh  chan struct{}
+	closed    atomic.Bool
 	known     map[noise.PublicKey]struct{}
+	events    chan core.PeerEvent
 }
 
 func Listen(key *noise.KeyPair, opts ...core.Option) (*Listener, error) {
-	u, err := core.NewUDP(key, opts...)
-	if err != nil {
-		return nil, err
+	l := &Listener{
+		closedCh: make(chan struct{}),
+		known:    make(map[noise.PublicKey]struct{}),
+		events:   make(chan core.PeerEvent, 64),
 	}
 
-	l, err := Wrap(u)
+	// Append our handler last so it always wins if the caller accidentally
+	// passes WithOnPeerEvent (last-write-wins in the options slice).
+	allOpts := append(opts, core.WithOnPeerEvent(l.onPeerEvent))
+	u, err := core.NewUDP(key, allOpts...)
 	if err != nil {
-		_ = u.Close()
 		return nil, err
 	}
-	l.owned = true
+	l.udp = u
+
 	return l, nil
 }
 
-func Wrap(u *core.UDP) (*Listener, error) {
-	if u == nil {
-		return nil, ErrNilUDP
+func (l *Listener) onPeerEvent(ev core.PeerEvent) bool {
+	if l.closed.Load() {
+		return false
 	}
-
-	l := &Listener{
-		udp:      u,
-		closedCh: make(chan struct{}),
-		known:    make(map[noise.PublicKey]struct{}),
+	select {
+	case l.events <- ev:
+		return true
+	default:
+		return false
 	}
-
-	for p := range u.Peers() {
-		if p == nil || p.Info == nil {
-			continue
-		}
-		if p.Info.State == core.PeerStateEstablished {
-			l.known[p.Info.PublicKey] = struct{}{}
-		}
-	}
-
-	return l, nil
 }
 
 func (l *Listener) Accept() (*Conn, error) {
@@ -61,20 +56,33 @@ func (l *Listener) Accept() (*Conn, error) {
 		return nil, ErrNilListener
 	}
 
-	ticker := time.NewTicker(10 * time.Millisecond)
-	defer ticker.Stop()
-
 	for {
-		if c := l.pollNewPeer(); c != nil {
-			return c, nil
-		}
-
 		select {
 		case <-l.closedCh:
 			return nil, ErrClosed
-		case <-ticker.C:
+		case ev, ok := <-l.events:
+			if !ok {
+				return nil, ErrClosed
+			}
+			if ev.State != core.PeerStateEstablished {
+				continue
+			}
+			l.mu.Lock()
+			if _, dup := l.known[ev.PublicKey]; dup {
+				l.mu.Unlock()
+				continue
+			}
+			l.known[ev.PublicKey] = struct{}{}
+			l.mu.Unlock()
+			return &Conn{udp: l.udp, pk: ev.PublicKey, listener: l}, nil
 		}
 	}
+}
+
+// PeerEvents returns the channel that receives peer state change events.
+// The channel is buffered (cap 64); slow consumers miss events.
+func (l *Listener) PeerEvents() <-chan core.PeerEvent {
+	return l.events
 }
 
 func (l *Listener) Peer(pk noise.PublicKey) (*Conn, error) {
@@ -90,11 +98,45 @@ func (l *Listener) Peer(pk noise.PublicKey) (*Conn, error) {
 		return nil, core.ErrNoSession
 	}
 
+	return &Conn{udp: l.udp, pk: pk, listener: l}, nil
+}
+
+// release removes a peer from the known set so it can be re-accepted.
+func (l *Listener) release(pk noise.PublicKey) {
+	if l == nil {
+		return
+	}
+	l.mu.Lock()
+	delete(l.known, pk)
+	l.mu.Unlock()
+}
+
+func (l *Listener) SetPeerEndpoint(pk noise.PublicKey, endpoint *net.UDPAddr) {
+	l.udp.SetPeerEndpoint(pk, endpoint)
+}
+
+func (l *Listener) Connect(pk noise.PublicKey) error {
+	return l.udp.Connect(pk)
+}
+
+// Dial sets the peer endpoint, performs a synchronous Noise IK handshake
+// (blocks up to 5 s), and returns an established Conn. On success the
+// underlying peer is in PeerStateEstablished and ready for OpenService / OpenRPC.
+func (l *Listener) Dial(pk noise.PublicKey, addr *net.UDPAddr) (*Conn, error) {
 	l.mu.Lock()
 	l.known[pk] = struct{}{}
 	l.mu.Unlock()
 
-	return &Conn{udp: l.udp, pk: pk}, nil
+	l.SetPeerEndpoint(pk, addr)
+	if err := l.Connect(pk); err != nil {
+		l.release(pk)
+		return nil, err
+	}
+	return &Conn{udp: l.udp, pk: pk, listener: l}, nil
+}
+
+func (l *Listener) UDP() *core.UDP {
+	return l.udp
 }
 
 func (l *Listener) HostInfo() *core.HostInfo {
@@ -109,39 +151,12 @@ func (l *Listener) Close() error {
 	var err error
 	l.closeOnce.Do(func() {
 		close(l.closedCh)
-		if l.owned {
-			err = l.udp.Close()
-		}
+		l.closed.Store(true)
+		// Close UDP first so no more onPeerEvent callbacks can fire,
+		// then close the events channel safely.
+		err = l.udp.Close()
+		close(l.events)
 	})
 
 	return err
-}
-
-func (l *Listener) pollNewPeer() *Conn {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-
-	for pk := range l.known {
-		info := l.udp.PeerInfo(pk)
-		if info == nil || info.State == core.PeerStateFailed {
-			delete(l.known, pk)
-		}
-	}
-
-	for p := range l.udp.Peers() {
-		if p == nil || p.Info == nil {
-			continue
-		}
-		if p.Info.State != core.PeerStateEstablished {
-			continue
-		}
-		if _, ok := l.known[p.Info.PublicKey]; ok {
-			continue
-		}
-
-		l.known[p.Info.PublicKey] = struct{}{}
-		return &Conn{udp: l.udp, pk: p.Info.PublicKey}
-	}
-
-	return nil
 }

@@ -9,6 +9,7 @@ import (
 
 	"github.com/haivivi/giztoy/go/pkg/gears"
 	"github.com/haivivi/giztoy/go/pkg/net/httptransport"
+	"github.com/haivivi/giztoy/go/pkg/net/peer"
 )
 
 var ErrDeviceOffline = errors.New("server: device offline")
@@ -69,6 +70,6 @@ func (s *Server) refreshGearFromDevice(ctx context.Context, publicKey string) (g
 	if !ok {
 		return gears.RefreshResult{}, ErrDeviceOffline
 	}
-	client := httptransport.NewClient(conn, s.cfg.ReverseServiceID)
+	client := httptransport.NewClient(conn, peer.ServiceReverse)
 	return s.gears.RefreshFromProvider(ctx, publicKey, newReverseDeviceClient(client))
 }

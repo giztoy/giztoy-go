@@ -34,9 +34,7 @@ type Config struct {
 	Stores           map[string]StoreConfig
 	Gears            GearsConfig
 	Depots           DepotsConfig
-	AdminServiceID   uint64
-	ReverseServiceID uint64
-	KVStore          kv.Store
+	KVStore kv.Store
 	FirmwareStore    *firmware.Store
 	FirmwareRoot     string
 }
@@ -45,10 +43,8 @@ type Config struct {
 func DefaultConfig() Config {
 	cfgDir, _ := paths.ConfigDir()
 	return Config{
-		DataDir:          filepath.Join(cfgDir, "server"),
-		ListenAddr:       ":9820",
-		AdminServiceID:   1,
-		ReverseServiceID: 2,
+		DataDir:    filepath.Join(cfgDir, "server"),
+		ListenAddr: ":9820",
 	}
 }
 
@@ -92,12 +88,6 @@ func New(cfg Config) (*Server, error) {
 	}
 	if cfg.ListenAddr == "" {
 		cfg.ListenAddr = defaults.ListenAddr
-	}
-	if cfg.AdminServiceID == 0 {
-		cfg.AdminServiceID = defaults.AdminServiceID
-	}
-	if cfg.ReverseServiceID == 0 {
-		cfg.ReverseServiceID = defaults.ReverseServiceID
 	}
 	if err := cfg.validate(); err != nil {
 		return nil, err
@@ -165,7 +155,7 @@ func (s *Server) Run(ctx context.Context) error {
 
 func (s *Server) allowPeerService(_ noise.PublicKey, service uint64) bool {
 	switch service {
-	case 0, s.cfg.AdminServiceID, s.cfg.ReverseServiceID:
+	case peer.ServicePublic, peer.ServiceAdmin, peer.ServiceReverse:
 		return true
 	default:
 		return false
@@ -204,6 +194,8 @@ func (s *Server) acceptLoop(ctx context.Context) {
 }
 
 func (s *Server) servePeer(ctx context.Context, conn *peer.Conn) {
+	defer conn.Close()
+
 	publicKey := conn.PublicKey().String()
 	s.markPeerOnline(publicKey, conn)
 	defer s.markPeerOffline(publicKey, conn)
@@ -215,7 +207,7 @@ func (s *Server) servePeer(ctx context.Context, conn *peer.Conn) {
 	}()
 
 	for {
-		stream, err := conn.AcceptService(0)
+		stream, err := conn.AcceptService(peer.ServicePublic)
 		if err != nil {
 			select {
 			case <-ctx.Done():
@@ -277,7 +269,7 @@ func (s *Server) serveSingleHTTPConn(publicKey string, conn net.Conn, handler ht
 }
 
 func (s *Server) serveAdminHTTP(ctx context.Context, conn *peer.Conn) error {
-	server := httptransport.NewServer(conn, s.cfg.AdminServiceID, s.adminHandler(conn.PublicKey().String()))
+	server := httptransport.NewServer(conn, peer.ServiceAdmin, s.adminHandler(conn.PublicKey().String()))
 	go func() {
 		<-ctx.Done()
 		_ = server.Shutdown(context.Background())

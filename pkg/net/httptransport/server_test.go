@@ -27,22 +27,11 @@ func TestHTTPTransportRoundTrip(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	serverUDP := testutil.NewUDPNode(t, serverKey)
-	defer serverUDP.Close()
-	clientUDP := testutil.NewUDPNode(t, clientKey)
-	defer clientUDP.Close()
-	testutil.ConnectNodes(t, clientUDP, clientKey, serverUDP, serverKey)
-
-	serverListener, err := peer.Wrap(serverUDP)
-	if err != nil {
-		t.Fatal(err)
-	}
+	serverListener := testutil.NewListenerNode(t, serverKey)
 	defer serverListener.Close()
-	clientListener, err := peer.Wrap(clientUDP)
-	if err != nil {
-		t.Fatal(err)
-	}
+	clientListener := testutil.NewListenerNode(t, clientKey)
 	defer clientListener.Close()
+	testutil.ConnectListenerNodes(t, clientListener, clientKey, serverListener, serverKey)
 
 	clientConn, err := clientListener.Peer(serverKey.Public)
 	if err != nil {
@@ -100,17 +89,11 @@ func TestListenerCloseUnblocksAccept(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	serverUDP := testutil.NewUDPNode(t, serverKey)
-	defer serverUDP.Close()
-	clientUDP := testutil.NewUDPNode(t, clientKey)
-	defer clientUDP.Close()
-	testutil.ConnectNodes(t, clientUDP, clientKey, serverUDP, serverKey)
-
-	serverListener, err := peer.Wrap(serverUDP)
-	if err != nil {
-		t.Fatal(err)
-	}
+	serverListener := testutil.NewListenerNode(t, serverKey)
 	defer serverListener.Close()
+	clientListener := testutil.NewListenerNode(t, clientKey)
+	defer clientListener.Close()
+	testutil.ConnectListenerNodes(t, clientListener, clientKey, serverListener, serverKey)
 
 	serverConn, err := serverListener.Peer(clientKey.Public)
 	if err != nil {
@@ -146,7 +129,7 @@ func TestAdminServiceFirstRequestCanArriveBeforeServeStarts(t *testing.T) {
 		core.ServiceMuxConfig{},
 		core.ServiceMuxConfig{
 			OnNewService: func(_ noise.PublicKey, service uint64) bool {
-				return service == 0 || service == 1 || service == 2
+				return service == peer.ServicePublic || service == peer.ServiceAdmin || service == peer.ServiceReverse
 			},
 		},
 	)
@@ -218,7 +201,7 @@ func TestReverseServiceFirstRequestCanArriveBeforeServeStarts(t *testing.T) {
 	clientConn, serverConn, cleanup := newHTTPTransportConnPair(t,
 		core.ServiceMuxConfig{
 			OnNewService: func(_ noise.PublicKey, service uint64) bool {
-				return service == 0 || service == 2
+				return service == peer.ServicePublic || service == peer.ServiceReverse
 			},
 		},
 		core.ServiceMuxConfig{},
@@ -409,22 +392,11 @@ func TestRoundTripReadResponseError(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	serverUDP := testutil.NewUDPNode(t, serverKey)
-	defer serverUDP.Close()
-	clientUDP := testutil.NewUDPNode(t, clientKey)
-	defer clientUDP.Close()
-	testutil.ConnectNodes(t, clientUDP, clientKey, serverUDP, serverKey)
-
-	serverListener, err := peer.Wrap(serverUDP)
-	if err != nil {
-		t.Fatal(err)
-	}
+	serverListener := testutil.NewListenerNode(t, serverKey)
 	defer serverListener.Close()
-	clientListener, err := peer.Wrap(clientUDP)
-	if err != nil {
-		t.Fatal(err)
-	}
+	clientListener := testutil.NewListenerNode(t, clientKey)
 	defer clientListener.Close()
+	testutil.ConnectListenerNodes(t, clientListener, clientKey, serverListener, serverKey)
 
 	clientConn, err := clientListener.Peer(serverKey.Public)
 	if err != nil {
@@ -635,45 +607,9 @@ func newHTTPTransportConnPair(t *testing.T, clientCfg, serverCfg core.ServiceMux
 		t.Fatal(err)
 	}
 
-	clientUDP, err := core.NewUDP(
-		clientKey,
-		core.WithBindAddr("127.0.0.1:0"),
-		core.WithAllowUnknown(true),
-		core.WithDecryptWorkers(1),
-		core.WithServiceMuxConfig(clientCfg),
-	)
-	if err != nil {
-		t.Fatalf("client NewUDP error: %v", err)
-	}
-	serverUDP, err := core.NewUDP(
-		serverKey,
-		core.WithBindAddr("127.0.0.1:0"),
-		core.WithAllowUnknown(true),
-		core.WithDecryptWorkers(1),
-		core.WithServiceMuxConfig(serverCfg),
-	)
-	if err != nil {
-		_ = clientUDP.Close()
-		t.Fatalf("server NewUDP error: %v", err)
-	}
-
-	startHTTPTransportReadLoop(clientUDP)
-	startHTTPTransportReadLoop(serverUDP)
-	testutil.ConnectNodes(t, clientUDP, clientKey, serverUDP, serverKey)
-
-	clientListener, err := peer.Wrap(clientUDP)
-	if err != nil {
-		_ = clientUDP.Close()
-		_ = serverUDP.Close()
-		t.Fatalf("client Wrap error: %v", err)
-	}
-	serverListener, err := peer.Wrap(serverUDP)
-	if err != nil {
-		_ = clientListener.Close()
-		_ = clientUDP.Close()
-		_ = serverUDP.Close()
-		t.Fatalf("server Wrap error: %v", err)
-	}
+	clientListener := testutil.NewListenerNode(t, clientKey, core.WithServiceMuxConfig(clientCfg))
+	serverListener := testutil.NewListenerNode(t, serverKey, core.WithServiceMuxConfig(serverCfg))
+	testutil.ConnectListenerNodes(t, clientListener, clientKey, serverListener, serverKey)
 
 	clientConn, err := clientListener.Peer(serverKey.Public)
 	if err != nil {
@@ -687,21 +623,8 @@ func newHTTPTransportConnPair(t *testing.T, clientCfg, serverCfg core.ServiceMux
 	cleanup := func() {
 		_ = clientListener.Close()
 		_ = serverListener.Close()
-		_ = clientUDP.Close()
-		_ = serverUDP.Close()
 	}
 	return clientConn, serverConn, cleanup
-}
-
-func startHTTPTransportReadLoop(u *core.UDP) {
-	go func() {
-		buf := make([]byte, 65535)
-		for {
-			if _, _, err := u.ReadFrom(buf); err != nil {
-				return
-			}
-		}
-	}()
 }
 
 type blockingBody struct {
@@ -720,4 +643,44 @@ func (b *blockingBody) releaseRead() {
 	b.once.Do(func() {
 		close(b.release)
 	})
+}
+
+func TestCustomServiceIDRoundTrip(t *testing.T) {
+	const customService uint64 = 42
+
+	clientConn, serverConn, cleanup := newHTTPTransportConnPair(t,
+		core.ServiceMuxConfig{},
+		core.ServiceMuxConfig{
+			OnNewService: func(_ noise.PublicKey, service uint64) bool {
+				return service == customService
+			},
+		},
+	)
+	defer cleanup()
+
+	srv := NewServer(serverConn, customService, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte("custom-ok"))
+	}))
+	serveDone := make(chan error, 1)
+	go func() { serveDone <- srv.Serve() }()
+	defer func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		_ = srv.Shutdown(ctx)
+		<-serveDone
+	}()
+
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, "http://giztoy/custom", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp, err := NewClient(clientConn, customService).Do(req)
+	if err != nil {
+		t.Fatalf("Do error: %v", err)
+	}
+	defer resp.Body.Close()
+	body, _ := io.ReadAll(resp.Body)
+	if string(body) != "custom-ok" {
+		t.Fatalf("body = %q, want %q", body, "custom-ok")
+	}
 }

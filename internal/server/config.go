@@ -143,12 +143,6 @@ func (cfg Config) validate() error {
 	if cfg.DataDir == "" {
 		return fmt.Errorf("server: empty data dir")
 	}
-	if cfg.AdminServiceID == 0 {
-		cfg.AdminServiceID = 1
-	}
-	if cfg.ReverseServiceID == 0 {
-		cfg.ReverseServiceID = 2
-	}
 	if cfg.Gears.Store != "" {
 		storeCfg, ok := cfg.Stores[cfg.Gears.Store]
 		if !ok {

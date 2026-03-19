@@ -10,11 +10,6 @@ import (
 	"github.com/haivivi/giztoy/go/pkg/net/noise"
 )
 
-type invalidNetAddr string
-
-func (a invalidNetAddr) Network() string { return "invalid" }
-func (a invalidNetAddr) String() string  { return string(a) }
-
 func buildHandshakeResponseForUDPTest(t *testing.T, initiator *noise.KeyPair, responder *noise.KeyPair, localIdx, remoteIdx uint32) (*noise.HandshakeState, []byte) {
 	t.Helper()
 
@@ -87,7 +82,7 @@ func TestNewUDPWithBindAddr(t *testing.T) {
 	}
 	defer udp.Close()
 
-	addr := udp.HostInfo().Addr.(*net.UDPAddr)
+	addr := udp.HostInfo().Addr
 	if addr.IP.String() != "127.0.0.1" {
 		t.Errorf("Expected 127.0.0.1, got %s", addr.IP.String())
 	}
@@ -134,19 +129,9 @@ func TestSetPeerEndpoint_IgnoresClosedAndInvalidAddr(t *testing.T) {
 		t.Fatalf("NewUDP failed: %v", err)
 	}
 	udp.Close()
-	udp.SetPeerEndpoint(peerKey.Public, invalidNetAddr("127.0.0.1:12345"))
+	udp.SetPeerEndpoint(peerKey.Public, &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 12345})
 	if udp.PeerInfo(peerKey.Public) != nil {
 		t.Fatal("SetPeerEndpoint should ignore updates after close")
-	}
-
-	udp2, err := NewUDP(key)
-	if err != nil {
-		t.Fatalf("NewUDP second instance failed: %v", err)
-	}
-	defer udp2.Close()
-	udp2.SetPeerEndpoint(peerKey.Public, invalidNetAddr("not-a-valid-udp-addr"))
-	if udp2.PeerInfo(peerKey.Public) != nil {
-		t.Fatal("SetPeerEndpoint should ignore invalid addr strings")
 	}
 }
 
@@ -273,8 +258,8 @@ func TestHandshakeAndTransport(t *testing.T) {
 	defer udp2.Close()
 
 	// Get addresses
-	addr1 := udp1.HostInfo().Addr.(*net.UDPAddr)
-	addr2 := udp2.HostInfo().Addr.(*net.UDPAddr)
+	addr1 := udp1.HostInfo().Addr
+	addr2 := udp2.HostInfo().Addr
 
 	// Set up peer endpoints
 	udp1.SetPeerEndpoint(key2.Public, addr2)
@@ -362,8 +347,8 @@ func TestRoaming(t *testing.T) {
 	defer udp2.Close()
 
 	// Get addresses
-	addr1 := udp1.HostInfo().Addr.(*net.UDPAddr)
-	addr2 := udp2.HostInfo().Addr.(*net.UDPAddr)
+	addr1 := udp1.HostInfo().Addr
+	addr2 := udp2.HostInfo().Addr
 
 	// Set up peer endpoints
 	udp1.SetPeerEndpoint(key2.Public, addr2)

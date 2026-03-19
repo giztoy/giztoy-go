@@ -7,6 +7,12 @@ import (
 
 const PrologueVersion = 1
 
+const (
+	ServicePublic  uint64 = 0
+	ServiceAdmin   uint64 = 1
+	ServiceReverse uint64 = 2
+)
+
 type RPCRequest struct {
 	V      int             `json:"v"`
 	ID     string          `json:"id"`

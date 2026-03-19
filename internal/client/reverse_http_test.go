@@ -7,7 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/haivivi/giztoy/go/internal/server"
 	"github.com/haivivi/giztoy/go/pkg/gears"
 )
 
@@ -97,62 +96,6 @@ func TestReverseHTTPRefreshErrorIsNotReportedAsOffline(t *testing.T) {
 	}
 	if strings.Contains(err.Error(), "DEVICE_OFFLINE") {
 		t.Fatalf("RefreshGear error should not report offline: %v", err)
-	}
-}
-
-func TestReverseHTTPRefreshWithCustomServiceIDs(t *testing.T) {
-	srv, cancel := startTestServerWithConfig(t, server.Config{
-		DataDir:          t.TempDir(),
-		ListenAddr:       "127.0.0.1:0",
-		AdminServiceID:   11,
-		ReverseServiceID: 12,
-		Gears: server.GearsConfig{
-			RegistrationTokens: map[string]gears.RegistrationToken{
-				"admin_default":  {Role: gears.GearRoleAdmin},
-				"device_default": {Role: gears.GearRoleDevice},
-			},
-		},
-		FirmwareRoot: t.TempDir(),
-	})
-	defer cancel()
-
-	admin := newTestClient(t, srv)
-	if _, err := admin.Register(context.Background(), gears.RegistrationRequest{
-		Device:            gears.DeviceInfo{Name: "admin"},
-		RegistrationToken: "admin_default",
-	}); err != nil {
-		t.Fatalf("admin register error: %v", err)
-	}
-
-	device := newTestClient(t, srv)
-	deviceResult, err := device.Register(context.Background(), gears.RegistrationRequest{
-		Device:            gears.DeviceInfo{Name: "device"},
-		RegistrationToken: "device_default",
-	})
-	if err != nil {
-		t.Fatalf("device register error: %v", err)
-	}
-
-	ctx, stop := context.WithCancel(context.Background())
-	defer stop()
-	go func() {
-		_ = device.ServeReverseHTTP(ctx, staticProvider{
-			info:        gears.RefreshInfo{Manufacturer: "Acme"},
-			identifiers: gears.RefreshIdentifiers{SN: "sn-custom-service"},
-			version:     gears.RefreshVersion{Depot: "demo", FirmwareSemVer: "2.0.0"},
-		})
-	}()
-	time.Sleep(200 * time.Millisecond)
-
-	if _, err := admin.GetGear(context.Background(), deviceResult.Gear.PublicKey); err != nil {
-		t.Fatalf("GetGear error with custom service IDs: %v", err)
-	}
-	result, err := admin.RefreshGear(context.Background(), deviceResult.Gear.PublicKey)
-	if err != nil {
-		t.Fatalf("RefreshGear error with custom service IDs: %v", err)
-	}
-	if result.Gear.Device.SN != "sn-custom-service" {
-		t.Fatalf("SN = %q", result.Gear.Device.SN)
 	}
 }
 
