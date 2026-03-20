@@ -15,35 +15,71 @@
 listen: ":9820"
 
 # 可复用的 store 定义表。
-# gears.store / depots.store 会引用这里的名字。
+# gears.store / depots.store 等子系统会引用这里的名字。
+#
+# 每个 store 由两个维度定义：
+#   kind    — 接口类型，决定子系统能否使用它
+#   backend — 具体实现
+#
+# 目前支持的组合：
+#
+#   kind: keyvalue
+#     backend: memory   — 内存，重启丢数据
+#     backend: badger   — BadgerDB，嵌入式持久化（需要 dir）
+#
+#   kind: sql
+#     backend: sqlite   — SQLite，嵌入式持久化（需要 dir）
+#     backend: postgres — PostgreSQL，远程持久化（需要 dsn）
+#
+#   kind: filestore
+#     backend: filesystem — 本地文件系统（需要 dir）
+#
 stores:
-  # 一个内存 store。
+  # 内存 KV store。
   # 服务端重启后数据会丢失。
-  gears-memory:
-    kind: memory
+  memory:
+    kind: keyvalue
+    backend: memory
 
-  # 一个 BadgerDB 持久化 store。
+  # BadgerDB 持久化 KV store。
   # 数据写入磁盘，服务端重启后仍然保留。
   # 相对路径以启动时传入的工作目录作为根目录解释。
-  gears-badger:
-    kind: badger
-    dir: gears-data
+  badger:
+    kind: keyvalue
+    backend: badger
+    dir: badger-data
 
-  # 一个文件 store。
-  # 当前 depots 必须使用 file。
-  # 相对路径会以启动时传入的工作目录作为根目录解释。
+  # SQLite 持久化 KV store。
+  # 数据写入单个 SQLite 文件，适合轻量部署。
+  sqlite:
+    kind: sql
+    backend: sqlite
+    dir: sqlite-data
+
+  # PostgreSQL 持久化 KV store。
+  # 适合多实例共享同一份数据。
+  # dsn 填写连接字符串。
+  postgres:
+    kind: sql
+    backend: postgres
+    dsn: postgres://user:pass@localhost:5432/giztoy
+
+  # 本地文件 store。
+  # 当前 depots 必须使用 kind: filestore。
+  # 相对路径以启动时传入的工作目录作为根目录解释。
   # 例如 firmware 实际表示 <dir>/firmware。
   # 如果你明确写系统绝对路径，也可以指向任意位置。
-  firmware-file:
-    kind: file
+  firmware:
+    kind: filestore
+    backend: filesystem
     dir: firmware
 
 # 设备注册、设备配置、索引查询相关配置。
 gears:
   # 引用 stores 里的一个名字。
-  # 不写时，当前默认退回内存 store。
-  # 可选 gears-memory（内存）或 gears-badger（持久化）。
-  store: gears-badger
+  # 对应的 store 必须是 kind: keyvalue。
+  # 不写时，默认使用内存 KV store。
+  store: badger
 
   # 注册 token 表。
   # key 是 token 名称。
@@ -60,16 +96,18 @@ gears:
 # 固件仓库和 OTA 发布流转相关配置。
 depots:
   # 引用 stores 里的一个名字。
-  # 当前必须指向 kind: file 的 store。
-  # 不写时，当前默认使用 <dir>/firmware。
-  store: firmware-file
+  # 对应的 store 必须是 kind: filestore。
+  # 不写时，默认使用 <dir>/firmware。
+  store: firmware
 
 # 注意：
-# - gears 支持 memory（内存）和 badger（持久化）两种 store
-# - memory store 服务端重启后数据会丢失
-# - badger store 数据持久化到磁盘，重启后保留
-# - depots 需要 file store；如果显式配置 store，对应项必须提供 dir
-# - stores.<name>.dir 对 kind: file 和 kind: badger 有意义
-# - stores.<name>.dir 如果写相对路径，就相对于启动时传入的工作目录
-# - stores.<name>.dir 如果写绝对路径，就直接使用该绝对路径
+# - 子系统会校验引用的 store 的 kind 是否匹配：
+#     gears  需要 kind: keyvalue 或 kind: sql
+#     depots 需要 kind: filestore
+# - backend: memory 的 KV store 服务端重启后数据会丢失
+# - backend: badger / sqlite 的 store 数据持久化到磁盘
+# - dir 对需要磁盘存储的 backend 有意义（badger / sqlite / filesystem）
+# - dir 如果写相对路径，就相对于启动时传入的工作目录
+# - dir 如果写绝对路径，就直接使用该绝对路径
+# - postgres 使用 dsn 字段（而非 dir）填写连接字符串
 # - registration-tokens 不配置也能启动，但就不能通过 token 直接注册指定角色

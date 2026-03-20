@@ -11,9 +11,17 @@ import (
 	"github.com/haivivi/giztoy/go/pkg/kv"
 )
 
+// StoreConfig defines a named store in the config file.
+//
+// Kind is the interface type ("keyvalue", "sql", or "filestore").
+// Backend is the concrete implementation ("memory", "badger", "sqlite", "postgres", "filesystem").
+// Dir is required for backends that need disk storage (badger, sqlite, filesystem).
+// DSN is the connection string for remote backends (postgres).
 type StoreConfig struct {
-	Kind string `yaml:"kind"`
-	Dir  string `yaml:"dir"`
+	Kind    string `yaml:"kind"`
+	Backend string `yaml:"backend"`
+	Dir     string `yaml:"dir"`
+	DSN     string `yaml:"dsn"`
 }
 
 type GearsConfig struct {
@@ -80,33 +88,75 @@ func (cfg Config) effectiveListenAddr() string {
 	return ":9820"
 }
 
+// kvCompatibleKind reports whether the store kind can serve as a kv.Store.
+func kvCompatibleKind(kind string) bool {
+	return kind == "keyvalue" || kind == "sql"
+}
+
+// resolveKVStore creates a kv.Store from a named store config entry.
+// The referenced store must have kind "keyvalue" or "sql".
+func (cfg Config) resolveKVStore(name string) (kv.Store, error) {
+	sc, ok := cfg.Stores[name]
+	if !ok {
+		return nil, fmt.Errorf("server: store %q not found", name)
+	}
+	if !kvCompatibleKind(sc.Kind) {
+		return nil, fmt.Errorf("server: store %q is kind %q, need keyvalue or sql", name, sc.Kind)
+	}
+	switch sc.Backend {
+	case "memory":
+		return kv.NewMemory(nil), nil
+	case "badger":
+		dir, err := cfg.workspacePath(sc.Dir)
+		if err != nil {
+			return nil, fmt.Errorf("server: store %q: %w", name, err)
+		}
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			return nil, fmt.Errorf("server: store %q dir: %w", name, err)
+		}
+		return kv.NewBadger(dir, nil)
+	case "sqlite":
+		dir, err := cfg.workspacePath(sc.Dir)
+		if err != nil {
+			return nil, fmt.Errorf("server: store %q: %w", name, err)
+		}
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			return nil, fmt.Errorf("server: store %q dir: %w", name, err)
+		}
+		return kv.NewSQLite(dir, nil)
+	case "postgres":
+		return kv.NewPostgres(sc.DSN, nil)
+	default:
+		return nil, fmt.Errorf("server: store %q has unsupported backend %q for kind %q", name, sc.Backend, sc.Kind)
+	}
+}
+
+// resolveFileStore creates a firmware.Store from a named store config entry.
+// The referenced store must have kind "filestore".
+func (cfg Config) resolveFileStore(name string) (*firmware.Store, error) {
+	sc, ok := cfg.Stores[name]
+	if !ok {
+		return nil, fmt.Errorf("server: store %q not found", name)
+	}
+	if sc.Kind != "filestore" {
+		return nil, fmt.Errorf("server: store %q is kind %q, need filestore", name, sc.Kind)
+	}
+	if sc.Backend != "filesystem" {
+		return nil, fmt.Errorf("server: store %q has unsupported filestore backend %q", name, sc.Backend)
+	}
+	dir, err := cfg.workspacePath(sc.Dir)
+	if err != nil {
+		return nil, fmt.Errorf("server: store %q: %w", name, err)
+	}
+	return firmware.NewStore(dir), nil
+}
+
 func (cfg Config) gearsStore() (kv.Store, error) {
 	if cfg.KVStore != nil {
 		return cfg.KVStore, nil
 	}
 	if cfg.Gears.Store != "" {
-		storeCfg, ok := cfg.Stores[cfg.Gears.Store]
-		if !ok {
-			return nil, fmt.Errorf("server: gears.store %q not found", cfg.Gears.Store)
-		}
-		switch storeCfg.Kind {
-		case "memory":
-			return kv.NewMemory(nil), nil
-		case "badger":
-			if storeCfg.Dir == "" {
-				return nil, fmt.Errorf("server: gears store %q (badger) missing dir", cfg.Gears.Store)
-			}
-			dir, err := cfg.workspacePath(storeCfg.Dir)
-			if err != nil {
-				return nil, err
-			}
-			if err := os.MkdirAll(dir, 0o755); err != nil {
-				return nil, fmt.Errorf("server: gears store dir: %w", err)
-			}
-			return kv.NewBadger(dir, nil)
-		default:
-			return nil, fmt.Errorf("server: unsupported gears store kind %q", storeCfg.Kind)
-		}
+		return cfg.resolveKVStore(cfg.Gears.Store)
 	}
 	return kv.NewMemory(nil), nil
 }
@@ -116,21 +166,7 @@ func (cfg Config) firmwareStore() (*firmware.Store, error) {
 		return cfg.FirmwareStore, nil
 	}
 	if cfg.Depots.Store != "" {
-		storeCfg, ok := cfg.Stores[cfg.Depots.Store]
-		if !ok {
-			return nil, fmt.Errorf("server: depots.store %q not found", cfg.Depots.Store)
-		}
-		if storeCfg.Kind != "file" {
-			return nil, fmt.Errorf("server: unsupported depots store kind %q", storeCfg.Kind)
-		}
-		if storeCfg.Dir == "" {
-			return nil, fmt.Errorf("server: depots store %q missing dir", cfg.Depots.Store)
-		}
-		root, err := cfg.workspacePath(storeCfg.Dir)
-		if err != nil {
-			return nil, err
-		}
-		return firmware.NewStore(root), nil
+		return cfg.resolveFileStore(cfg.Depots.Store)
 	}
 	root := cfg.FirmwareRoot
 	if root == "" {
@@ -139,41 +175,76 @@ func (cfg Config) firmwareStore() (*firmware.Store, error) {
 	return firmware.NewStore(root), nil
 }
 
+// needsDir returns true for backends that require a local directory path.
+// postgres uses DSN instead of Dir, so it is not included.
+func needsDir(backend string) bool {
+	switch backend {
+	case "badger", "sqlite", "filesystem":
+		return true
+	}
+	return false
+}
+
 func (cfg Config) validate() error {
 	if cfg.DataDir == "" {
 		return fmt.Errorf("server: empty data dir")
 	}
-	if cfg.Gears.Store != "" {
-		storeCfg, ok := cfg.Stores[cfg.Gears.Store]
-		if !ok {
-			return fmt.Errorf("server: gears.store %q not found", cfg.Gears.Store)
+	for name, sc := range cfg.Stores {
+		if err := validateStoreConfig(name, sc); err != nil {
+			return err
 		}
-		if storeCfg.Kind == "" {
-			return fmt.Errorf("server: gears store %q missing kind", cfg.Gears.Store)
-		}
-		if storeCfg.Kind == "badger" {
-			if storeCfg.Dir == "" {
-				return fmt.Errorf("server: gears store %q (badger) missing dir", cfg.Gears.Store)
-			}
-			if _, err := cfg.workspacePath(storeCfg.Dir); err != nil {
-				return err
+		if needsDir(sc.Backend) {
+			if _, err := cfg.workspacePath(sc.Dir); err != nil {
+				return fmt.Errorf("server: store %q: %w", name, err)
 			}
 		}
 	}
+	if cfg.Gears.Store != "" {
+		sc, ok := cfg.Stores[cfg.Gears.Store]
+		if !ok {
+			return fmt.Errorf("server: gears.store %q not found", cfg.Gears.Store)
+		}
+		if !kvCompatibleKind(sc.Kind) {
+			return fmt.Errorf("server: gears.store %q must be kind keyvalue or sql, got %q", cfg.Gears.Store, sc.Kind)
+		}
+	}
 	if cfg.Depots.Store != "" {
-		storeCfg, ok := cfg.Stores[cfg.Depots.Store]
+		sc, ok := cfg.Stores[cfg.Depots.Store]
 		if !ok {
 			return fmt.Errorf("server: depots.store %q not found", cfg.Depots.Store)
 		}
-		if storeCfg.Kind != "file" {
-			return fmt.Errorf("server: depots store %q must use file kind", cfg.Depots.Store)
+		if sc.Kind != "filestore" {
+			return fmt.Errorf("server: depots.store %q must be kind filestore, got %q", cfg.Depots.Store, sc.Kind)
 		}
-		if storeCfg.Dir == "" {
-			return fmt.Errorf("server: depots store %q missing dir", cfg.Depots.Store)
-		}
-		if _, err := cfg.workspacePath(storeCfg.Dir); err != nil {
-			return err
-		}
+	}
+	return nil
+}
+
+var validBackends = map[string]map[string]bool{
+	"keyvalue":  {"memory": true, "badger": true},
+	"sql":       {"sqlite": true, "postgres": true},
+	"filestore": {"filesystem": true},
+}
+
+func validateStoreConfig(name string, sc StoreConfig) error {
+	if sc.Kind == "" {
+		return fmt.Errorf("server: store %q missing kind", name)
+	}
+	backends, ok := validBackends[sc.Kind]
+	if !ok {
+		return fmt.Errorf("server: store %q has unknown kind %q", name, sc.Kind)
+	}
+	if sc.Backend == "" {
+		return fmt.Errorf("server: store %q missing backend", name)
+	}
+	if !backends[sc.Backend] {
+		return fmt.Errorf("server: store %q has invalid backend %q for kind %q", name, sc.Backend, sc.Kind)
+	}
+	if needsDir(sc.Backend) && sc.Dir == "" {
+		return fmt.Errorf("server: store %q (backend %q) requires dir", name, sc.Backend)
+	}
+	if sc.Backend == "postgres" && sc.DSN == "" {
+		return fmt.Errorf("server: store %q (backend %q) requires dsn", name, sc.Backend)
 	}
 	return nil
 }

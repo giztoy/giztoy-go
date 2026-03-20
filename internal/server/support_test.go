@@ -22,9 +22,11 @@ func TestConfigHelpersAndLoad(t *testing.T) {
 listen: 127.0.0.1:9999
 stores:
   mem:
-    kind: memory
+    kind: keyvalue
+    backend: memory
   depots:
-    kind: file
+    kind: filestore
+    backend: filesystem
     dir: depots
 gears:
   store: mem
@@ -128,18 +130,18 @@ depots:
 	if _, err := (Config{
 		DataDir: t.TempDir(),
 		Stores: map[string]StoreConfig{
-			"bad": {Kind: "memory"},
+			"bad": {Kind: "keyvalue", Backend: "memory"},
 		},
 		Depots: DepotsConfig{Store: "bad"},
 	}).firmwareStore(); err == nil {
-		t.Fatal("firmwareStore should fail for non-file store")
+		t.Fatal("firmwareStore should fail for non-filestore store")
 	}
 
 	badgerDir := t.TempDir()
 	badgerCfg := Config{
 		DataDir: badgerDir,
 		Stores: map[string]StoreConfig{
-			"bg": {Kind: "badger", Dir: "gears-data"},
+			"bg": {Kind: "keyvalue", Backend: "badger", Dir: "gears-data"},
 		},
 		Gears: GearsConfig{Store: "bg"},
 	}
@@ -155,7 +157,7 @@ depots:
 	if err := (Config{
 		DataDir: t.TempDir(),
 		Stores: map[string]StoreConfig{
-			"bg-nodir": {Kind: "badger"},
+			"bg-nodir": {Kind: "keyvalue", Backend: "badger"},
 		},
 		Gears: GearsConfig{Store: "bg-nodir"},
 	}).validate(); err == nil {
@@ -164,20 +166,110 @@ depots:
 	if _, err := (Config{
 		DataDir: t.TempDir(),
 		Stores: map[string]StoreConfig{
-			"bg-nodir": {Kind: "badger"},
+			"bg-nodir": {Kind: "keyvalue", Backend: "badger", Dir: "data"},
 		},
 		Gears: GearsConfig{Store: "bg-nodir"},
-	}).gearsStore(); err == nil {
-		t.Fatal("gearsStore should fail for badger store without dir")
+	}).gearsStore(); err != nil {
+		t.Fatalf("gearsStore badger with dir should not fail: %v", err)
 	}
 	if _, err := (Config{
 		DataDir: t.TempDir(),
 		Stores: map[string]StoreConfig{
-			"unsup": {Kind: "redis"},
+			"unsup": {Kind: "keyvalue", Backend: "redis"},
 		},
 		Gears: GearsConfig{Store: "unsup"},
 	}).gearsStore(); err == nil {
-		t.Fatal("gearsStore should fail for unsupported kind")
+		t.Fatal("gearsStore should fail for unsupported backend")
+	}
+
+	if err := (Config{
+		DataDir: t.TempDir(),
+		Stores: map[string]StoreConfig{
+			"pg-nodsn": {Kind: "sql", Backend: "postgres"},
+		},
+	}).validate(); err == nil {
+		t.Fatal("validate should fail for postgres store without dsn")
+	}
+	if err := (Config{
+		DataDir: t.TempDir(),
+		Stores: map[string]StoreConfig{
+			"pg": {Kind: "sql", Backend: "postgres", DSN: "postgres://localhost/test"},
+		},
+		Gears: GearsConfig{Store: "pg"},
+	}).validate(); err != nil {
+		t.Fatalf("validate postgres with dsn should pass: %v", err)
+	}
+
+	sqliteCfg := Config{
+		DataDir: t.TempDir(),
+		Stores: map[string]StoreConfig{
+			"sq": {Kind: "sql", Backend: "sqlite", Dir: "sqlite-data"},
+		},
+		Gears: GearsConfig{Store: "sq"},
+	}
+	if err := sqliteCfg.validate(); err != nil {
+		t.Fatalf("validate sqlite config error: %v", err)
+	}
+	sqStore, err := sqliteCfg.gearsStore()
+	if err != nil {
+		t.Fatalf("gearsStore sqlite error: %v", err)
+	}
+	sqStore.Close()
+
+	if err := (Config{
+		DataDir: t.TempDir(),
+		Stores: map[string]StoreConfig{
+			"sq-nodir": {Kind: "sql", Backend: "sqlite"},
+		},
+	}).validate(); err == nil {
+		t.Fatal("validate should fail for sqlite store without dir")
+	}
+
+	if err := (Config{
+		DataDir: t.TempDir(),
+		Stores: map[string]StoreConfig{
+			"kv-bad": {Kind: "keyvalue", Backend: "memory"},
+		},
+		Depots: DepotsConfig{Store: "kv-bad"},
+	}).validate(); err == nil {
+		t.Fatal("validate should fail for depots referencing non-filestore kind")
+	}
+
+	if _, err := (Config{
+		DataDir: t.TempDir(),
+		Stores: map[string]StoreConfig{
+			"fs-bad": {Kind: "filestore", Backend: "filesystem", Dir: "data"},
+		},
+		Gears: GearsConfig{Store: "fs-bad"},
+	}).gearsStore(); err == nil {
+		t.Fatal("gearsStore should fail for non-kv kind")
+	}
+
+	if err := (Config{
+		DataDir: t.TempDir(),
+		Stores: map[string]StoreConfig{
+			"bad-backend": {Kind: "sql", Backend: "mysql"},
+		},
+	}).validate(); err == nil {
+		t.Fatal("validate should fail for invalid backend in sql kind")
+	}
+
+	if err := (Config{
+		DataDir: t.TempDir(),
+		Stores: map[string]StoreConfig{
+			"no-backend": {Kind: "keyvalue"},
+		},
+	}).validate(); err == nil {
+		t.Fatal("validate should fail for store with empty backend")
+	}
+
+	if err := (Config{
+		DataDir: t.TempDir(),
+		Stores: map[string]StoreConfig{
+			"unk": {Kind: "nosql", Backend: "x"},
+		},
+	}).validate(); err == nil {
+		t.Fatal("validate should fail for unknown kind")
 	}
 
 	if err := (Config{}).validate(); err == nil {
@@ -188,32 +280,31 @@ depots:
 		Stores: map[string]StoreConfig{
 			"empty-kind": {},
 		},
-		Gears: GearsConfig{Store: "empty-kind"},
 	}).validate(); err == nil {
 		t.Fatal("validate should fail for store with empty kind")
 	}
 	if err := (Config{
 		DataDir: t.TempDir(),
 		Stores: map[string]StoreConfig{
-			"dep-nodir": {Kind: "file"},
+			"dep-nodir": {Kind: "filestore", Backend: "filesystem"},
 		},
 		Depots: DepotsConfig{Store: "dep-nodir"},
 	}).validate(); err == nil {
-		t.Fatal("validate should fail for depots file store without dir")
+		t.Fatal("validate should fail for depots filestore without dir")
 	}
 	if _, err := (Config{
 		DataDir: t.TempDir(),
 		Stores: map[string]StoreConfig{
-			"dep-nodir": {Kind: "file", Dir: "data"},
+			"dep-ok": {Kind: "filestore", Backend: "filesystem", Dir: "data"},
 		},
-		Depots: DepotsConfig{Store: "dep-nodir"},
+		Depots: DepotsConfig{Store: "dep-ok"},
 	}).firmwareStore(); err != nil {
 		t.Fatalf("firmwareStore with dir should not fail: %v", err)
 	}
 	if _, err := (Config{
 		DataDir: t.TempDir(),
 		Stores: map[string]StoreConfig{
-			"missing": {Kind: "file", Dir: "data"},
+			"missing": {Kind: "filestore", Backend: "filesystem", Dir: "data"},
 		},
 		Depots: DepotsConfig{Store: "nope"},
 	}).firmwareStore(); err == nil {
@@ -236,7 +327,7 @@ depots:
 	}
 	if err := (Config{
 		Stores: map[string]StoreConfig{
-			"bg": {Kind: "badger", Dir: "data"},
+			"bg": {Kind: "keyvalue", Backend: "badger", Dir: "data"},
 		},
 		Gears: GearsConfig{Store: "bg"},
 	}).validate(); err == nil {
