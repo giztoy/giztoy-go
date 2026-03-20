@@ -1,19 +1,21 @@
 package objstore_test
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
+	"testing/fstest"
 
 	"github.com/haivivi/giztoy/go/pkg/objstore"
 )
 
-func newTestStore(t *testing.T) objstore.Store {
+func newTestStore(t *testing.T) (*objstore.FS, string) {
 	t.Helper()
 	dir := t.TempDir()
 	s, err := objstore.NewFS(dir)
@@ -21,567 +23,571 @@ func newTestStore(t *testing.T) objstore.Store {
 		t.Fatalf("NewFS: %v", err)
 	}
 	t.Cleanup(func() { s.Close() })
-	return s
+	return s, dir
 }
 
-func makeObject(name, contentType, body string) objstore.Object {
-	return objstore.Object{
-		Name:        name,
-		ContentType: contentType,
-		Size:        int64(len(body)),
-		Content:     io.NopCloser(strings.NewReader(body)),
-	}
-}
-
-func readObject(t *testing.T, obj objstore.Object) string {
-	t.Helper()
-	defer obj.Content.Close()
-	data, err := io.ReadAll(obj.Content)
-	if err != nil {
-		t.Fatalf("read object: %v", err)
-	}
-	return string(data)
-}
-
-func TestPutGetDelete(t *testing.T) {
+func TestPutAndOpen(t *testing.T) {
 	ctx := context.Background()
-	s := newTestStore(t)
+	s, _ := newTestStore(t)
 
-	// Get non-existent key.
-	_, err := s.Get(ctx, "missing")
-	if !errors.Is(err, objstore.ErrNotFound) {
-		t.Fatalf("expected ErrNotFound, got %v", err)
-	}
-
-	// Put and Get.
-	obj := makeObject("hello.txt", "text/plain", "hello world")
-	if err := s.Put(ctx, "doc1", obj); err != nil {
+	if err := s.Put(ctx, "hello.txt", strings.NewReader("hello world")); err != nil {
 		t.Fatalf("Put: %v", err)
 	}
 
-	got, err := s.Get(ctx, "doc1")
+	f, err := s.Open("hello.txt")
 	if err != nil {
-		t.Fatalf("Get: %v", err)
+		t.Fatalf("Open: %v", err)
 	}
-	if got.Name != "hello.txt" {
-		t.Errorf("Name = %q, want %q", got.Name, "hello.txt")
-	}
-	if got.ContentType != "text/plain" {
-		t.Errorf("ContentType = %q, want %q", got.ContentType, "text/plain")
-	}
-	body := readObject(t, got)
-	if body != "hello world" {
-		t.Errorf("body = %q, want %q", body, "hello world")
-	}
+	defer f.Close()
 
-	// Overwrite.
-	obj2 := makeObject("updated.txt", "text/html", "<h1>hi</h1>")
-	if err := s.Put(ctx, "doc1", obj2); err != nil {
-		t.Fatalf("Put overwrite: %v", err)
-	}
-	got2, err := s.Get(ctx, "doc1")
+	data, err := io.ReadAll(f)
 	if err != nil {
-		t.Fatalf("Get after overwrite: %v", err)
+		t.Fatalf("ReadAll: %v", err)
 	}
-	if got2.Name != "updated.txt" {
-		t.Errorf("Name after overwrite = %q, want %q", got2.Name, "updated.txt")
-	}
-	body2 := readObject(t, got2)
-	if body2 != "<h1>hi</h1>" {
-		t.Errorf("body after overwrite = %q, want %q", body2, "<h1>hi</h1>")
+	if string(data) != "hello world" {
+		t.Errorf("content = %q, want %q", data, "hello world")
 	}
 
-	// Delete.
-	if err := s.Delete(ctx, "doc1"); err != nil {
-		t.Fatalf("Delete: %v", err)
+	info, err := f.Stat()
+	if err != nil {
+		t.Fatalf("Stat: %v", err)
 	}
-	_, err = s.Get(ctx, "doc1")
-	if !errors.Is(err, objstore.ErrNotFound) {
-		t.Fatalf("expected ErrNotFound after delete, got %v", err)
+	if info.Name() != "hello.txt" {
+		t.Errorf("Name = %q, want %q", info.Name(), "hello.txt")
 	}
-
-	// Delete non-existent key should not error.
-	if err := s.Delete(ctx, "no-such-key"); err != nil {
-		t.Fatalf("Delete non-existent: %v", err)
+	if info.Size() != 11 {
+		t.Errorf("Size = %d, want 11", info.Size())
+	}
+	if info.IsDir() {
+		t.Error("IsDir = true, want false")
 	}
 }
 
-func TestList(t *testing.T) {
+func TestPutOverwrite(t *testing.T) {
 	ctx := context.Background()
-	s := newTestStore(t)
+	s, _ := newTestStore(t)
 
-	objects := map[string]objstore.Object{
-		"alpha":   makeObject("a.txt", "text/plain", "aaa"),
-		"beta":    makeObject("b.bin", "application/octet-stream", "bbb"),
-		"alpha2":  makeObject("a2.txt", "text/plain", "aaa2"),
-		"charlie": makeObject("c.jpg", "image/jpeg", "ccc"),
+	if err := s.Put(ctx, "f.txt", strings.NewReader("v1")); err != nil {
+		t.Fatal(err)
 	}
-	for key, obj := range objects {
-		if err := s.Put(ctx, key, obj); err != nil {
-			t.Fatalf("Put %s: %v", key, err)
-		}
-	}
-
-	// List all (empty prefix).
-	var allKeys []string
-	for info, err := range s.List(ctx, "") {
-		if err != nil {
-			t.Fatalf("List all: %v", err)
-		}
-		allKeys = append(allKeys, info.Key)
-	}
-	if len(allKeys) != 4 {
-		t.Fatalf("List all: got %d entries, want 4: %v", len(allKeys), allKeys)
-	}
-
-	// List with prefix "alpha" — should match "alpha" and "alpha2".
-	var prefixed []string
-	for info, err := range s.List(ctx, "alpha") {
-		if err != nil {
-			t.Fatalf("List alpha: %v", err)
-		}
-		prefixed = append(prefixed, info.Key)
-	}
-	if len(prefixed) != 2 {
-		t.Fatalf("List alpha: got %d entries, want 2: %v", len(prefixed), prefixed)
-	}
-
-	// Verify lexicographic order.
-	if prefixed[0] != "alpha" || prefixed[1] != "alpha2" {
-		t.Errorf("List alpha order = %v, want [alpha, alpha2]", prefixed)
-	}
-
-	// List with prefix that matches nothing.
-	var empty []string
-	for info, err := range s.List(ctx, "zzz") {
-		if err != nil {
-			t.Fatalf("List zzz: %v", err)
-		}
-		empty = append(empty, info.Key)
-	}
-	if len(empty) != 0 {
-		t.Fatalf("List zzz: got %d entries, want 0", len(empty))
-	}
-}
-
-func TestListMetadata(t *testing.T) {
-	ctx := context.Background()
-	s := newTestStore(t)
-
-	if err := s.Put(ctx, "img", makeObject("photo.png", "image/png", "pixels")); err != nil {
+	if err := s.Put(ctx, "f.txt", strings.NewReader("version2")); err != nil {
 		t.Fatal(err)
 	}
 
-	for info, err := range s.List(ctx, "") {
-		if err != nil {
-			t.Fatal(err)
-		}
-		if info.Key != "img" {
-			t.Errorf("Key = %q, want %q", info.Key, "img")
-		}
-		if info.Name != "photo.png" {
-			t.Errorf("Name = %q, want %q", info.Name, "photo.png")
-		}
-		if info.ContentType != "image/png" {
-			t.Errorf("ContentType = %q, want %q", info.ContentType, "image/png")
-		}
-		if info.Size != 6 {
-			t.Errorf("Size = %d, want 6", info.Size)
-		}
-	}
-}
-
-func TestPutSizeComputed(t *testing.T) {
-	ctx := context.Background()
-	s := newTestStore(t)
-
-	obj := objstore.Object{
-		Name:        "test.dat",
-		ContentType: "application/octet-stream",
-		Size:        0,
-		Content:     io.NopCloser(bytes.NewReader([]byte("12345"))),
-	}
-	if err := s.Put(ctx, "sized", obj); err != nil {
-		t.Fatal(err)
-	}
-
-	got, err := s.Get(ctx, "sized")
+	f, err := s.Open("f.txt")
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer got.Content.Close()
-	if got.Size != 5 {
-		t.Errorf("Size = %d, want 5", got.Size)
+	defer f.Close()
+
+	data, _ := io.ReadAll(f)
+	if string(data) != "version2" {
+		t.Errorf("content = %q, want %q", data, "version2")
+	}
+	info, _ := f.Stat()
+	if info.Size() != 8 {
+		t.Errorf("Size = %d, want 8", info.Size())
 	}
 }
 
-func TestInvalidKeys(t *testing.T) {
+func TestPutNestedPath(t *testing.T) {
 	ctx := context.Background()
-	s := newTestStore(t)
+	s, _ := newTestStore(t)
 
-	cases := []struct {
-		name string
-		key  string
-	}{
-		{"empty", ""},
-		{"dot-dot", ".."},
-		{"absolute", "/etc/passwd"},
-		{"traversal", "foo/../../etc"},
-		{"slash", "a/b"},
-		{"backslash", `a\b`},
-		{"dot", "."},
+	if err := s.Put(ctx, "a/b/c.txt", strings.NewReader("nested")); err != nil {
+		t.Fatalf("Put nested: %v", err)
 	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			err := s.Put(ctx, tc.key, makeObject("x", "x", "x"))
-			if err == nil {
-				t.Error("Put: expected error for invalid key")
+
+	f, err := s.Open("a/b/c.txt")
+	if err != nil {
+		t.Fatalf("Open nested: %v", err)
+	}
+	defer f.Close()
+	data, _ := io.ReadAll(f)
+	if string(data) != "nested" {
+		t.Errorf("content = %q, want %q", data, "nested")
+	}
+}
+
+func TestOpenDirectory(t *testing.T) {
+	ctx := context.Background()
+	s, _ := newTestStore(t)
+
+	if err := s.Put(ctx, "dir/a.txt", strings.NewReader("aaa")); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Put(ctx, "dir/b.txt", strings.NewReader("bbb")); err != nil {
+		t.Fatal(err)
+	}
+
+	f, err := s.Open("dir")
+	if err != nil {
+		t.Fatalf("Open dir: %v", err)
+	}
+	defer f.Close()
+
+	info, err := f.Stat()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !info.IsDir() {
+		t.Fatal("expected directory")
+	}
+
+	dirFile, ok := f.(fs.ReadDirFile)
+	if !ok {
+		t.Fatal("expected fs.ReadDirFile")
+	}
+	entries, err := dirFile.ReadDir(-1)
+	if err != nil {
+		t.Fatalf("ReadDir: %v", err)
+	}
+	if len(entries) != 2 {
+		t.Fatalf("ReadDir: got %d entries, want 2", len(entries))
+	}
+}
+
+func TestOpenRoot(t *testing.T) {
+	ctx := context.Background()
+	s, _ := newTestStore(t)
+
+	if err := s.Put(ctx, "x.txt", strings.NewReader("x")); err != nil {
+		t.Fatal(err)
+	}
+
+	f, err := s.Open(".")
+	if err != nil {
+		t.Fatalf("Open root: %v", err)
+	}
+	defer f.Close()
+
+	info, _ := f.Stat()
+	if !info.IsDir() {
+		t.Fatal("root should be a directory")
+	}
+
+	dirFile := f.(fs.ReadDirFile)
+	entries, err := dirFile.ReadDir(-1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) == 0 {
+		t.Fatal("expected at least one entry in root")
+	}
+}
+
+func TestOpenNotExist(t *testing.T) {
+	s, _ := newTestStore(t)
+
+	_, err := s.Open("no-such-file")
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if !errors.Is(err, fs.ErrNotExist) {
+		t.Fatalf("expected fs.ErrNotExist, got %v", err)
+	}
+}
+
+func TestDeleteFile(t *testing.T) {
+	ctx := context.Background()
+	s, _ := newTestStore(t)
+
+	if err := s.Put(ctx, "del.txt", strings.NewReader("bye")); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.DeleteFile(ctx, "del.txt"); err != nil {
+		t.Fatalf("DeleteFile: %v", err)
+	}
+	_, err := s.Open("del.txt")
+	if !errors.Is(err, fs.ErrNotExist) {
+		t.Fatalf("expected fs.ErrNotExist after delete, got %v", err)
+	}
+}
+
+func TestDeleteFileNonExistent(t *testing.T) {
+	ctx := context.Background()
+	s, _ := newTestStore(t)
+
+	if err := s.DeleteFile(ctx, "ghost"); err != nil {
+		t.Fatalf("DeleteFile non-existent: %v", err)
+	}
+}
+
+func TestDeleteFileRejectsDir(t *testing.T) {
+	ctx := context.Background()
+	s, _ := newTestStore(t)
+
+	if err := s.Put(ctx, "d/a.txt", strings.NewReader("a")); err != nil {
+		t.Fatal(err)
+	}
+	err := s.DeleteFile(ctx, "d")
+	if err == nil {
+		t.Fatal("expected error when DeleteFile targets a directory")
+	}
+	if !errors.Is(err, objstore.ErrIsDirectory) {
+		t.Fatalf("expected ErrIsDirectory, got %v", err)
+	}
+}
+
+func TestDeleteDir(t *testing.T) {
+	ctx := context.Background()
+	s, _ := newTestStore(t)
+
+	if err := s.Put(ctx, "d/a.txt", strings.NewReader("a")); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Put(ctx, "d/b.txt", strings.NewReader("b")); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.DeleteDir(ctx, "d"); err != nil {
+		t.Fatalf("DeleteDir: %v", err)
+	}
+	_, err := s.Open("d")
+	if !errors.Is(err, fs.ErrNotExist) {
+		t.Fatalf("expected fs.ErrNotExist after DeleteDir, got %v", err)
+	}
+}
+
+func TestDeleteDirNonExistent(t *testing.T) {
+	ctx := context.Background()
+	s, _ := newTestStore(t)
+
+	if err := s.DeleteDir(ctx, "ghost"); err != nil {
+		t.Fatalf("DeleteDir non-existent: %v", err)
+	}
+}
+
+func TestInvalidPaths(t *testing.T) {
+	ctx := context.Background()
+	s, _ := newTestStore(t)
+
+	bad := []string{"", "/abs", "../escape", "a/../b", "a/", "./x"}
+	for _, name := range bad {
+		t.Run("put_"+name, func(t *testing.T) {
+			if err := s.Put(ctx, name, strings.NewReader("x")); err == nil {
+				t.Error("expected error")
 			}
-			_, err = s.Get(ctx, tc.key)
-			if err == nil {
-				t.Error("Get: expected error for invalid key")
+		})
+		t.Run("deletefile_"+name, func(t *testing.T) {
+			if err := s.DeleteFile(ctx, name); err == nil {
+				t.Error("expected error")
 			}
-			err = s.Delete(ctx, tc.key)
-			if err == nil {
-				t.Error("Delete: expected error for invalid key")
+		})
+		t.Run("deletedir_"+name, func(t *testing.T) {
+			if err := s.DeleteDir(ctx, name); err == nil {
+				t.Error("expected error")
+			}
+		})
+		t.Run("open_"+name, func(t *testing.T) {
+			if _, err := s.Open(name); err == nil {
+				t.Error("expected error")
 			}
 		})
 	}
 }
 
-func TestListEarlyBreak(t *testing.T) {
+func TestPutDotRejected(t *testing.T) {
 	ctx := context.Background()
-	s := newTestStore(t)
+	s, _ := newTestStore(t)
 
-	for _, k := range []string{"a", "b", "c"} {
-		if err := s.Put(ctx, k, makeObject(k+".txt", "text/plain", k)); err != nil {
-			t.Fatal(err)
-		}
-	}
-
-	var count int
-	for _, err := range s.List(ctx, "") {
-		if err != nil {
-			t.Fatal(err)
-		}
-		count++
-		if count == 1 {
-			break
-		}
-	}
-	if count != 1 {
-		t.Errorf("expected 1 item after break, got %d", count)
+	if err := s.Put(ctx, ".", strings.NewReader("x")); err == nil {
+		t.Fatal("expected error for Put with name '.'")
 	}
 }
 
-func TestGetCorruptedMeta(t *testing.T) {
+func TestDeleteFileDotRejected(t *testing.T) {
 	ctx := context.Background()
-	dir := t.TempDir()
-	s, err := objstore.NewFS(dir)
-	if err != nil {
+	s, _ := newTestStore(t)
+
+	if err := s.DeleteFile(ctx, "."); err == nil {
+		t.Fatal("expected error for DeleteFile with name '.'")
+	}
+}
+
+func TestDeleteDirDotRejected(t *testing.T) {
+	ctx := context.Background()
+	s, _ := newTestStore(t)
+
+	if err := s.DeleteDir(ctx, "."); err == nil {
+		t.Fatal("expected error for DeleteDir with name '.'")
+	}
+}
+
+func TestPutAtomicity(t *testing.T) {
+	ctx := context.Background()
+	s, _ := newTestStore(t)
+
+	if err := s.Put(ctx, "atom.txt", strings.NewReader("original")); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := s.Put(ctx, "bad", makeObject("x", "x", "data")); err != nil {
-		t.Fatal(err)
-	}
-
-	// Corrupt the meta.json.
-	metaPath := filepath.Join(dir, "bad", "meta.json")
-	if err := os.WriteFile(metaPath, []byte("{invalid json"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = s.Get(ctx, "bad")
+	err := s.Put(ctx, "atom.txt", &errReader{err: errors.New("boom")})
 	if err == nil {
-		t.Fatal("expected error for corrupted meta")
+		t.Fatal("expected error")
 	}
-	if errors.Is(err, objstore.ErrNotFound) {
-		t.Fatal("expected non-ErrNotFound error for corrupted meta")
+
+	f, err := s.Open("atom.txt")
+	if err != nil {
+		t.Fatalf("Open after failed Put: %v", err)
+	}
+	defer f.Close()
+	data, _ := io.ReadAll(f)
+	if string(data) != "original" {
+		t.Errorf("content = %q, want %q (atomicity broken)", data, "original")
 	}
 }
 
-func TestListCorruptedMeta(t *testing.T) {
-	ctx := context.Background()
-	dir := t.TempDir()
-	s, err := objstore.NewFS(dir)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if err := s.Put(ctx, "item", makeObject("x", "x", "data")); err != nil {
-		t.Fatal(err)
-	}
-
-	// Corrupt the meta.json.
-	metaPath := filepath.Join(dir, "item", "meta.json")
-	if err := os.WriteFile(metaPath, []byte("not json"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-
-	var sawErr bool
-	for _, err := range s.List(ctx, "") {
-		if err != nil {
-			sawErr = true
-		}
-	}
-	if !sawErr {
-		t.Fatal("expected error during List with corrupted meta")
+func TestNewFSEmptyRoot(t *testing.T) {
+	_, err := objstore.NewFS("")
+	if err == nil {
+		t.Fatal("expected error for empty root")
 	}
 }
 
 func TestNewFSCreatesDir(t *testing.T) {
 	base := t.TempDir()
-	nested := filepath.Join(base, "deep", "nested", "dir")
+	nested := filepath.Join(base, "deep", "nested")
 	s, err := objstore.NewFS(nested)
 	if err != nil {
-		t.Fatalf("NewFS nested: %v", err)
+		t.Fatal(err)
 	}
 	s.Close()
 
 	info, err := os.Stat(nested)
 	if err != nil {
-		t.Fatalf("Stat: %v", err)
+		t.Fatal(err)
 	}
 	if !info.IsDir() {
-		t.Fatal("expected directory to be created")
-	}
-}
-
-func TestClose(t *testing.T) {
-	s := newTestStore(t)
-	if err := s.Close(); err != nil {
-		t.Fatal(err)
-	}
-}
-
-func TestPutReadOnlyRoot(t *testing.T) {
-	ctx := context.Background()
-	base := t.TempDir()
-	root := filepath.Join(base, "store")
-	s, err := objstore.NewFS(root)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if err := os.Chmod(root, 0o444); err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { os.Chmod(root, 0o755) })
-
-	err = s.Put(ctx, "key", makeObject("f", "t", "body"))
-	if err == nil {
-		t.Fatal("expected error when root is read-only")
+		t.Fatal("expected directory")
 	}
 }
 
 func TestNewFSReadOnlyParent(t *testing.T) {
 	base := t.TempDir()
-	readOnly := filepath.Join(base, "locked")
-	if err := os.Mkdir(readOnly, 0o444); err != nil {
+	locked := filepath.Join(base, "locked")
+	if err := os.Mkdir(locked, 0o444); err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { os.Chmod(readOnly, 0o755) })
+	t.Cleanup(func() { os.Chmod(locked, 0o755) })
 
-	_, err := objstore.NewFS(filepath.Join(readOnly, "sub"))
+	_, err := objstore.NewFS(filepath.Join(locked, "sub"))
 	if err == nil {
-		t.Fatal("expected error when parent is read-only")
+		t.Fatal("expected error")
 	}
 }
 
-func TestGetDataMissingMetaPresent(t *testing.T) {
+func TestClose(t *testing.T) {
+	s, _ := newTestStore(t)
+	if err := s.Close(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// TestFSContract uses the standard testing/fstest suite to validate
+// the fs.FS implementation.
+func TestFSContract(t *testing.T) {
 	ctx := context.Background()
-	dir := t.TempDir()
-	s, err := objstore.NewFS(dir)
-	if err != nil {
-		t.Fatal(err)
+	s, _ := newTestStore(t)
+
+	files := map[string]string{
+		"a.txt":      "alpha",
+		"b.txt":      "beta",
+		"sub/c.txt":  "charlie",
+		"sub/d.txt":  "delta",
+		"sub/deep/e": "echo",
+	}
+	for name, content := range files {
+		if err := s.Put(ctx, name, strings.NewReader(content)); err != nil {
+			t.Fatalf("Put %s: %v", name, err)
+		}
 	}
 
-	if err := s.Put(ctx, "partial", makeObject("x", "x", "data")); err != nil {
-		t.Fatal(err)
+	expected := make([]string, 0, len(files))
+	for name := range files {
+		expected = append(expected, name)
 	}
-
-	// Remove the data file but keep meta.json.
-	if err := os.Remove(filepath.Join(dir, "partial", "data")); err != nil {
+	if err := fstest.TestFS(s, expected...); err != nil {
 		t.Fatal(err)
-	}
-
-	_, err = s.Get(ctx, "partial")
-	if !errors.Is(err, objstore.ErrNotFound) {
-		t.Fatalf("expected ErrNotFound, got %v", err)
 	}
 }
 
 func TestPutWriteError(t *testing.T) {
 	ctx := context.Background()
-	s := newTestStore(t)
+	s, _ := newTestStore(t)
 
-	obj := objstore.Object{
-		Name:        "fail.txt",
-		ContentType: "text/plain",
-		Size:        0,
-		Content:     io.NopCloser(&errReader{err: errors.New("read boom")}),
-	}
-	err := s.Put(ctx, "failkey", obj)
+	err := s.Put(ctx, "fail.txt", &errReader{err: errors.New("read boom")})
 	if err == nil {
 		t.Fatal("expected error from failing reader")
+	}
+}
+
+func TestOpenPermission(t *testing.T) {
+	ctx := context.Background()
+	s, dir := newTestStore(t)
+
+	if err := s.Put(ctx, "secret.txt", strings.NewReader("data")); err != nil {
+		t.Fatal(err)
+	}
+
+	full := filepath.Join(dir, "secret.txt")
+	if err := os.Chmod(full, 0o000); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { os.Chmod(full, 0o644) })
+
+	_, err := s.Open("secret.txt")
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if !errors.Is(err, fs.ErrPermission) {
+		t.Fatalf("expected fs.ErrPermission, got %v", err)
+	}
+}
+
+func TestOpenSymlinkLoop(t *testing.T) {
+	s, dir := newTestStore(t)
+
+	// Create a symlink loop: a -> b, b -> a. Opening either
+	// produces ELOOP, which is neither ENOENT nor EACCES and
+	// exercises the passthrough branch of unwrapOSErr.
+	if err := os.Symlink("b", filepath.Join(dir, "a")); err != nil {
+		t.Skip("symlinks not supported:", err)
+	}
+	os.Symlink("a", filepath.Join(dir, "b"))
+
+	_, err := s.Open("a")
+	if err == nil {
+		t.Fatal("expected error for symlink loop")
+	}
+	if errors.Is(err, fs.ErrNotExist) {
+		t.Fatal("error should not be ErrNotExist")
+	}
+	if errors.Is(err, fs.ErrPermission) {
+		t.Fatal("error should not be ErrPermission")
+	}
+}
+
+func TestPutReadOnlyDir(t *testing.T) {
+	ctx := context.Background()
+	s, dir := newTestStore(t)
+
+	locked := filepath.Join(dir, "locked")
+	if err := os.Mkdir(locked, 0o555); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { os.Chmod(locked, 0o755) })
+
+	err := s.Put(ctx, "locked/sub/file.txt", strings.NewReader("x"))
+	if err == nil {
+		t.Fatal("expected error when intermediate dir is read-only")
+	}
+}
+
+func TestPutConcurrentSameKey(t *testing.T) {
+	ctx := context.Background()
+	s, _ := newTestStore(t)
+
+	const n = 20
+	var wg sync.WaitGroup
+	errs := make([]error, n)
+	for i := range n {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			body := strings.Repeat(string(rune('a'+i%26)), 128)
+			errs[i] = s.Put(ctx, "race.txt", strings.NewReader(body))
+		}(i)
+	}
+	wg.Wait()
+
+	var succeeded int
+	for _, err := range errs {
+		if err == nil {
+			succeeded++
+		}
+	}
+	if succeeded == 0 {
+		t.Fatal("all concurrent Puts failed")
+	}
+
+	f, err := s.Open("race.txt")
+	if err != nil {
+		t.Fatalf("Open after concurrent Put: %v", err)
+	}
+	defer f.Close()
+	data, _ := io.ReadAll(f)
+	if len(data) != 128 {
+		t.Errorf("content length = %d, want 128 (data corruption?)", len(data))
+	}
+	// Verify content is uniform (from a single writer, not mixed).
+	for i := 1; i < len(data); i++ {
+		if data[i] != data[0] {
+			t.Fatalf("byte %d = %q, byte 0 = %q — content from multiple writers mixed", i, data[i], data[0])
+		}
+	}
+}
+
+func TestNewFSCleansTempFiles(t *testing.T) {
+	dir := t.TempDir()
+	s, err := objstore.NewFS(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s.Close()
+
+	// Plant fake leftover temp files.
+	leftover := filepath.Join(dir, "file.txt.objstore.1234567.tmp")
+	if err := os.WriteFile(leftover, []byte("stale"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	nested := filepath.Join(dir, "sub")
+	if err := os.Mkdir(nested, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	leftover2 := filepath.Join(nested, "other.objstore.999.tmp")
+	if err := os.WriteFile(leftover2, []byte("stale"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	// Also plant a normal file that should NOT be removed.
+	normal := filepath.Join(dir, "keep.txt")
+	if err := os.WriteFile(normal, []byte("keep"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Re-open the store; cleanup should happen.
+	s2, err := objstore.NewFS(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s2.Close()
+
+	if _, err := os.Stat(leftover); !os.IsNotExist(err) {
+		t.Error("expected leftover temp file to be cleaned up")
+	}
+	if _, err := os.Stat(leftover2); !os.IsNotExist(err) {
+		t.Error("expected nested leftover temp file to be cleaned up")
+	}
+	if _, err := os.Stat(normal); err != nil {
+		t.Error("normal file should not be removed")
+	}
+}
+
+func TestPutRenameError(t *testing.T) {
+	ctx := context.Background()
+	s, dir := newTestStore(t)
+
+	// Place a non-empty directory at the target path so that
+	// os.Rename(tmpFile, dir) fails.
+	if err := os.MkdirAll(filepath.Join(dir, "blocked.txt", "child"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	err := s.Put(ctx, "blocked.txt", strings.NewReader("data"))
+	if err == nil {
+		t.Fatal("expected error when rename target is a non-empty directory")
 	}
 }
 
 type errReader struct{ err error }
 
 func (r *errReader) Read([]byte) (int, error) { return 0, r.err }
-
-func TestPutOverwriteAtomicity(t *testing.T) {
-	ctx := context.Background()
-	s := newTestStore(t)
-
-	orig := makeObject("orig.txt", "text/plain", "original content")
-	if err := s.Put(ctx, "atom", orig); err != nil {
-		t.Fatal(err)
-	}
-
-	// Attempt an overwrite with a reader that fails mid-stream.
-	bad := objstore.Object{
-		Name:        "bad.txt",
-		ContentType: "text/html",
-		Content:     io.NopCloser(&errReader{err: errors.New("boom")}),
-	}
-	if err := s.Put(ctx, "atom", bad); err == nil {
-		t.Fatal("expected error from failing reader")
-	}
-
-	// The original object must still be intact.
-	got, err := s.Get(ctx, "atom")
-	if err != nil {
-		t.Fatalf("Get after failed overwrite: %v", err)
-	}
-	body := readObject(t, got)
-	if got.Name != "orig.txt" {
-		t.Errorf("Name = %q, want %q", got.Name, "orig.txt")
-	}
-	if got.ContentType != "text/plain" {
-		t.Errorf("ContentType = %q, want %q", got.ContentType, "text/plain")
-	}
-	if body != "original content" {
-		t.Errorf("body = %q, want %q", body, "original content")
-	}
-}
-
-func TestListUnreadableRoot(t *testing.T) {
-	dir := t.TempDir()
-	root := filepath.Join(dir, "store")
-	s, err := objstore.NewFS(root)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// Make root non-readable so ReadDir fails with EACCES, not ENOENT.
-	if err := os.Chmod(root, 0o000); err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { os.Chmod(root, 0o755) })
-
-	ctx := context.Background()
-	var sawErr bool
-	for _, err := range s.List(ctx, "") {
-		if err != nil {
-			sawErr = true
-		}
-	}
-	if !sawErr {
-		t.Fatal("expected error when root is unreadable")
-	}
-}
-
-func TestPutRenameDataError(t *testing.T) {
-	ctx := context.Background()
-	dir := t.TempDir()
-	s, err := objstore.NewFS(dir)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// Place a non-empty directory at the "data" path so that
-	// os.Rename(file, dir) fails with EISDIR / ENOTDIR.
-	keyDir := filepath.Join(dir, "rk")
-	if err := os.MkdirAll(filepath.Join(keyDir, "data", "blocker"), 0o755); err != nil {
-		t.Fatal(err)
-	}
-
-	err = s.Put(ctx, "rk", makeObject("f", "t", "body"))
-	if err == nil {
-		t.Fatal("expected error when data target is a directory")
-	}
-}
-
-func TestPutRenameMetaError(t *testing.T) {
-	ctx := context.Background()
-	dir := t.TempDir()
-	s, err := objstore.NewFS(dir)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// Place a non-empty directory at the "meta.json" path so that data
-	// rename succeeds but the meta rename fails.
-	keyDir := filepath.Join(dir, "rk")
-	if err := os.MkdirAll(filepath.Join(keyDir, "meta.json", "blocker"), 0o755); err != nil {
-		t.Fatal(err)
-	}
-
-	err = s.Put(ctx, "rk", makeObject("f", "t", "body"))
-	if err == nil {
-		t.Fatal("expected error when meta.json target is a directory")
-	}
-}
-
-func TestListDeletedRoot(t *testing.T) {
-	dir := t.TempDir()
-	root := filepath.Join(dir, "store")
-	s, err := objstore.NewFS(root)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if err := os.RemoveAll(root); err != nil {
-		t.Fatal(err)
-	}
-
-	ctx := context.Background()
-	var count int
-	for _, err := range s.List(ctx, "") {
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		count++
-	}
-	if count != 0 {
-		t.Fatalf("expected 0 items, got %d", count)
-	}
-}
-
-func TestPutCreateDataError(t *testing.T) {
-	ctx := context.Background()
-	dir := t.TempDir()
-	s, err := objstore.NewFS(dir)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if err := s.Put(ctx, "rk", makeObject("f", "t", "body")); err != nil {
-		t.Fatal(err)
-	}
-
-	// Make the key directory read-only so temp file creation fails.
-	keyDir := filepath.Join(dir, "rk")
-	if err := os.Chmod(keyDir, 0o555); err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { os.Chmod(keyDir, 0o755) })
-
-	err = s.Put(ctx, "rk", makeObject("f2", "t2", "new"))
-	if err == nil {
-		t.Fatal("expected error when key dir is read-only")
-	}
-}

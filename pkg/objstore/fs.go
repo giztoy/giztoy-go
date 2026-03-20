@@ -2,39 +2,34 @@ package objstore
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
-	"iter"
+	"io/fs"
 	"os"
 	"path/filepath"
-	"sort"
 	"strings"
-	"sync"
 )
 
-// fileMeta is the on-disk JSON structure stored alongside each object.
-type fileMeta struct {
-	Name        string `json:"name"`
-	ContentType string `json:"content_type"`
-	Size        int64  `json:"size"`
-}
-
-// FS is a local-filesystem-backed object store. Each key maps to a
-// subdirectory under root containing a "data" file and a "meta.json" file.
+// FS is a local-filesystem-backed object store.
 //
-// FS is safe for concurrent use. However, the Object.Content returned by Get
-// is read outside the internal lock; a concurrent Put to the same key may
-// cause the reader to observe partial content. Callers that need
-// read-after-write consistency on the same key should synchronize externally.
+// Files are stored directly under the root directory, preserving the path
+// hierarchy. [FS.Open] returns standard [os.File] values that implement
+// [fs.File] and [fs.ReadDirFile].
+//
+// FS is safe for concurrent use; file-level atomicity is provided by
+// writing to a temporary file and renaming.
 type FS struct {
 	root string
-	mu   sync.RWMutex
 }
 
-// NewFS creates a filesystem-backed Store rooted at the given directory.
-// The directory is created if it does not exist.
+// NewFS creates a filesystem-backed [Store] rooted at the given directory.
+// The directory must be a non-empty path; it is created if it does not
+// exist. Any leftover temporary files from incomplete Put operations are
+// removed.
 func NewFS(root string) (*FS, error) {
+	if root == "" {
+		return nil, fmt.Errorf("objstore: root must not be empty")
+	}
 	abs, err := filepath.Abs(root)
 	if err != nil {
 		return nil, fmt.Errorf("objstore: resolve root: %w", err)
@@ -42,214 +37,125 @@ func NewFS(root string) (*FS, error) {
 	if err := os.MkdirAll(abs, 0o755); err != nil {
 		return nil, fmt.Errorf("objstore: create root: %w", err)
 	}
+	cleanTempFiles(abs)
 	return &FS{root: abs}, nil
 }
 
-// compile-time check
 var _ Store = (*FS)(nil)
 
-func (fs *FS) Put(_ context.Context, key string, obj Object) error {
-	if err := validateKey(key); err != nil {
-		return err
+// Open implements [fs.FS]. The name must be valid per [fs.ValidPath];
+// "." returns the root directory.
+func (s *FS) Open(name string) (fs.File, error) {
+	if !fs.ValidPath(name) {
+		return nil, &fs.PathError{Op: "open", Path: name, Err: fs.ErrInvalid}
 	}
-
-	fs.mu.Lock()
-	defer fs.mu.Unlock()
-
-	dir := fs.keyDir(key)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		return fmt.Errorf("objstore: mkdir %q: %w", dir, err)
-	}
-
-	dataPath := filepath.Join(dir, "data")
-	tmpDataPath := dataPath + ".tmp"
-	f, err := os.Create(tmpDataPath)
+	f, err := os.Open(s.fullPath(name))
 	if err != nil {
-		return fmt.Errorf("objstore: create data: %w", err)
+		return nil, &fs.PathError{Op: "open", Path: name, Err: unwrapOSErr(err)}
 	}
-	n, copyErr := io.Copy(f, obj.Content)
+	return f, nil
+}
+
+// Put writes a file at the given path, creating intermediate directories
+// as needed. Writes are atomic: content is first written to a temporary
+// file, then renamed into place.
+func (s *FS) Put(_ context.Context, name string, r io.Reader) error {
+	if !fs.ValidPath(name) || name == "." {
+		return &fs.PathError{Op: "put", Path: name, Err: fs.ErrInvalid}
+	}
+
+	full := s.fullPath(name)
+	dir := filepath.Dir(full)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return fmt.Errorf("objstore: mkdir: %w", err)
+	}
+
+	f, err := os.CreateTemp(dir, filepath.Base(full)+".objstore.*.tmp")
+	if err != nil {
+		return fmt.Errorf("objstore: create temp: %w", err)
+	}
+	tmpName := f.Name()
+	_, copyErr := io.Copy(f, r)
 	if closeErr := f.Close(); closeErr != nil && copyErr == nil {
 		copyErr = closeErr
 	}
 	if copyErr != nil {
-		os.Remove(tmpDataPath)
-		return fmt.Errorf("objstore: write data: %w", copyErr)
+		os.Remove(tmpName)
+		return fmt.Errorf("objstore: write: %w", copyErr)
 	}
-
-	meta := fileMeta{
-		Name:        obj.Name,
-		ContentType: obj.ContentType,
-		Size:        n,
+	if err := os.Chmod(tmpName, 0o644); err != nil {
+		os.Remove(tmpName)
+		return fmt.Errorf("objstore: chmod: %w", err)
 	}
-	metaData, err := json.Marshal(meta)
-	if err != nil {
-		os.Remove(tmpDataPath)
-		return fmt.Errorf("objstore: marshal meta: %w", err)
-	}
-	metaPath := filepath.Join(dir, "meta.json")
-	tmpMetaPath := metaPath + ".tmp"
-	if err := os.WriteFile(tmpMetaPath, metaData, 0o644); err != nil {
-		os.Remove(tmpDataPath)
-		return fmt.Errorf("objstore: write meta: %w", err)
-	}
-
-	// Rename data first, then meta. On same-filesystem renames are atomic,
-	// so an existing object is never left in a half-written state.
-	//
-	// Known limitation: if the data rename succeeds but the meta rename
-	// fails, the on-disk state will have new data with stale (or missing)
-	// meta.json. This window is extremely narrow on a local filesystem
-	// (same-device rename rarely fails independently) and is accepted as
-	// a trade-off to avoid a more complex journaling scheme.
-	if err := os.Rename(tmpDataPath, dataPath); err != nil {
-		os.Remove(tmpDataPath)
-		os.Remove(tmpMetaPath)
-		return fmt.Errorf("objstore: commit data: %w", err)
-	}
-	if err := os.Rename(tmpMetaPath, metaPath); err != nil {
-		os.Remove(tmpMetaPath)
-		return fmt.Errorf("objstore: commit meta: %w", err)
+	if err := os.Rename(tmpName, full); err != nil {
+		os.Remove(tmpName)
+		return fmt.Errorf("objstore: commit: %w", err)
 	}
 	return nil
 }
 
-func (fs *FS) Get(_ context.Context, key string) (Object, error) {
-	if err := validateKey(key); err != nil {
-		return Object{}, err
+// DeleteFile removes a single file. It returns an [ErrIsDirectory] error
+// (wrapped in [fs.PathError]) if name is a directory.
+// No error is returned if the path does not exist.
+func (s *FS) DeleteFile(_ context.Context, name string) error {
+	if !fs.ValidPath(name) || name == "." {
+		return &fs.PathError{Op: "deletefile", Path: name, Err: fs.ErrInvalid}
 	}
-
-	fs.mu.RLock()
-	defer fs.mu.RUnlock()
-
-	dir := fs.keyDir(key)
-	meta, err := fs.readMeta(dir)
-	if err != nil {
-		return Object{}, err
-	}
-
-	f, err := os.Open(filepath.Join(dir, "data"))
-	if err != nil {
-		if os.IsNotExist(err) {
-			return Object{}, ErrNotFound
-		}
-		return Object{}, fmt.Errorf("objstore: open data: %w", err)
-	}
-	return Object{
-		Name:        meta.Name,
-		ContentType: meta.ContentType,
-		Size:        meta.Size,
-		Content:     f,
-	}, nil
-}
-
-func (fs *FS) Delete(_ context.Context, key string) error {
-	if err := validateKey(key); err != nil {
-		return err
-	}
-
-	fs.mu.Lock()
-	defer fs.mu.Unlock()
-
-	dir := fs.keyDir(key)
-	if _, err := os.Stat(dir); os.IsNotExist(err) {
+	full := s.fullPath(name)
+	err := os.Remove(full)
+	if err == nil || os.IsNotExist(err) {
 		return nil
 	}
-	if err := os.RemoveAll(dir); err != nil {
-		return fmt.Errorf("objstore: delete %q: %w", key, err)
+	if info, statErr := os.Lstat(full); statErr == nil && info.IsDir() {
+		return &fs.PathError{Op: "deletefile", Path: name, Err: ErrIsDirectory}
+	}
+	return fmt.Errorf("objstore: deletefile: %w", err)
+}
+
+// DeleteDir recursively removes a directory and all of its children.
+// No error is returned if the path does not exist.
+func (s *FS) DeleteDir(_ context.Context, name string) error {
+	if !fs.ValidPath(name) || name == "." {
+		return &fs.PathError{Op: "deletedir", Path: name, Err: fs.ErrInvalid}
+	}
+	err := os.RemoveAll(s.fullPath(name))
+	if err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("objstore: deletedir: %w", err)
 	}
 	return nil
 }
 
-func (fs *FS) List(_ context.Context, prefix string) iter.Seq2[ObjectInfo, error] {
-	return func(yield func(ObjectInfo, error) bool) {
-		fs.mu.RLock()
-		defer fs.mu.RUnlock()
+func (s *FS) Close() error { return nil }
 
-		entries, err := os.ReadDir(fs.root)
+func (s *FS) fullPath(name string) string {
+	return filepath.Join(s.root, filepath.FromSlash(name))
+}
+
+// cleanTempFiles walks root and removes any leftover .objstore.*.tmp files
+// from incomplete Put operations. Errors are silently ignored.
+func cleanTempFiles(root string) {
+	filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
-			if os.IsNotExist(err) {
-				return
-			}
-			yield(ObjectInfo{}, fmt.Errorf("objstore: read root: %w", err))
-			return
+			return nil
 		}
-
-		keys := make([]string, 0, len(entries))
-		for _, e := range entries {
-			if !e.IsDir() {
-				continue
-			}
-			name := e.Name()
-			if prefix != "" && !strings.HasPrefix(name, prefix) {
-				continue
-			}
-			keys = append(keys, name)
+		if !d.IsDir() && isTempFile(d.Name()) {
+			os.Remove(path)
 		}
-		sort.Strings(keys)
-
-		for _, key := range keys {
-			dir := fs.keyDir(key)
-			meta, err := fs.readMeta(dir)
-			if err != nil {
-				if !yield(ObjectInfo{}, err) {
-					return
-				}
-				continue
-			}
-			if !yield(ObjectInfo{
-				Key:         key,
-				Name:        meta.Name,
-				ContentType: meta.ContentType,
-				Size:        meta.Size,
-			}, nil) {
-				return
-			}
-		}
-	}
+		return nil
+	})
 }
 
-func (fs *FS) Close() error { return nil }
-
-// keyDir returns the directory path for a given key.
-func (fs *FS) keyDir(key string) string {
-	return filepath.Join(fs.root, key)
+func isTempFile(name string) bool {
+	return strings.HasSuffix(name, ".tmp") && strings.Contains(name, ".objstore.")
 }
 
-// readMeta reads and decodes the meta.json file from a key directory.
-func (fs *FS) readMeta(dir string) (fileMeta, error) {
-	data, err := os.ReadFile(filepath.Join(dir, "meta.json"))
-	if err != nil {
-		if os.IsNotExist(err) {
-			return fileMeta{}, ErrNotFound
-		}
-		return fileMeta{}, fmt.Errorf("objstore: read meta: %w", err)
+// unwrapOSErr converts OS-level errors to fs-package sentinels.
+func unwrapOSErr(err error) error {
+	if os.IsNotExist(err) {
+		return fs.ErrNotExist
 	}
-	var meta fileMeta
-	if err := json.Unmarshal(data, &meta); err != nil {
-		return fileMeta{}, fmt.Errorf("objstore: decode meta: %w", err)
+	if os.IsPermission(err) {
+		return fs.ErrPermission
 	}
-	return meta, nil
-}
-
-// validateKey rejects empty keys and path-traversal attempts.
-func validateKey(key string) error {
-	if key == "" {
-		return fmt.Errorf("objstore: empty key")
-	}
-	if strings.Contains(key, `\`) {
-		return fmt.Errorf("objstore: invalid key %q", key)
-	}
-	if filepath.IsAbs(key) || strings.HasPrefix(key, "/") {
-		return fmt.Errorf("objstore: invalid key %q", key)
-	}
-	if cleaned := filepath.Clean(key); cleaned != key {
-		return fmt.Errorf("objstore: invalid key %q", key)
-	}
-	if key == "." || strings.Contains(key, "..") {
-		return fmt.Errorf("objstore: invalid key %q", key)
-	}
-	if strings.Contains(key, "/") {
-		return fmt.Errorf("objstore: invalid key %q", key)
-	}
-	return nil
+	return err
 }

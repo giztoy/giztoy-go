@@ -1,74 +1,48 @@
-// Package objstore provides an object storage interface with file metadata
-// (name, content type, size) and pluggable backends.
+// Package objstore provides a writable object storage interface that extends
+// [io/fs.FS] with Put, DeleteFile, and DeleteDir operations.
 //
-// The [Store] interface defines the contract for storing and retrieving
-// binary objects identified by string keys. The package ships with a
-// local-filesystem backend ([NewFS]).
+// The read side (Open) follows the standard [fs.FS] contract, so stored
+// objects can be served directly by [net/http.FileServer], parsed by
+// [html/template.ParseFS], and consumed by any code that accepts [fs.FS].
 //
-// This package follows the same pattern as [kv] and [vecstore]: a generic
-// interface with pluggable backends.
+// Open returns an [fs.File] whose Stat gives file metadata; for directories
+// the file also implements [fs.ReadDirFile] to list entries.
+//
+// The package ships with a local-filesystem backend ([NewFS]).
 package objstore
 
 import (
 	"context"
 	"errors"
 	"io"
-	"iter"
+	"io/fs"
 )
 
-// Sentinel errors.
-var (
-	// ErrNotFound is returned when the requested key does not exist.
-	ErrNotFound = errors.New("objstore: not found")
-)
+// ErrIsDirectory is returned by [Store.DeleteFile] when the target path
+// is a directory rather than a regular file.
+var ErrIsDirectory = errors.New("is a directory")
 
-// Object represents a stored object with its metadata and content stream.
-type Object struct {
-	// Name is the original file name (e.g. "photo.jpg").
-	Name string
-	// ContentType is the MIME type (e.g. "image/jpeg").
-	ContentType string
-	// Size is the content length in bytes.
-	Size int64
-	// Content is the object body. Callers must close it after use.
-	Content io.ReadCloser
-}
-
-// ObjectInfo holds object metadata without the content body.
-type ObjectInfo struct {
-	// Key is the storage key of the object.
-	Key string
-	// Name is the original file name.
-	Name string
-	// ContentType is the MIME type.
-	ContentType string
-	// Size is the content length in bytes.
-	Size int64
-}
-
-// Store is the interface for object storage with file metadata.
-//
-// Keys must be non-empty, flat identifiers: no path separators ('/' or '\'),
-// no relative-path components ('.' or '..'), and no absolute paths. In other
-// words a key is a single filename-like token (e.g. "photo-001", "doc_abc").
+// Store is a writable object storage that extends [fs.FS].
 //
 // All implementations must be safe for concurrent use.
 type Store interface {
-	// Put stores an object under the given key.
-	// If the key already exists, its content and metadata are overwritten.
-	// The caller is responsible for closing obj.Content after Put returns.
-	Put(ctx context.Context, key string, obj Object) error
+	fs.FS
 
-	// Get retrieves an object by key. Returns ErrNotFound if not present.
-	// The caller must close the returned Object.Content.
-	Get(ctx context.Context, key string) (Object, error)
+	// Put writes a file at the given path, creating intermediate directories
+	// as needed. If the file already exists it is overwritten.
+	// The path must be valid per [fs.ValidPath] and must not be ".".
+	Put(ctx context.Context, name string, r io.Reader) error
 
-	// Delete removes an object by key. No error if the key does not exist.
-	Delete(ctx context.Context, key string) error
+	// DeleteFile removes a single file at the given path.
+	// It returns an error if the path is a directory.
+	// No error is returned if the path does not exist.
+	// The path must be valid per [fs.ValidPath] and must not be ".".
+	DeleteFile(ctx context.Context, name string) error
 
-	// List iterates over objects whose keys start with the given prefix.
-	// The iteration order is lexicographic by key.
-	List(ctx context.Context, prefix string) iter.Seq2[ObjectInfo, error]
+	// DeleteDir recursively removes the directory at the given path and
+	// all of its children. No error is returned if the path does not exist.
+	// The path must be valid per [fs.ValidPath] and must not be ".".
+	DeleteDir(ctx context.Context, name string) error
 
 	// Close releases resources held by the store.
 	Close() error
