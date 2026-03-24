@@ -239,17 +239,31 @@ func newHTTPTestServer(t *testing.T) (*Server, string, string) {
 	srv, err := New(Config{
 		DataDir:    t.TempDir(),
 		ListenAddr: "127.0.0.1:0",
+		ConfigPath: writeTempConfig(t, `
+stores:
+  mem:
+    kind: keyvalue
+    backend: memory
+  fw:
+    kind: filestore
+    backend: filesystem
+    dir: firmware
+gears:
+  store: mem
+depots:
+  store: fw
+`),
 		Gears: GearsConfig{
 			RegistrationTokens: map[string]gears.RegistrationToken{
 				"admin_default":  {Role: gears.GearRoleAdmin},
 				"device_default": {Role: gears.GearRoleDevice},
 			},
 		},
-		FirmwareRoot: t.TempDir(),
 	})
 	if err != nil {
 		t.Fatalf("New error: %v", err)
 	}
+	t.Cleanup(func() { srv.stores.Close() })
 
 	adminResult, err := srv.gears.Register(context.Background(), gears.RegistrationRequest{
 		PublicKey:         "admin-pk",
