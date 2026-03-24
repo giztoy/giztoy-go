@@ -38,7 +38,7 @@ stores:
   postgres:
     kind: sql
     backend: postgres
-    dir: postgres-data
+    dsn: "postgres://user:pass@localhost:5432/giztoy?sslmode=disable"
 
   badger:
     kind: keyvalue

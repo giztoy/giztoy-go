@@ -453,20 +453,19 @@ stores:
 	}
 }
 
-func TestSQLWithDir(t *testing.T) {
-	dir := t.TempDir()
-	reg := mustStores(t, dir, []byte(`
+func TestSQLWithDSN(t *testing.T) {
+	reg := mustStores(t, t.TempDir(), []byte(`
 stores:
   db:
     kind: sql
     backend: fake
-    dir: mydb
+    dsn: mydb
 `))
 	defer reg.Close()
 
 	db, err := reg.SQL("db")
 	if err != nil {
-		t.Fatalf("SQL(db) with dir: %v", err)
+		t.Fatalf("SQL(db) with dsn: %v", err)
 	}
 	if db == nil {
 		t.Fatal("expected non-nil *sql.DB")
@@ -502,9 +501,11 @@ func TestNewSQLNoDSN(t *testing.T) {
 	if _, err := New(t.TempDir(), map[string]Config{
 		"x": {Kind: KindSQL, Backend: "fake"},
 	}); err == nil {
-		t.Fatal("expected error for missing dsn and dir")
+		t.Fatal("expected error for missing dsn")
 	}
 }
+
+
 
 func TestNewSQLBadDriver(t *testing.T) {
 	if _, err := New(t.TempDir(), map[string]Config{
