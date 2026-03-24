@@ -505,8 +505,6 @@ func TestNewSQLNoDSN(t *testing.T) {
 	}
 }
 
-
-
 func TestNewSQLBadDriver(t *testing.T) {
 	if _, err := New(t.TempDir(), map[string]Config{
 		"x": {Kind: KindSQL, Backend: "nonexistent_driver", DSN: "x"},

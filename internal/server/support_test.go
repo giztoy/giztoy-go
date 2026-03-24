@@ -15,6 +15,21 @@ import (
 	"github.com/haivivi/giztoy/go/pkg/gears"
 )
 
+const minimalTestConfig = `
+stores:
+  mem:
+    kind: keyvalue
+    backend: memory
+  fw:
+    kind: filestore
+    backend: filesystem
+    dir: firmware
+gears:
+  store: mem
+depots:
+  store: fw
+`
+
 func writeTempConfig(t *testing.T, yml string) string {
 	t.Helper()
 	dir := t.TempDir()

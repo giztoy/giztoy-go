@@ -27,6 +27,10 @@ func (s *Store) Root() string {
 	return s.root
 }
 
+func (s *Store) Close() error {
+	return nil
+}
+
 func (s *Store) EnsureDepot(depot string) error {
 	if err := validateDepotName(depot); err != nil {
 		return err

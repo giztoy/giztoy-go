@@ -69,6 +69,12 @@ func New(baseDir string, configs map[string]Config) (*Stores, error) {
 		sqls:   make(map[string]*sql.DB),
 		fss:    make(map[string]*firmware.Store),
 	}
+	ok := false
+	defer func() {
+		if !ok {
+			s.Close()
+		}
+	}()
 
 	var graphCfgs []struct {
 		name string
@@ -103,6 +109,7 @@ func New(baseDir string, configs map[string]Config) (*Stores, error) {
 				return nil, err
 			}
 			s.fss[name] = st
+			s.closers = append(s.closers, st)
 		case KindGraph:
 			graphCfgs = append(graphCfgs, struct {
 				name string
@@ -121,6 +128,7 @@ func New(baseDir string, configs map[string]Config) (*Stores, error) {
 		s.graphs[g.name] = st
 	}
 
+	ok = true
 	return s, nil
 }
 
@@ -243,11 +251,11 @@ func (r *Stores) newSQL(baseDir, name string, cfg Config) (*sql.DB, error) {
 		return nil, fmt.Errorf("stores: sql %q requires backend (driver name)", name)
 	}
 	dsn := cfg.DSN
-	if dsn == "" && cfg.Dir != "" {
+	if cfg.Backend == "sqlite" && dsn == "" && cfg.Dir != "" {
 		dsn = resolveDir(baseDir, cfg.Dir)
 	}
 	if dsn == "" {
-		return nil, fmt.Errorf("stores: sql %q requires dsn or dir", name)
+		return nil, fmt.Errorf("stores: sql %q requires dsn", name)
 	}
 	db, err := sql.Open(cfg.Backend, dsn)
 	if err != nil {
