@@ -118,17 +118,11 @@ func startMockRPCServer(t *testing.T, handler func(net.Conn)) (string, noise.Pub
 		t.Fatalf("GenerateKeyPair(server): %v", err)
 	}
 
-	serverUDP, err := core.NewUDP(serverKey, core.WithBindAddr("127.0.0.1:0"), core.WithAllowUnknown(true))
+	serverListener, err := peer.Listen(serverKey, core.WithBindAddr("127.0.0.1:0"), core.WithAllowUnknown(true))
 	if err != nil {
-		t.Fatalf("NewUDP(server): %v", err)
+		t.Fatalf("Listen(server): %v", err)
 	}
-	startReadLoop(serverUDP)
-
-	serverListener, err := peer.Wrap(serverUDP)
-	if err != nil {
-		_ = serverUDP.Close()
-		t.Fatalf("Wrap(server): %v", err)
-	}
+	startReadLoop(serverListener.UDP())
 
 	go func() {
 		conn, err := serverListener.Accept()
@@ -144,9 +138,8 @@ func startMockRPCServer(t *testing.T, handler func(net.Conn)) (string, noise.Pub
 
 	closeFn := func() {
 		_ = serverListener.Close()
-		_ = serverUDP.Close()
 	}
-	return serverUDP.HostInfo().Addr.String(), serverKey.Public, closeFn
+	return serverListener.HostInfo().Addr.String(), serverKey.Public, closeFn
 }
 
 func dialMockClient(t *testing.T, handler func(net.Conn)) *Client {

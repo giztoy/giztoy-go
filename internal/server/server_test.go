@@ -41,36 +41,25 @@ func TestServerPeerPing(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	clientUDP, err := core.NewUDP(clientKey,
+	clientListener, err := peer.Listen(clientKey,
 		core.WithBindAddr("127.0.0.1:0"),
 		core.WithAllowUnknown(true),
 	)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer clientUDP.Close()
+	defer clientListener.Close()
 
 	udpAddr, err := parseUDPAddr(serverAddr)
 	if err != nil {
 		t.Fatal(err)
 	}
-	clientUDP.SetPeerEndpoint(serverPK, udpAddr)
-	clientUDP.Connect(serverPK)
-
-	waitForHandshake(t, clientUDP, serverPK, 3*time.Second)
-
-	clientListener, err := peer.Wrap(clientUDP)
+	conn, err := clientListener.Dial(serverPK, udpAddr)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer clientListener.Close()
 
-	conn, err := clientListener.Peer(serverPK)
-	if err != nil {
-		t.Fatalf("Peer err=%v", err)
-	}
-
-	stream, err := conn.OpenService(0)
+	stream, err := conn.OpenService(peer.ServicePublic)
 	if err != nil {
 		t.Fatalf("OpenService err=%v", err)
 	}
@@ -137,25 +126,22 @@ func TestServerUnknownMethod(t *testing.T) {
 	serverPK := srv.keyPair.Public
 
 	clientKey, _ := noise.GenerateKeyPair()
-	clientUDP, err := core.NewUDP(clientKey,
+	clientListener, err := peer.Listen(clientKey,
 		core.WithBindAddr("127.0.0.1:0"),
 		core.WithAllowUnknown(true),
 	)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer clientUDP.Close()
-
-	udpAddr, _ := parseUDPAddr(serverAddr)
-	clientUDP.SetPeerEndpoint(serverPK, udpAddr)
-	clientUDP.Connect(serverPK)
-	waitForHandshake(t, clientUDP, serverPK, 3*time.Second)
-
-	clientListener, _ := peer.Wrap(clientUDP)
 	defer clientListener.Close()
 
-	conn, _ := clientListener.Peer(serverPK)
-	stream, err := conn.OpenService(0)
+	udpAddr, _ := parseUDPAddr(serverAddr)
+	conn, err := clientListener.Dial(serverPK, udpAddr)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	stream, err := conn.OpenService(peer.ServicePublic)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -276,19 +262,6 @@ func TestWriteRPCResponseMarshalError(t *testing.T) {
 
 func parseUDPAddr(addr string) (*net.UDPAddr, error) {
 	return net.ResolveUDPAddr("udp", addr)
-}
-
-func waitForHandshake(t *testing.T, u *core.UDP, pk noise.PublicKey, timeout time.Duration) {
-	t.Helper()
-	deadline := time.Now().Add(timeout)
-	for time.Now().Before(deadline) {
-		info := u.PeerInfo(pk)
-		if info != nil && info.State == core.PeerStateEstablished {
-			return
-		}
-		time.Sleep(50 * time.Millisecond)
-	}
-	t.Fatalf("handshake with %s did not complete within %v", pk.ShortString(), timeout)
 }
 
 type errConn struct {

@@ -10,59 +10,54 @@ import (
 
 	"github.com/haivivi/giztoy/go/pkg/firmware"
 	"github.com/haivivi/giztoy/go/pkg/gears"
-)
-
-const (
-	publicServiceID         = 0
-	defaultAdminServiceID   = 1
-	defaultReverseServiceID = 2
+	"github.com/haivivi/giztoy/go/pkg/net/peer"
 )
 
 func (c *Client) GetServerInfo(ctx context.Context) (map[string]any, error) {
 	var out map[string]any
-	err := c.doJSON(ctx, publicServiceID, http.MethodGet, "/server-info", nil, &out)
+	err := c.doJSON(ctx, peer.ServicePublic, http.MethodGet, "/server-info", nil, &out)
 	return out, err
 }
 
 func (c *Client) GetInfo(ctx context.Context) (gears.DeviceInfo, error) {
 	var out gears.DeviceInfo
-	err := c.doJSON(ctx, publicServiceID, http.MethodGet, "/info", nil, &out)
+	err := c.doJSON(ctx, peer.ServicePublic, http.MethodGet, "/info", nil, &out)
 	return out, err
 }
 
 func (c *Client) PutInfo(ctx context.Context, info gears.DeviceInfo) (gears.DeviceInfo, error) {
 	var out gears.DeviceInfo
-	err := c.doJSON(ctx, publicServiceID, http.MethodPut, "/info", info, &out)
+	err := c.doJSON(ctx, peer.ServicePublic, http.MethodPut, "/info", info, &out)
 	return out, err
 }
 
 func (c *Client) GetRegistration(ctx context.Context) (gears.Registration, error) {
 	var out gears.Registration
-	err := c.doJSON(ctx, publicServiceID, http.MethodGet, "/registration", nil, &out)
+	err := c.doJSON(ctx, peer.ServicePublic, http.MethodGet, "/registration", nil, &out)
 	return out, err
 }
 
 func (c *Client) GetRuntime(ctx context.Context) (gears.Runtime, error) {
 	var out gears.Runtime
-	err := c.doJSON(ctx, publicServiceID, http.MethodGet, "/runtime", nil, &out)
+	err := c.doJSON(ctx, peer.ServicePublic, http.MethodGet, "/runtime", nil, &out)
 	return out, err
 }
 
 func (c *Client) GetConfig(ctx context.Context) (gears.Configuration, error) {
 	var out gears.Configuration
-	err := c.doJSON(ctx, publicServiceID, http.MethodGet, "/config", nil, &out)
+	err := c.doJSON(ctx, peer.ServicePublic, http.MethodGet, "/config", nil, &out)
 	return out, err
 }
 
 func (c *Client) Register(ctx context.Context, req gears.RegistrationRequest) (gears.RegistrationResult, error) {
 	var out gears.RegistrationResult
-	err := c.doJSON(ctx, publicServiceID, http.MethodPost, "/register", req, &out)
+	err := c.doJSON(ctx, peer.ServicePublic, http.MethodPost, "/register", req, &out)
 	return out, err
 }
 
 func (c *Client) GetOTA(ctx context.Context) (firmware.OTASummary, error) {
 	var out firmware.OTASummary
-	err := c.doJSON(ctx, publicServiceID, http.MethodGet, "/ota", nil, &out)
+	err := c.doJSON(ctx, peer.ServicePublic, http.MethodGet, "/ota", nil, &out)
 	return out, err
 }
 
@@ -71,7 +66,7 @@ func (c *Client) DownloadFirmware(ctx context.Context, path string) ([]byte, htt
 	if err != nil {
 		return nil, nil, err
 	}
-	resp, err := c.HTTPClient(publicServiceID).Do(req)
+	resp, err := c.HTTPClient(peer.ServicePublic).Do(req)
 	if err != nil {
 		return nil, nil, err
 	}

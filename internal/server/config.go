@@ -92,6 +92,18 @@ func (cfg Config) gearsStore() (kv.Store, error) {
 		switch storeCfg.Kind {
 		case "memory":
 			return kv.NewMemory(nil), nil
+		case "badger":
+			if storeCfg.Dir == "" {
+				return nil, fmt.Errorf("server: gears store %q (badger) missing dir", cfg.Gears.Store)
+			}
+			dir, err := cfg.workspacePath(storeCfg.Dir)
+			if err != nil {
+				return nil, err
+			}
+			if err := os.MkdirAll(dir, 0o755); err != nil {
+				return nil, fmt.Errorf("server: gears store dir: %w", err)
+			}
+			return kv.NewBadger(dir, nil)
 		default:
 			return nil, fmt.Errorf("server: unsupported gears store kind %q", storeCfg.Kind)
 		}
@@ -131,12 +143,6 @@ func (cfg Config) validate() error {
 	if cfg.DataDir == "" {
 		return fmt.Errorf("server: empty data dir")
 	}
-	if cfg.AdminServiceID == 0 {
-		cfg.AdminServiceID = 1
-	}
-	if cfg.ReverseServiceID == 0 {
-		cfg.ReverseServiceID = 2
-	}
 	if cfg.Gears.Store != "" {
 		storeCfg, ok := cfg.Stores[cfg.Gears.Store]
 		if !ok {
@@ -144,6 +150,14 @@ func (cfg Config) validate() error {
 		}
 		if storeCfg.Kind == "" {
 			return fmt.Errorf("server: gears store %q missing kind", cfg.Gears.Store)
+		}
+		if storeCfg.Kind == "badger" {
+			if storeCfg.Dir == "" {
+				return fmt.Errorf("server: gears store %q (badger) missing dir", cfg.Gears.Store)
+			}
+			if _, err := cfg.workspacePath(storeCfg.Dir); err != nil {
+				return err
+			}
 		}
 	}
 	if cfg.Depots.Store != "" {

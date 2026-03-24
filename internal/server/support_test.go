@@ -134,6 +134,118 @@ depots:
 	}).firmwareStore(); err == nil {
 		t.Fatal("firmwareStore should fail for non-file store")
 	}
+
+	badgerDir := t.TempDir()
+	badgerCfg := Config{
+		DataDir: badgerDir,
+		Stores: map[string]StoreConfig{
+			"bg": {Kind: "badger", Dir: "gears-data"},
+		},
+		Gears: GearsConfig{Store: "bg"},
+	}
+	if err := badgerCfg.validate(); err != nil {
+		t.Fatalf("validate badger config error: %v", err)
+	}
+	bgStore, err := badgerCfg.gearsStore()
+	if err != nil {
+		t.Fatalf("gearsStore badger error: %v", err)
+	}
+	bgStore.Close()
+
+	if err := (Config{
+		DataDir: t.TempDir(),
+		Stores: map[string]StoreConfig{
+			"bg-nodir": {Kind: "badger"},
+		},
+		Gears: GearsConfig{Store: "bg-nodir"},
+	}).validate(); err == nil {
+		t.Fatal("validate should fail for badger store without dir")
+	}
+	if _, err := (Config{
+		DataDir: t.TempDir(),
+		Stores: map[string]StoreConfig{
+			"bg-nodir": {Kind: "badger"},
+		},
+		Gears: GearsConfig{Store: "bg-nodir"},
+	}).gearsStore(); err == nil {
+		t.Fatal("gearsStore should fail for badger store without dir")
+	}
+	if _, err := (Config{
+		DataDir: t.TempDir(),
+		Stores: map[string]StoreConfig{
+			"unsup": {Kind: "redis"},
+		},
+		Gears: GearsConfig{Store: "unsup"},
+	}).gearsStore(); err == nil {
+		t.Fatal("gearsStore should fail for unsupported kind")
+	}
+
+	if err := (Config{}).validate(); err == nil {
+		t.Fatal("validate should fail for empty DataDir")
+	}
+	if err := (Config{
+		DataDir: t.TempDir(),
+		Stores: map[string]StoreConfig{
+			"empty-kind": {},
+		},
+		Gears: GearsConfig{Store: "empty-kind"},
+	}).validate(); err == nil {
+		t.Fatal("validate should fail for store with empty kind")
+	}
+	if err := (Config{
+		DataDir: t.TempDir(),
+		Stores: map[string]StoreConfig{
+			"dep-nodir": {Kind: "file"},
+		},
+		Depots: DepotsConfig{Store: "dep-nodir"},
+	}).validate(); err == nil {
+		t.Fatal("validate should fail for depots file store without dir")
+	}
+	if _, err := (Config{
+		DataDir: t.TempDir(),
+		Stores: map[string]StoreConfig{
+			"dep-nodir": {Kind: "file", Dir: "data"},
+		},
+		Depots: DepotsConfig{Store: "dep-nodir"},
+	}).firmwareStore(); err != nil {
+		t.Fatalf("firmwareStore with dir should not fail: %v", err)
+	}
+	if _, err := (Config{
+		DataDir: t.TempDir(),
+		Stores: map[string]StoreConfig{
+			"missing": {Kind: "file", Dir: "data"},
+		},
+		Depots: DepotsConfig{Store: "nope"},
+	}).firmwareStore(); err == nil {
+		t.Fatal("firmwareStore should fail for missing store ref")
+	}
+	defaultFW, err := (Config{DataDir: t.TempDir()}).firmwareStore()
+	if err != nil {
+		t.Fatalf("firmwareStore default error: %v", err)
+	}
+	if defaultFW == nil {
+		t.Fatal("firmwareStore default should not be nil")
+	}
+	noStoreKV, err := (Config{DataDir: t.TempDir()}).gearsStore()
+	if err != nil {
+		t.Fatalf("gearsStore default (no store) error: %v", err)
+	}
+	noStoreKV.Close()
+	if got := (Config{ListenAddr: ":8080"}).effectiveListenAddr(); got != ":8080" {
+		t.Fatalf("effectiveListenAddr = %q, want :8080", got)
+	}
+	if err := (Config{
+		Stores: map[string]StoreConfig{
+			"bg": {Kind: "badger", Dir: "data"},
+		},
+		Gears: GearsConfig{Store: "bg"},
+	}).validate(); err == nil {
+		t.Fatal("validate badger with empty DataDir should fail")
+	}
+	if _, err := LoadConfig("/nonexistent/path/config.yaml"); err == nil {
+		t.Fatal("LoadConfig should fail for missing file")
+	}
+
 	workspaceCfg := Config{DataDir: t.TempDir()}
 	if got, err := workspaceCfg.workspacePath("firmware"); err != nil {
 		t.Fatalf("workspacePath relative error: %v", err)

@@ -9,9 +9,10 @@ import (
 )
 
 type Conn struct {
-	udp    *core.UDP
-	pk     noise.PublicKey
-	closed atomic.Bool
+	udp      *core.UDP
+	pk       noise.PublicKey
+	listener *Listener
+	closed   atomic.Bool
 }
 
 func (c *Conn) OpenService(service uint64) (net.Conn, error) {
@@ -32,11 +33,11 @@ func (c *Conn) AcceptService(service uint64) (net.Conn, error) {
 }
 
 func (c *Conn) OpenRPC() (net.Conn, error) {
-	return c.OpenService(0)
+	return c.OpenService(ServicePublic)
 }
 
 func (c *Conn) AcceptRPC() (net.Conn, error) {
-	return c.AcceptService(0)
+	return c.AcceptService(ServicePublic)
 }
 
 func (c *Conn) CloseService(service uint64) error {
@@ -123,13 +124,18 @@ func (c *Conn) ReadOpusFrame() (StampedOpusFrame, error) {
 	return ParseStampedOpusFrame(buf[:n])
 }
 
-// Close only closes this handle; the underlying peer/session stays alive until
-// the owning UDP transport is closed or the peer is explicitly removed there.
+// Close marks this handle as closed and releases the peer from the listener's
+// known set so it can be re-accepted via Listener.Accept. It does NOT tear
+// down the underlying UDP peer or KCP session — those stay alive until the
+// owning UDP transport is closed or the peer is explicitly removed there.
 func (c *Conn) Close() error {
 	if err := c.validate(); err != nil {
 		return err
 	}
 	c.closed.Store(true)
+	if c.listener != nil {
+		c.listener.release(c.pk)
+	}
 	return nil
 }
 

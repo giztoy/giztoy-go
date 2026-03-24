@@ -42,10 +42,16 @@ func (s PeerState) String() string {
 	}
 }
 
+// PeerEvent is emitted when a peer's state changes.
+type PeerEvent struct {
+	PublicKey noise.PublicKey
+	State     PeerState
+}
+
 // HostInfo contains information about the local host.
 type HostInfo struct {
 	PublicKey noise.PublicKey
-	Addr      net.Addr
+	Addr      *net.UDPAddr
 	PeerCount int
 	RxBytes   uint64
 	TxBytes   uint64
@@ -57,6 +63,7 @@ type HostInfo struct {
 	DroppedInboundPackets uint64 // dropped from ServiceMux direct-packet routing
 	RPCRouteErrors        uint64 // failed to route RPC into ServiceMux
 	KCPOutputErrors       uint64 // ServiceMux Output callback returned error
+	DroppedPeerEvents     uint64 // peer events dropped by OnPeerEvent callback
 }
 
 // PeerInfo contains information about a peer.
@@ -218,6 +225,10 @@ type UDP struct {
 	droppedInboundPackets atomic.Uint64
 	rpcRouteErrors        atomic.Uint64
 	kcpOutputErrors       atomic.Uint64
+	droppedPeerEvents     atomic.Uint64
+	// Peer state callback (set once via OnPeerEvent option; called synchronously).
+	// Returns true if the event was consumed, false if dropped.
+	onPeerEvent func(PeerEvent) bool
 
 	// State
 	closing atomic.Bool
@@ -261,6 +272,7 @@ type options struct {
 	decryptedChanSize int // 0 = use DecryptedChanSize constant
 	socketConfig      SocketConfig
 	serviceMuxConfig  ServiceMuxConfig
+	onPeerEvent       func(PeerEvent) bool
 }
 
 // WithBindAddr sets the local address to bind to.
@@ -318,6 +330,15 @@ func WithServiceMuxConfig(cfg ServiceMuxConfig) Option {
 	}
 }
 
+// WithOnPeerEvent registers a callback invoked synchronously whenever a
+// peer's state changes. The callback must not block. It returns true if the
+// event was consumed, false if it was dropped (counted in DroppedPeerEvents).
+func WithOnPeerEvent(fn func(PeerEvent) bool) Option {
+	return func(o *options) {
+		o.onPeerEvent = fn
+	}
+}
+
 // NewUDP creates a new UDP network.
 func NewUDP(key *noise.KeyPair, opts ...Option) (*UDP, error) {
 	if key == nil {
@@ -367,6 +388,7 @@ func NewUDP(key *noise.KeyPair, opts ...Option) (*UDP, error) {
 		pending:          make(map[uint32]*pendingHandshake),
 		decryptChan:      make(chan *packet, rawSize),
 		outputChan:       make(chan *packet, decryptedSize),
+		onPeerEvent:      o.onPeerEvent,
 		closeChan:        make(chan struct{}),
 	}
 	u.lastSeen.Store(time.Time{})
@@ -395,19 +417,9 @@ func NewUDP(key *noise.KeyPair, opts ...Option) (*UDP, error) {
 
 // SetPeerEndpoint sets or updates a peer's endpoint address.
 // If the peer doesn't exist, it creates a new peer entry.
-func (u *UDP) SetPeerEndpoint(pk noise.PublicKey, endpoint net.Addr) {
+func (u *UDP) SetPeerEndpoint(pk noise.PublicKey, endpoint *net.UDPAddr) {
 	if u.closed.Load() || u.closing.Load() {
 		return
-	}
-
-	udpAddr, ok := endpoint.(*net.UDPAddr)
-	if !ok {
-		// Try to resolve string
-		if addr, err := net.ResolveUDPAddr("udp", endpoint.String()); err == nil {
-			udpAddr = addr
-		} else {
-			return
-		}
 	}
 
 	u.mu.Lock()
@@ -423,7 +435,7 @@ func (u *UDP) SetPeerEndpoint(pk noise.PublicKey, endpoint net.Addr) {
 	}
 
 	peer.mu.Lock()
-	peer.endpoint = udpAddr
+	peer.endpoint = endpoint
 	peer.mu.Unlock()
 }
 
@@ -469,6 +481,8 @@ func (u *UDP) RemovePeer(pk noise.PublicKey) {
 	}
 	peer.mu.Unlock()
 	u.mu.Unlock()
+
+	u.emitPeerEvent(pk, PeerStateFailed)
 }
 
 // HostInfo returns information about the local host.
@@ -481,7 +495,7 @@ func (u *UDP) HostInfo() *HostInfo {
 
 	return &HostInfo{
 		PublicKey: u.localKey.Public,
-		Addr:      u.socket.LocalAddr(),
+		Addr:      u.socket.LocalAddr().(*net.UDPAddr),
 		PeerCount: peerCount,
 		RxBytes:   u.totalRx.Load(),
 		TxBytes:   u.totalTx.Load(),
@@ -492,6 +506,7 @@ func (u *UDP) HostInfo() *HostInfo {
 		DroppedInboundPackets: u.droppedInboundPackets.Load(),
 		RPCRouteErrors:        u.rpcRouteErrors.Load(),
 		KCPOutputErrors:       u.kcpOutputErrors.Load(),
+		DroppedPeerEvents:     u.droppedPeerEvents.Load(),
 	}
 }
 
@@ -520,6 +535,14 @@ func (u *UDP) PeerInfo(pk noise.PublicKey) *PeerInfo {
 		RxBytes:   peer.rxBytes,
 		TxBytes:   peer.txBytes,
 		LastSeen:  peer.lastSeen,
+	}
+}
+
+func (u *UDP) emitPeerEvent(pk noise.PublicKey, state PeerState) {
+	if fn := u.onPeerEvent; fn != nil {
+		if !fn(PeerEvent{PublicKey: pk, State: state}) {
+			u.droppedPeerEvents.Add(1)
+		}
 	}
 }
 
@@ -754,6 +777,8 @@ func (u *UDP) handleHandshakeInit(data []byte, from *net.UDPAddr) {
 	}
 	u.byIndex[localIdx] = peer
 	u.mu.Unlock()
+
+	u.emitPeerEvent(remotePK, PeerStateEstablished)
 }
 
 // handleHandshakeResp processes an incoming handshake response.
@@ -785,6 +810,7 @@ func (u *UDP) handleHandshakeResp(data []byte, from *net.UDPAddr) {
 		pending.peer.mu.Lock()
 		pending.peer.state = PeerStateFailed
 		pending.peer.mu.Unlock()
+		u.emitPeerEvent(pending.peer.pk, PeerStateFailed)
 		if pending.done != nil {
 			pending.done <- ErrHandshakeFailed
 		}
@@ -797,6 +823,7 @@ func (u *UDP) handleHandshakeResp(data []byte, from *net.UDPAddr) {
 		pending.peer.mu.Lock()
 		pending.peer.state = PeerStateFailed
 		pending.peer.mu.Unlock()
+		u.emitPeerEvent(pending.peer.pk, PeerStateFailed)
 		if pending.done != nil {
 			pending.done <- err
 		}
@@ -814,6 +841,7 @@ func (u *UDP) handleHandshakeResp(data []byte, from *net.UDPAddr) {
 		pending.peer.mu.Lock()
 		pending.peer.state = PeerStateFailed
 		pending.peer.mu.Unlock()
+		u.emitPeerEvent(pending.peer.pk, PeerStateFailed)
 		if pending.done != nil {
 			pending.done <- err
 		}
@@ -834,6 +862,8 @@ func (u *UDP) handleHandshakeResp(data []byte, from *net.UDPAddr) {
 	u.mu.Lock()
 	u.byIndex[pending.localIdx] = peer
 	u.mu.Unlock()
+
+	u.emitPeerEvent(peer.pk, PeerStateEstablished)
 
 	if pending.done != nil {
 		pending.done <- nil
@@ -866,6 +896,8 @@ func (u *UDP) initiateHandshake(peer *peerState) error {
 	pk := peer.pk
 	peer.state = PeerStateConnecting
 	peer.mu.Unlock()
+
+	u.emitPeerEvent(pk, PeerStateConnecting)
 
 	if endpoint == nil {
 		return ErrNoEndpoint
@@ -925,6 +957,7 @@ func (u *UDP) initiateHandshake(peer *peerState) error {
 		peer.mu.Lock()
 		peer.state = PeerStateFailed
 		peer.mu.Unlock()
+		u.emitPeerEvent(pk, PeerStateFailed)
 		return errors.New("net: handshake timeout")
 	}
 }

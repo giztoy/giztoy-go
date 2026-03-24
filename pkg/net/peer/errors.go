@@ -3,7 +3,6 @@ package peer
 import "errors"
 
 var (
-	ErrNilUDP                  = errors.New("peer: nil udp")
 	ErrNilListener             = errors.New("peer: nil listener")
 	ErrNilConn                 = errors.New("peer: nil conn")
 	ErrClosed                  = errors.New("peer: listener closed")

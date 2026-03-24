@@ -7,6 +7,7 @@ import (
 
 	"github.com/haivivi/giztoy/go/pkg/gears"
 	"github.com/haivivi/giztoy/go/pkg/net/httptransport"
+	"github.com/haivivi/giztoy/go/pkg/net/peer"
 )
 
 type DeviceProvider interface {
@@ -41,7 +42,7 @@ func (c *Client) ServeReverseHTTP(ctx context.Context, provider DeviceProvider) 
 		}
 		writeClientJSON(w, out)
 	})
-	server := httptransport.NewServer(c.conn, c.reverseService(ctx), mux)
+	server := httptransport.NewServer(c.conn, peer.ServiceReverse, mux)
 	go func() {
 		<-ctx.Done()
 		_ = server.Shutdown(context.Background())

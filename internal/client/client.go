@@ -1,12 +1,10 @@
 package client
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"net"
 	"net/http"
-	"sync/atomic"
 	"time"
 
 	"github.com/haivivi/giztoy/go/internal/server"
@@ -18,69 +16,40 @@ import (
 
 // Client connects to a Giztoy server.
 type Client struct {
-	udp              *core.UDP
-	listener         *peer.Listener
-	conn             *peer.Conn
-	serverPK         noise.PublicKey
-	adminServiceID   atomic.Uint64
-	reverseServiceID atomic.Uint64
+	listener *peer.Listener
+	conn     *peer.Conn
+	serverPK noise.PublicKey
 }
 
 // Dial connects to a server and performs the Noise handshake.
 func Dial(localKey *noise.KeyPair, serverAddr string, serverPK noise.PublicKey) (*Client, error) {
 	c := &Client{serverPK: serverPK}
-	c.adminServiceID.Store(defaultAdminServiceID)
-	c.reverseServiceID.Store(defaultReverseServiceID)
-	u, err := core.NewUDP(localKey,
+
+	l, err := peer.Listen(localKey,
 		core.WithBindAddr("127.0.0.1:0"),
 		core.WithAllowUnknown(true),
 		core.WithServiceMuxConfig(core.ServiceMuxConfig{
 			OnNewService: func(_ noise.PublicKey, service uint64) bool {
-				return service == publicServiceID || service == c.reverseServiceID.Load()
+				return service == peer.ServicePublic || service == peer.ServiceReverse
 			},
 		}),
 	)
 	if err != nil {
-		return nil, fmt.Errorf("client: udp: %w", err)
+		return nil, fmt.Errorf("client: listen: %w", err)
 	}
 
 	udpAddr, err := net.ResolveUDPAddr("udp", serverAddr)
 	if err != nil {
-		u.Close()
+		l.Close()
 		return nil, fmt.Errorf("client: resolve addr: %w", err)
 	}
 
-	u.SetPeerEndpoint(serverPK, udpAddr)
-	u.Connect(serverPK)
-
-	deadline := time.Now().Add(5 * time.Second)
-	for time.Now().Before(deadline) {
-		info := u.PeerInfo(serverPK)
-		if info != nil && info.State == core.PeerStateEstablished {
-			break
-		}
-		time.Sleep(50 * time.Millisecond)
-	}
-
-	info := u.PeerInfo(serverPK)
-	if info == nil || info.State != core.PeerStateEstablished {
-		u.Close()
-		return nil, fmt.Errorf("client: handshake timeout")
-	}
-
-	l, err := peer.Wrap(u)
-	if err != nil {
-		u.Close()
-		return nil, fmt.Errorf("client: wrap: %w", err)
-	}
-
-	conn, err := l.Peer(serverPK)
+	conn, err := l.Dial(serverPK, udpAddr)
 	if err != nil {
 		l.Close()
-		return nil, fmt.Errorf("client: peer: %w", err)
+		return nil, fmt.Errorf("client: dial: %w", err)
 	}
 
-	c.udp = u
 	c.listener = l
 	c.conn = conn
 
@@ -96,7 +65,7 @@ type PingResult struct {
 
 // Ping sends a peer.ping RPC and returns NTP-style timing information.
 func (c *Client) Ping() (*PingResult, error) {
-	stream, err := c.conn.OpenService(0)
+	stream, err := c.conn.OpenService(peer.ServicePublic)
 	if err != nil {
 		return nil, fmt.Errorf("client: open stream: %w", err)
 	}
@@ -148,11 +117,11 @@ func (c *Client) Ping() (*PingResult, error) {
 
 // Close releases all resources including the underlying UDP socket.
 func (c *Client) Close() error {
-	if c.listener != nil {
-		c.listener.Close()
+	if c.conn != nil {
+		c.conn.Close()
 	}
-	if c.udp != nil {
-		return c.udp.Close()
+	if c.listener != nil {
+		return c.listener.Close()
 	}
 	return nil
 }
@@ -165,31 +134,3 @@ func (c *Client) PeerConn() *peer.Conn {
 	return c.conn
 }
 
-func (c *Client) adminService(ctx context.Context) uint64 {
-	_ = c.syncServiceIDs(ctx)
-	return c.adminServiceID.Load()
-}
-
-func (c *Client) reverseService(ctx context.Context) uint64 {
-	_ = c.syncServiceIDs(ctx)
-	return c.reverseServiceID.Load()
-}
-
-func (c *Client) syncServiceIDs(ctx context.Context) error {
-	var info struct {
-		AdminServiceID   uint64 `json:"admin_service_id"`
-		ReverseServiceID uint64 `json:"reverse_service_id"`
-	}
-	if err := c.doJSON(ctx, publicServiceID, http.MethodGet, "/server-info", nil, &info); err != nil {
-		return err
-	}
-	if info.AdminServiceID == 0 {
-		info.AdminServiceID = defaultAdminServiceID
-	}
-	if info.ReverseServiceID == 0 {
-		info.ReverseServiceID = defaultReverseServiceID
-	}
-	c.adminServiceID.Store(info.AdminServiceID)
-	c.reverseServiceID.Store(info.ReverseServiceID)
-	return nil
-}

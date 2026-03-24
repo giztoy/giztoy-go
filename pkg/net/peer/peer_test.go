@@ -79,27 +79,15 @@ func TestListenAndCloseOwnedListener(t *testing.T) {
 	}
 }
 
-func TestWrapNilUDP(t *testing.T) {
-	if _, err := Wrap(nil); !errors.Is(err, ErrNilUDP) {
-		t.Fatalf("Wrap(nil) err=%v, want %v", err, ErrNilUDP)
-	}
-}
-
 func TestListenerPeerErrors(t *testing.T) {
 	key, err := noise.GenerateKeyPair()
 	if err != nil {
 		t.Fatalf("GenerateKeyPair failed: %v", err)
 	}
 
-	u, err := core.NewUDP(key, core.WithBindAddr("127.0.0.1:0"), core.WithAllowUnknown(true))
+	l, err := Listen(key, core.WithBindAddr("127.0.0.1:0"), core.WithAllowUnknown(true))
 	if err != nil {
-		t.Fatalf("NewUDP failed: %v", err)
-	}
-	defer u.Close()
-
-	l, err := Wrap(u)
-	if err != nil {
-		t.Fatalf("Wrap failed: %v", err)
+		t.Fatalf("Listen failed: %v", err)
 	}
 	defer l.Close()
 
@@ -112,7 +100,7 @@ func TestListenerPeerErrors(t *testing.T) {
 		t.Fatalf("Peer(unknown) err=%v, want %v", err, core.ErrPeerNotFound)
 	}
 
-	u.SetPeerEndpoint(unknown.Public, &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 54321})
+	l.SetPeerEndpoint(unknown.Public, &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 54321})
 	if _, err := l.Peer(unknown.Public); !errors.Is(err, core.ErrNoSession) {
 		t.Fatalf("Peer(no session) err=%v, want %v", err, core.ErrNoSession)
 	}
@@ -128,31 +116,9 @@ func TestListenerAcceptAndConnEventOpus(t *testing.T) {
 		t.Fatalf("Generate client key failed: %v", err)
 	}
 
-	serverUDP, err := core.NewUDP(serverKey, core.WithBindAddr("127.0.0.1:0"), core.WithAllowUnknown(true))
-	if err != nil {
-		t.Fatalf("NewUDP(server) failed: %v", err)
-	}
-	defer serverUDP.Close()
-
-	clientUDP, err := core.NewUDP(clientKey, core.WithBindAddr("127.0.0.1:0"), core.WithAllowUnknown(true))
-	if err != nil {
-		t.Fatalf("NewUDP(client) failed: %v", err)
-	}
-	defer clientUDP.Close()
-
-	startReadLoop(serverUDP)
-	startReadLoop(clientUDP)
-
-	serverListener, err := Wrap(serverUDP)
-	if err != nil {
-		t.Fatalf("Wrap(server) failed: %v", err)
-	}
+	serverListener := newTestListener(t, serverKey)
 	defer serverListener.Close()
-
-	clientListener, err := Wrap(clientUDP)
-	if err != nil {
-		t.Fatalf("Wrap(client) failed: %v", err)
-	}
+	clientListener := newTestListener(t, clientKey)
 	defer clientListener.Close()
 
 	acceptCh := make(chan *Conn, 1)
@@ -166,15 +132,7 @@ func TestListenerAcceptAndConnEventOpus(t *testing.T) {
 		acceptCh <- c
 	}()
 
-	clientUDP.SetPeerEndpoint(serverKey.Public, serverUDP.HostInfo().Addr)
-	serverUDP.SetPeerEndpoint(clientKey.Public, clientUDP.HostInfo().Addr)
-
-	if err := clientUDP.Connect(serverKey.Public); err != nil {
-		t.Fatalf("Connect failed: %v", err)
-	}
-
-	waitEstablished(t, serverUDP, clientKey.Public)
-	waitEstablished(t, clientUDP, serverKey.Public)
+	connectTestListeners(t, clientListener, clientKey, serverListener, serverKey)
 
 	var serverConn *Conn
 	select {
@@ -242,31 +200,9 @@ func TestConnOpenAcceptRPC(t *testing.T) {
 		t.Fatalf("Generate client key failed: %v", err)
 	}
 
-	serverUDP, err := core.NewUDP(serverKey, core.WithBindAddr("127.0.0.1:0"), core.WithAllowUnknown(true))
-	if err != nil {
-		t.Fatalf("NewUDP(server) failed: %v", err)
-	}
-	defer serverUDP.Close()
-
-	clientUDP, err := core.NewUDP(clientKey, core.WithBindAddr("127.0.0.1:0"), core.WithAllowUnknown(true))
-	if err != nil {
-		t.Fatalf("NewUDP(client) failed: %v", err)
-	}
-	defer clientUDP.Close()
-
-	startReadLoop(serverUDP)
-	startReadLoop(clientUDP)
-
-	serverListener, err := Wrap(serverUDP)
-	if err != nil {
-		t.Fatalf("Wrap(server) failed: %v", err)
-	}
+	serverListener := newTestListener(t, serverKey)
 	defer serverListener.Close()
-
-	clientListener, err := Wrap(clientUDP)
-	if err != nil {
-		t.Fatalf("Wrap(client) failed: %v", err)
-	}
+	clientListener := newTestListener(t, clientKey)
 	defer clientListener.Close()
 
 	acceptConnCh := make(chan *Conn, 1)
@@ -280,15 +216,7 @@ func TestConnOpenAcceptRPC(t *testing.T) {
 		acceptConnCh <- c
 	}()
 
-	clientUDP.SetPeerEndpoint(serverKey.Public, serverUDP.HostInfo().Addr)
-	serverUDP.SetPeerEndpoint(clientKey.Public, clientUDP.HostInfo().Addr)
-
-	if err := clientUDP.Connect(serverKey.Public); err != nil {
-		t.Fatalf("Connect failed: %v", err)
-	}
-
-	waitEstablished(t, serverUDP, clientKey.Public)
-	waitEstablished(t, clientUDP, serverKey.Public)
+	connectTestListeners(t, clientListener, clientKey, serverListener, serverKey)
 
 	var serverConn *Conn
 	select {
@@ -499,7 +427,7 @@ func TestConnEventConcurrentDelivery(t *testing.T) {
 	const total = 32
 
 	var wg sync.WaitGroup
-	for i := 0; i < total; i++ {
+	for i := range total {
 		wg.Add(1)
 		idx := i
 		go func() {
@@ -530,23 +458,13 @@ func TestPeerMultipleConcurrentConnections(t *testing.T) {
 		t.Fatalf("Generate server key failed: %v", err)
 	}
 
-	serverUDP, err := core.NewUDP(serverKey, core.WithBindAddr("127.0.0.1:0"), core.WithAllowUnknown(true))
-	if err != nil {
-		t.Fatalf("NewUDP(server) failed: %v", err)
-	}
-	defer serverUDP.Close()
-	startReadLoop(serverUDP)
-
-	serverListener, err := Wrap(serverUDP)
-	if err != nil {
-		t.Fatalf("Wrap(server) failed: %v", err)
-	}
+	serverListener := newTestListener(t, serverKey)
 	defer serverListener.Close()
 
 	const peers = 3
 	type clientNode struct {
-		key *noise.KeyPair
-		udp *core.UDP
+		key      *noise.KeyPair
+		listener *Listener
 	}
 	clients := make([]clientNode, 0, peers)
 	for i := 0; i < peers; i++ {
@@ -554,16 +472,12 @@ func TestPeerMultipleConcurrentConnections(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Generate client key %d failed: %v", i, err)
 		}
-		u, err := core.NewUDP(k, core.WithBindAddr("127.0.0.1:0"), core.WithAllowUnknown(true))
-		if err != nil {
-			t.Fatalf("NewUDP(client %d) failed: %v", i, err)
-		}
-		startReadLoop(u)
-		clients = append(clients, clientNode{key: k, udp: u})
+		cl := newTestListener(t, k)
+		clients = append(clients, clientNode{key: k, listener: cl})
 	}
 	defer func() {
 		for _, c := range clients {
-			_ = c.udp.Close()
+			_ = c.listener.Close()
 		}
 	}()
 
@@ -573,9 +487,9 @@ func TestPeerMultipleConcurrentConnections(t *testing.T) {
 		client := c
 		go func() {
 			defer connectWG.Done()
-			client.udp.SetPeerEndpoint(serverKey.Public, serverUDP.HostInfo().Addr)
-			serverUDP.SetPeerEndpoint(client.key.Public, client.udp.HostInfo().Addr)
-			if err := client.udp.Connect(serverKey.Public); err != nil {
+			client.listener.SetPeerEndpoint(serverKey.Public, serverListener.HostInfo().Addr)
+			serverListener.SetPeerEndpoint(client.key.Public, client.listener.HostInfo().Addr)
+			if err := client.listener.Connect(serverKey.Public); err != nil {
 				t.Errorf("Connect failed: %v", err)
 			}
 		}()
@@ -600,7 +514,7 @@ func TestConnUnderlyingErrorPropagation(t *testing.T) {
 	pair := newConnectedPeerPair(t)
 	defer pair.Close()
 
-	_ = pair.clientUDP.Close()
+	_ = pair.clientListener.UDP().Close()
 
 	if _, err := pair.clientConn.OpenRPC(); !errors.Is(err, core.ErrClosed) {
 		t.Fatalf("OpenRPC(after close) err=%v, want %v", err, core.ErrClosed)
@@ -708,12 +622,9 @@ func TestListenerDoesNotAcceptSamePeerAgainOnReconnect(t *testing.T) {
 		acceptCh <- conn
 	}()
 
-	if err := pair.clientUDP.Connect(pair.serverKey.Public); err != nil {
+	if err := pair.clientListener.Connect(pair.serverKey.Public); err != nil {
 		t.Fatalf("Reconnect failed: %v", err)
 	}
-
-	waitEstablished(t, pair.serverUDP, pair.clientKey.Public)
-	waitEstablished(t, pair.clientUDP, pair.serverKey.Public)
 
 	select {
 	case conn := <-acceptCh:
@@ -748,6 +659,25 @@ func TestListenerAcceptAfterRelease(t *testing.T) {
 	}
 }
 
+func newTestListener(t *testing.T, key *noise.KeyPair) *Listener {
+	t.Helper()
+	l, err := Listen(key, core.WithBindAddr("127.0.0.1:0"), core.WithAllowUnknown(true))
+	if err != nil {
+		t.Fatalf("Listen failed: %v", err)
+	}
+	startReadLoop(l.UDP())
+	return l
+}
+
+func connectTestListeners(t *testing.T, client *Listener, clientKey *noise.KeyPair, server *Listener, serverKey *noise.KeyPair) {
+	t.Helper()
+	client.SetPeerEndpoint(serverKey.Public, server.HostInfo().Addr)
+	server.SetPeerEndpoint(clientKey.Public, client.HostInfo().Addr)
+	if err := client.Connect(serverKey.Public); err != nil {
+		t.Fatalf("Connect failed: %v", err)
+	}
+}
+
 func startReadLoop(u *core.UDP) {
 	go func() {
 		buf := make([]byte, 65535)
@@ -757,24 +687,6 @@ func startReadLoop(u *core.UDP) {
 			}
 		}
 	}()
-}
-
-func waitEstablished(t *testing.T, u *core.UDP, pk noise.PublicKey) {
-	t.Helper()
-
-	deadline := time.Now().Add(3 * time.Second)
-	for time.Now().Before(deadline) {
-		if info := u.PeerInfo(pk); info != nil && info.State == core.PeerStateEstablished {
-			return
-		}
-		time.Sleep(10 * time.Millisecond)
-	}
-
-	info := u.PeerInfo(pk)
-	if info == nil {
-		t.Fatal("peer info is nil")
-	}
-	t.Fatalf("peer state not established: got=%s", info.State)
 }
 
 func readExactWithTimeout(t *testing.T, r io.Reader, n int, timeout time.Duration) []byte {
@@ -803,9 +715,6 @@ type connectedPeerPair struct {
 	serverKey *noise.KeyPair
 	clientKey *noise.KeyPair
 
-	serverUDP *core.UDP
-	clientUDP *core.UDP
-
 	serverListener *Listener
 	clientListener *Listener
 
@@ -825,33 +734,8 @@ func newConnectedPeerPair(t *testing.T) *connectedPeerPair {
 		t.Fatalf("Generate client key failed: %v", err)
 	}
 
-	serverUDP, err := core.NewUDP(serverKey, core.WithBindAddr("127.0.0.1:0"), core.WithAllowUnknown(true))
-	if err != nil {
-		t.Fatalf("NewUDP(server) failed: %v", err)
-	}
-
-	clientUDP, err := core.NewUDP(clientKey, core.WithBindAddr("127.0.0.1:0"), core.WithAllowUnknown(true))
-	if err != nil {
-		_ = serverUDP.Close()
-		t.Fatalf("NewUDP(client) failed: %v", err)
-	}
-
-	startReadLoop(serverUDP)
-	startReadLoop(clientUDP)
-
-	serverListener, err := Wrap(serverUDP)
-	if err != nil {
-		_ = serverUDP.Close()
-		_ = clientUDP.Close()
-		t.Fatalf("Wrap(server) failed: %v", err)
-	}
-	clientListener, err := Wrap(clientUDP)
-	if err != nil {
-		_ = serverListener.Close()
-		_ = serverUDP.Close()
-		_ = clientUDP.Close()
-		t.Fatalf("Wrap(client) failed: %v", err)
-	}
+	serverListener := newTestListener(t, serverKey)
+	clientListener := newTestListener(t, clientKey)
 
 	acceptCh := make(chan *Conn, 1)
 	errCh := make(chan error, 1)
@@ -864,19 +748,7 @@ func newConnectedPeerPair(t *testing.T) *connectedPeerPair {
 		acceptCh <- c
 	}()
 
-	clientUDP.SetPeerEndpoint(serverKey.Public, serverUDP.HostInfo().Addr)
-	serverUDP.SetPeerEndpoint(clientKey.Public, clientUDP.HostInfo().Addr)
-
-	if err := clientUDP.Connect(serverKey.Public); err != nil {
-		_ = serverListener.Close()
-		_ = clientListener.Close()
-		_ = serverUDP.Close()
-		_ = clientUDP.Close()
-		t.Fatalf("Connect failed: %v", err)
-	}
-
-	waitEstablished(t, serverUDP, clientKey.Public)
-	waitEstablished(t, clientUDP, serverKey.Public)
+	connectTestListeners(t, clientListener, clientKey, serverListener, serverKey)
 
 	var serverConn *Conn
 	select {
@@ -884,14 +756,10 @@ func newConnectedPeerPair(t *testing.T) *connectedPeerPair {
 	case err := <-errCh:
 		_ = serverListener.Close()
 		_ = clientListener.Close()
-		_ = serverUDP.Close()
-		_ = clientUDP.Close()
 		t.Fatalf("Listener.Accept failed: %v", err)
 	case <-time.After(3 * time.Second):
 		_ = serverListener.Close()
 		_ = clientListener.Close()
-		_ = serverUDP.Close()
-		_ = clientUDP.Close()
 		t.Fatal("Listener.Accept timeout")
 	}
 
@@ -899,17 +767,12 @@ func newConnectedPeerPair(t *testing.T) *connectedPeerPair {
 	if err != nil {
 		_ = serverListener.Close()
 		_ = clientListener.Close()
-		_ = serverUDP.Close()
-		_ = clientUDP.Close()
 		t.Fatalf("clientListener.Peer failed: %v", err)
 	}
 
 	return &connectedPeerPair{
 		serverKey: serverKey,
 		clientKey: clientKey,
-
-		serverUDP: serverUDP,
-		clientUDP: clientUDP,
 
 		serverListener: serverListener,
 		clientListener: clientListener,
@@ -928,12 +791,6 @@ func (p *connectedPeerPair) Close() {
 	}
 	if p.clientListener != nil {
 		_ = p.clientListener.Close()
-	}
-	if p.serverUDP != nil {
-		_ = p.serverUDP.Close()
-	}
-	if p.clientUDP != nil {
-		_ = p.clientUDP.Close()
 	}
 }
 
