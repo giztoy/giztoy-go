@@ -643,12 +643,9 @@ func TestListenerAcceptAfterRelease(t *testing.T) {
 	pair.serverListener.Release(pair.clientKey.Public)
 
 	// Reconnect triggers a new handshake and session replacement.
-	if err := pair.clientUDP.Connect(pair.serverKey.Public); err != nil {
+	if err := pair.clientListener.Connect(pair.serverKey.Public); err != nil {
 		t.Fatalf("Reconnect failed: %v", err)
 	}
-
-	waitEstablished(t, pair.serverUDP, pair.clientKey.Public)
-	waitEstablished(t, pair.clientUDP, pair.serverKey.Public)
 
 	conn, err := acceptConnWithTimeout(pair.serverListener, 3*time.Second)
 	if err != nil {
