@@ -42,6 +42,8 @@ func NewKVGraph(store kv.Store, prefix kv.Key, sep ...byte) *KVGraph {
 	return &KVGraph{store: store, prefix: prefix, sep: s}
 }
 
+func (g *KVGraph) Close() error { return nil }
+
 // validateSegments checks that none of the given strings contain the KV
 // separator character. Labels and relation types are used as kv.Key segments;
 // if they contain the separator the encoded key would be corrupted.

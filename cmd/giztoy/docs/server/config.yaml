@@ -16,34 +16,64 @@ listen: ":9820"
 
 # 可复用的 store 定义表。
 # gears.store / depots.store 会引用这里的名字。
+#
+# 每个条目包含：
+#   kind    — store 类别：keyvalue, vecstore, graph, filestore, sql
+#   backend — 具体实现
+#   dir     — 数据目录（badger、filesystem 等需要）
+#   store   — 依赖的 store 名（graph backend=kv 时引用 keyvalue store）
+#   dsn     — 数据库连接字符串（sql 类别时使用）
 stores:
   # 一个内存 store。
   # 服务端重启后数据会丢失。
-  gears-memory:
-    kind: memory
+  memory-kv:
+    kind: keyvalue
+    backend: memory
 
-  # 一个 BadgerDB 持久化 store。
-  # 数据写入磁盘，服务端重启后仍然保留。
-  # 相对路径以启动时传入的工作目录作为根目录解释。
-  gears-badger:
-    kind: badger
-    dir: gears-data
+  sqlite:
+    kind: sql
+    backend: sqlite
+    dir: sqlite-data
+
+  postgres:
+    kind: sql
+    backend: postgres
+    dsn: "postgres://user:pass@localhost:5432/giztoy?sslmode=disable"
+
+  badger:
+    kind: keyvalue
+    backend: badger
+    dir: badger-data
+
+  # 向量近似最近邻搜索。
+  # 当前只支持 memory 后端（brute-force，适合小规模）。
+  vecstore:
+    kind: vecstore
+    backend: memory
+
+  # 实体-关系图。
+  # backend: kv 表示底层使用一个 keyvalue store 存储。
+  # store 引用上面已定义的 keyvalue store 名。
+  graph:
+    kind: graph
+    backend: kv
+    store: badger
 
   # 一个文件 store。
-  # 当前 depots 必须使用 file。
+  # 当前 depots 必须使用 filestore。
   # 相对路径会以启动时传入的工作目录作为根目录解释。
   # 例如 firmware 实际表示 <dir>/firmware。
   # 如果你明确写系统绝对路径，也可以指向任意位置。
   firmware-file:
-    kind: file
+    kind: filestore
+    backend: filesystem
     dir: firmware
 
 # 设备注册、设备配置、索引查询相关配置。
 gears:
   # 引用 stores 里的一个名字。
   # 不写时，当前默认退回内存 store。
-  # 可选 gears-memory（内存）或 gears-badger（持久化）。
-  store: gears-badger
+  store: badger
 
   # 注册 token 表。
   # key 是 token 名称。
@@ -60,16 +90,16 @@ gears:
 # 固件仓库和 OTA 发布流转相关配置。
 depots:
   # 引用 stores 里的一个名字。
-  # 当前必须指向 kind: file 的 store。
+  # 当前必须指向 kind: filestore 的 store。
   # 不写时，当前默认使用 <dir>/firmware。
   store: firmware-file
 
 # 注意：
-# - gears 支持 memory（内存）和 badger（持久化）两种 store
+# - gears 支持 keyvalue 类别的 store（memory / badger 后端）
 # - memory store 服务端重启后数据会丢失
 # - badger store 数据持久化到磁盘，重启后保留
-# - depots 需要 file store；如果显式配置 store，对应项必须提供 dir
-# - stores.<name>.dir 对 kind: file 和 kind: badger 有意义
+# - depots 需要 filestore 类别的 store（当前只支持 filesystem 后端）
+# - stores.<name>.dir 对 backend: filesystem 和 backend: badger 有意义
 # - stores.<name>.dir 如果写相对路径，就相对于启动时传入的工作目录
 # - stores.<name>.dir 如果写绝对路径，就直接使用该绝对路径
 # - registration-tokens 不配置也能启动，但就不能通过 token 直接注册指定角色

@@ -17,9 +17,9 @@ import (
 
 	"github.com/haivivi/giztoy/go/internal/identity"
 	"github.com/haivivi/giztoy/go/internal/paths"
+	"github.com/haivivi/giztoy/go/internal/stores"
 	"github.com/haivivi/giztoy/go/pkg/firmware"
 	"github.com/haivivi/giztoy/go/pkg/gears"
-	"github.com/haivivi/giztoy/go/pkg/kv"
 	"github.com/haivivi/giztoy/go/pkg/net/core"
 	"github.com/haivivi/giztoy/go/pkg/net/httptransport"
 	"github.com/haivivi/giztoy/go/pkg/net/noise"
@@ -28,15 +28,12 @@ import (
 
 // Config holds server startup parameters.
 type Config struct {
-	DataDir          string
-	ListenAddr       string
-	ConfigPath       string
-	Stores           map[string]StoreConfig
-	Gears            GearsConfig
-	Depots           DepotsConfig
-	KVStore kv.Store
-	FirmwareStore    *firmware.Store
-	FirmwareRoot     string
+	DataDir    string
+	ListenAddr string
+	ConfigPath string
+	Stores     map[string]stores.Config
+	Gears      GearsConfig
+	Depots     DepotsConfig
 }
 
 // DefaultConfig returns a Config with sensible defaults.
@@ -57,6 +54,7 @@ type activePeer struct {
 // Server is the Giztoy server instance.
 type Server struct {
 	cfg       Config
+	stores    *stores.Stores
 	keyPair   *noise.KeyPair
 	listener  *peer.Listener
 	startTime time.Time
@@ -97,24 +95,38 @@ func New(cfg Config) (*Server, error) {
 	if err != nil {
 		return nil, fmt.Errorf("server: identity: %w", err)
 	}
-	gearsKV, err := cfg.gearsStore()
+
+	ss, err := stores.New(cfg.DataDir, cfg.Stores)
+	if err != nil {
+		return nil, fmt.Errorf("server: stores: %w", err)
+	}
+	storesOK := false
+	defer func() {
+		if !storesOK {
+			ss.Close()
+		}
+	}()
+
+	gearsKV, err := ss.KV(cfg.Gears.Store)
 	if err != nil {
 		return nil, fmt.Errorf("server: gears store: %w", err)
 	}
 	gearStore := gears.NewStore(gearsKV)
 	gearService := gears.NewService(gearStore, cfg.Gears.RegistrationTokens)
 
-	fwStore, err := cfg.firmwareStore()
+	fwStore, err := ss.FS(cfg.Depots.Store)
 	if err != nil {
 		return nil, fmt.Errorf("server: firmware store: %w", err)
 	}
 	if err := os.MkdirAll(fwStore.Root(), 0o755); err != nil {
-		return nil, fmt.Errorf("server: firmware store: %w", err)
+		return nil, fmt.Errorf("server: firmware dir: %w", err)
 	}
 	fwScanner := firmware.NewScanner(fwStore)
 
+	storesOK = true
 	return &Server{
 		cfg:              cfg,
+		stores:           ss,
 		keyPair:          kp,
 		logger:           log.New(os.Stderr, "[server] ", log.LstdFlags),
 		gears:            gearService,
@@ -150,7 +162,13 @@ func (s *Server) Run(ctx context.Context) error {
 
 	<-ctx.Done()
 	s.logger.Printf("shutting down")
-	return l.Close()
+	if err := l.Close(); err != nil {
+		s.logger.Printf("listener close: %v", err)
+	}
+	if err := s.stores.Close(); err != nil {
+		s.logger.Printf("stores close: %v", err)
+	}
+	return nil
 }
 
 func (s *Server) allowPeerService(_ noise.PublicKey, service uint64) bool {

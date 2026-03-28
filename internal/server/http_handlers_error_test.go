@@ -89,10 +89,12 @@ func TestServerPublicKeyAndListenAddr(t *testing.T) {
 	srv, err := New(Config{
 		DataDir:    t.TempDir(),
 		ListenAddr: "127.0.0.1:0",
+		ConfigPath: writeTempConfig(t, minimalTestConfig),
 	})
 	if err != nil {
 		t.Fatalf("New error: %v", err)
 	}
+	t.Cleanup(func() { srv.stores.Close() })
 	if srv.PublicKey().String() == "" {
 		t.Fatal("PublicKey should not be empty")
 	}
