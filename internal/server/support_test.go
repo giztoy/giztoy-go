@@ -15,24 +15,47 @@ import (
 	"github.com/haivivi/giztoy/go/pkg/gears"
 )
 
-func TestConfigHelpersAndLoad(t *testing.T) {
+const minimalTestConfig = `
+stores:
+  mem:
+    kind: keyvalue
+    backend: memory
+  fw:
+    kind: filestore
+    backend: filesystem
+    dir: firmware
+gears:
+  store: mem
+depots:
+  store: fw
+`
+
+func writeTempConfig(t *testing.T, yml string) string {
+	t.Helper()
 	dir := t.TempDir()
-	cfgPath := filepath.Join(dir, "server.yaml")
-	if err := os.WriteFile(cfgPath, []byte(`
+	path := filepath.Join(dir, "config.yaml")
+	if err := os.WriteFile(path, []byte(yml), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	return path
+}
+
+func TestConfigHelpersAndLoad(t *testing.T) {
+	cfgPath := writeTempConfig(t, `
 listen: 127.0.0.1:9999
 stores:
   mem:
-    kind: memory
+    kind: keyvalue
+    backend: memory
   depots:
-    kind: file
+    kind: filestore
+    backend: filesystem
     dir: depots
 gears:
   store: mem
 depots:
   store: depots
-`), 0o644); err != nil {
-		t.Fatal(err)
-	}
+`)
 	cfg, err := LoadConfig(cfgPath)
 	if err != nil {
 		t.Fatalf("LoadConfig error: %v", err)
@@ -46,7 +69,6 @@ depots:
 
 	runtimeCfg := Config{
 		DataDir: t.TempDir(),
-		Stores:  cfg.Stores,
 		Gears:   cfg.Gears,
 		Depots:  cfg.Depots,
 	}
@@ -56,22 +78,8 @@ depots:
 	if err := runtimeCfg.validate(); err != nil {
 		t.Fatalf("validate error: %v", err)
 	}
-	if _, err := runtimeCfg.gearsStore(); err != nil {
-		t.Fatalf("gearsStore error: %v", err)
-	}
-	fwStore, err := runtimeCfg.firmwareStore()
-	if err != nil {
-		t.Fatalf("firmwareStore error: %v", err)
-	}
-	if fwStore.Root() != filepath.Join(runtimeCfg.DataDir, "depots") {
-		t.Fatalf("firmware root = %q", fwStore.Root())
-	}
-	if _, err := New(Config{
-		DataDir:    t.TempDir(),
-		ConfigPath: cfgPath,
-	}); err != nil {
-		t.Fatalf("New with config path error: %v", err)
-	}
+
+	// New() with config path exercises full Registry store creation.
 	srvFromConfig, err := New(Config{
 		DataDir:    t.TempDir(),
 		ConfigPath: cfgPath,
@@ -79,6 +87,7 @@ depots:
 	if err != nil {
 		t.Fatalf("New with config path error: %v", err)
 	}
+	srvFromConfig.stores.Close()
 	if srvFromConfig.cfg.ListenAddr != "127.0.0.1:9999" {
 		t.Fatalf("listen from config = %q", srvFromConfig.cfg.ListenAddr)
 	}
@@ -90,6 +99,7 @@ depots:
 	if err != nil {
 		t.Fatalf("New with listen override error: %v", err)
 	}
+	srvWithOverride.stores.Close()
 	if srvWithOverride.cfg.ListenAddr != "127.0.0.1:7777" {
 		t.Fatalf("listen override = %q", srvWithOverride.cfg.ListenAddr)
 	}
@@ -105,6 +115,7 @@ depots:
 	if err != nil {
 		t.Fatalf("New with runtime gears override error: %v", err)
 	}
+	srvWithRuntimeGears.stores.Close()
 	if srvWithRuntimeGears.cfg.Gears.Store != "mem" {
 		t.Fatalf("gears store merge = %q", srvWithRuntimeGears.cfg.Gears.Store)
 	}
@@ -119,144 +130,178 @@ depots:
 	if err != nil {
 		t.Fatalf("New with runtime depots override error: %v", err)
 	}
+	srvWithRuntimeDepots.stores.Close()
 	if srvWithRuntimeDepots.cfg.Depots.Store != "depots" {
 		t.Fatalf("depots store merge = %q", srvWithRuntimeDepots.cfg.Depots.Store)
 	}
-	if err := (Config{DataDir: t.TempDir(), Gears: GearsConfig{Store: "missing"}}).validate(); err == nil {
-		t.Fatal("validate should fail for missing gears store")
-	}
-	if _, err := (Config{
-		DataDir: t.TempDir(),
-		Stores: map[string]StoreConfig{
-			"bad": {Kind: "memory"},
-		},
-		Depots: DepotsConfig{Store: "bad"},
-	}).firmwareStore(); err == nil {
-		t.Fatal("firmwareStore should fail for non-file store")
-	}
 
-	badgerDir := t.TempDir()
-	badgerCfg := Config{
-		DataDir: badgerDir,
-		Stores: map[string]StoreConfig{
-			"bg": {Kind: "badger", Dir: "gears-data"},
-		},
-		Gears: GearsConfig{Store: "bg"},
-	}
-	if err := badgerCfg.validate(); err != nil {
-		t.Fatalf("validate badger config error: %v", err)
-	}
-	bgStore, err := badgerCfg.gearsStore()
-	if err != nil {
-		t.Fatalf("gearsStore badger error: %v", err)
-	}
-	bgStore.Close()
-
-	if err := (Config{
-		DataDir: t.TempDir(),
-		Stores: map[string]StoreConfig{
-			"bg-nodir": {Kind: "badger"},
-		},
-		Gears: GearsConfig{Store: "bg-nodir"},
-	}).validate(); err == nil {
-		t.Fatal("validate should fail for badger store without dir")
-	}
-	if _, err := (Config{
-		DataDir: t.TempDir(),
-		Stores: map[string]StoreConfig{
-			"bg-nodir": {Kind: "badger"},
-		},
-		Gears: GearsConfig{Store: "bg-nodir"},
-	}).gearsStore(); err == nil {
-		t.Fatal("gearsStore should fail for badger store without dir")
-	}
-	if _, err := (Config{
-		DataDir: t.TempDir(),
-		Stores: map[string]StoreConfig{
-			"unsup": {Kind: "redis"},
-		},
-		Gears: GearsConfig{Store: "unsup"},
-	}).gearsStore(); err == nil {
-		t.Fatal("gearsStore should fail for unsupported kind")
-	}
-
+	// --- validate ---
 	if err := (Config{}).validate(); err == nil {
 		t.Fatal("validate should fail for empty DataDir")
 	}
-	if err := (Config{
-		DataDir: t.TempDir(),
-		Stores: map[string]StoreConfig{
-			"empty-kind": {},
-		},
-		Gears: GearsConfig{Store: "empty-kind"},
-	}).validate(); err == nil {
-		t.Fatal("validate should fail for store with empty kind")
+	if err := (Config{DataDir: t.TempDir()}).validate(); err == nil {
+		t.Fatal("validate should fail for empty gears.store")
 	}
-	if err := (Config{
-		DataDir: t.TempDir(),
-		Stores: map[string]StoreConfig{
-			"dep-nodir": {Kind: "file"},
-		},
-		Depots: DepotsConfig{Store: "dep-nodir"},
-	}).validate(); err == nil {
-		t.Fatal("validate should fail for depots file store without dir")
+	if err := (Config{DataDir: t.TempDir(), Gears: GearsConfig{Store: "x"}}).validate(); err == nil {
+		t.Fatal("validate should fail for empty depots.store")
 	}
-	if _, err := (Config{
-		DataDir: t.TempDir(),
-		Stores: map[string]StoreConfig{
-			"dep-nodir": {Kind: "file", Dir: "data"},
-		},
-		Depots: DepotsConfig{Store: "dep-nodir"},
-	}).firmwareStore(); err != nil {
-		t.Fatalf("firmwareStore with dir should not fail: %v", err)
+
+	// --- New(): store-level errors via Registry ---
+	if _, err := New(Config{
+		DataDir:    t.TempDir(),
+		ConfigPath: writeTempConfig(t, `
+stores:
+  bad:
+    kind: keyvalue
+    backend: memory
+  fw:
+    kind: filestore
+    backend: filesystem
+    dir: firmware
+gears:
+  store: bad
+depots:
+  store: bad
+`),
+	}); err == nil {
+		t.Fatal("New should fail when depots references non-filestore kind")
 	}
-	if _, err := (Config{
-		DataDir: t.TempDir(),
-		Stores: map[string]StoreConfig{
-			"missing": {Kind: "file", Dir: "data"},
-		},
-		Depots: DepotsConfig{Store: "nope"},
-	}).firmwareStore(); err == nil {
-		t.Fatal("firmwareStore should fail for missing store ref")
+	if _, err := New(Config{
+		DataDir:    t.TempDir(),
+		ConfigPath: writeTempConfig(t, `
+stores:
+  bg-nodir:
+    kind: keyvalue
+    backend: badger
+  fw:
+    kind: filestore
+    backend: filesystem
+    dir: firmware
+gears:
+  store: bg-nodir
+depots:
+  store: fw
+`),
+	}); err == nil {
+		t.Fatal("New should fail for badger store without dir")
 	}
-	defaultFW, err := (Config{DataDir: t.TempDir()}).firmwareStore()
+	if _, err := New(Config{
+		DataDir:    t.TempDir(),
+		ConfigPath: writeTempConfig(t, `
+stores:
+  unsup:
+    kind: keyvalue
+    backend: redis
+  fw:
+    kind: filestore
+    backend: filesystem
+    dir: firmware
+gears:
+  store: unsup
+depots:
+  store: fw
+`),
+	}); err == nil {
+		t.Fatal("New should fail for unsupported backend")
+	}
+	if _, err := New(Config{
+		DataDir:    t.TempDir(),
+		ConfigPath: writeTempConfig(t, `
+stores:
+  mem:
+    kind: keyvalue
+    backend: memory
+  dep-nodir:
+    kind: filestore
+    backend: filesystem
+gears:
+  store: mem
+depots:
+  store: dep-nodir
+`),
+	}); err == nil {
+		t.Fatal("New should fail for filestore without dir")
+	}
+	if _, err := New(Config{
+		DataDir:    t.TempDir(),
+		ConfigPath: writeTempConfig(t, `
+stores:
+  fw:
+    kind: filestore
+    backend: filesystem
+    dir: firmware
+gears:
+  store: missing
+depots:
+  store: fw
+`),
+	}); err == nil {
+		t.Fatal("New should fail for missing gears store ref")
+	}
+
+	// --- New(): badger + filestore happy path ---
+	srv, err := New(Config{
+		DataDir:    t.TempDir(),
+		ConfigPath: writeTempConfig(t, `
+stores:
+  bg:
+    kind: keyvalue
+    backend: badger
+    dir: gears-data
+  fw:
+    kind: filestore
+    backend: filesystem
+    dir: firmware
+gears:
+  store: bg
+depots:
+  store: fw
+`),
+	})
 	if err != nil {
-		t.Fatalf("firmwareStore default error: %v", err)
+		t.Fatalf("New with badger+filesystem: %v", err)
 	}
-	if defaultFW == nil {
-		t.Fatal("firmwareStore default should not be nil")
+	srv.stores.Close()
+
+	// --- New(): missing gears.store ---
+	if _, err := New(Config{
+		DataDir:    t.TempDir(),
+		ConfigPath: writeTempConfig(t, `
+stores:
+  fw:
+    kind: filestore
+    backend: filesystem
+    dir: firmware
+depots:
+  store: fw
+`),
+	}); err == nil {
+		t.Fatal("New should fail when gears.store is missing")
 	}
-	noStoreKV, err := (Config{DataDir: t.TempDir()}).gearsStore()
-	if err != nil {
-		t.Fatalf("gearsStore default (no store) error: %v", err)
+
+	// --- New(): missing depots.store ---
+	if _, err := New(Config{
+		DataDir:    t.TempDir(),
+		ConfigPath: writeTempConfig(t, `
+stores:
+  mem:
+    kind: keyvalue
+    backend: memory
+gears:
+  store: mem
+`),
+	}); err == nil {
+		t.Fatal("New should fail when depots.store is missing")
 	}
-	noStoreKV.Close()
+
+	// --- effectiveListenAddr ---
 	if got := (Config{ListenAddr: ":8080"}).effectiveListenAddr(); got != ":8080" {
 		t.Fatalf("effectiveListenAddr = %q, want :8080", got)
 	}
-	if err := (Config{
-		Stores: map[string]StoreConfig{
-			"bg": {Kind: "badger", Dir: "data"},
-		},
-		Gears: GearsConfig{Store: "bg"},
-	}).validate(); err == nil {
-		t.Fatal("validate badger with empty DataDir should fail")
-	}
+
+	// --- LoadConfig missing file ---
 	if _, err := LoadConfig("/nonexistent/path/config.yaml"); err == nil {
 		t.Fatal("LoadConfig should fail for missing file")
-	}
-
-	workspaceCfg := Config{DataDir: t.TempDir()}
-	if got, err := workspaceCfg.workspacePath("firmware"); err != nil {
-		t.Fatalf("workspacePath relative error: %v", err)
-	} else if got != filepath.Join(workspaceCfg.DataDir, "firmware") {
-		t.Fatalf("workspacePath relative = %q", got)
-	}
-	absPath := filepath.Join(t.TempDir(), "firmware")
-	if got, err := workspaceCfg.workspacePath(absPath); err != nil {
-		t.Fatalf("workspacePath absolute error: %v", err)
-	} else if got != absPath {
-		t.Fatalf("workspacePath absolute = %q", got)
 	}
 }
 

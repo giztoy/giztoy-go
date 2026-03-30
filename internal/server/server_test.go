@@ -16,12 +16,17 @@ import (
 
 func TestServerPeerPing(t *testing.T) {
 	dir := t.TempDir()
-	cfg := Config{DataDir: dir, ListenAddr: "127.0.0.1:0"}
+	cfg := Config{
+		DataDir:    dir,
+		ListenAddr: "127.0.0.1:0",
+		ConfigPath: writeTempConfig(t, minimalTestConfig),
+	}
 
 	srv, err := New(cfg)
 	if err != nil {
 		t.Fatalf("New err=%v", err)
 	}
+	t.Cleanup(func() { srv.stores.Close() })
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -108,12 +113,17 @@ func TestServerPeerPing(t *testing.T) {
 
 func TestServerUnknownMethod(t *testing.T) {
 	dir := t.TempDir()
-	cfg := Config{DataDir: dir, ListenAddr: "127.0.0.1:0"}
+	cfg := Config{
+		DataDir:    dir,
+		ListenAddr: "127.0.0.1:0",
+		ConfigPath: writeTempConfig(t, minimalTestConfig),
+	}
 
 	srv, err := New(cfg)
 	if err != nil {
 		t.Fatal(err)
 	}
+	t.Cleanup(func() { srv.stores.Close() })
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -173,20 +183,30 @@ func TestDefaultConfig(t *testing.T) {
 }
 
 func TestServerListenAddrBeforeRun(t *testing.T) {
-	srv, err := New(Config{DataDir: t.TempDir(), ListenAddr: "127.0.0.1:0"})
+	srv, err := New(Config{
+		DataDir:    t.TempDir(),
+		ListenAddr: "127.0.0.1:0",
+		ConfigPath: writeTempConfig(t, minimalTestConfig),
+	})
 	if err != nil {
 		t.Fatalf("New err=%v", err)
 	}
+	t.Cleanup(func() { srv.stores.Close() })
 	if got := srv.ListenAddr(); got != "" {
 		t.Fatalf("ListenAddr before Run=%q, want empty", got)
 	}
 }
 
 func TestServerRunListenError(t *testing.T) {
-	srv, err := New(Config{DataDir: t.TempDir(), ListenAddr: "bad-listen-addr"})
+	srv, err := New(Config{
+		DataDir:    t.TempDir(),
+		ListenAddr: "bad-listen-addr",
+		ConfigPath: writeTempConfig(t, minimalTestConfig),
+	})
 	if err != nil {
 		t.Fatalf("New err=%v", err)
 	}
+	t.Cleanup(func() { srv.stores.Close() })
 
 	if err := srv.Run(context.Background()); err == nil {
 		t.Fatal("Run with bad listen addr should fail")

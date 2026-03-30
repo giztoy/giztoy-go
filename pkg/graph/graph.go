@@ -90,4 +90,7 @@ type Graph interface {
 	// labels, returning all discovered labels (including seeds). hops controls
 	// the maximum traversal depth (0 returns only the seeds).
 	Expand(ctx context.Context, labels []string, hops int) ([]string, error)
+
+	// Close releases resources held by the graph.
+	Close() error
 }
