@@ -17,6 +17,8 @@ import (
 	"github.com/haivivi/giztoy/go/pkg/graph"
 	"github.com/haivivi/giztoy/go/pkg/kv"
 	"github.com/haivivi/giztoy/go/pkg/vecstore"
+	_ "github.com/lib/pq"
+	_ "modernc.org/sqlite"
 )
 
 // Kind constants for the store category.
@@ -40,7 +42,7 @@ type Config struct {
 	Backend string `yaml:"backend"`
 	Dir     string `yaml:"dir"`
 	Store   string `yaml:"store"` // graph backend "kv": reference to a keyvalue store
-	Dim     int    `yaml:"dim"`   // vecstore: vector dimension (reserved)
+	Dim     int    `yaml:"dim"`   // vecstore/hnsw: vector dimension
 	DSN     string `yaml:"dsn"`   // sql: connection string (reserved)
 }
 
@@ -90,7 +92,7 @@ func New(baseDir string, configs map[string]Config) (*Stores, error) {
 			s.kvs[name] = st
 			s.closers = append(s.closers, st)
 		case KindVecStore:
-			st, err := s.newVecStore(name, cfg)
+			st, err := s.newVecStore(baseDir, name, cfg)
 			if err != nil {
 				return nil, err
 			}
@@ -210,10 +212,19 @@ func (r *Stores) newKV(baseDir, name string, cfg Config) (kv.Store, error) {
 	}
 }
 
-func (r *Stores) newVecStore(name string, cfg Config) (vecstore.Index, error) {
+func (r *Stores) newVecStore(baseDir, name string, cfg Config) (vecstore.Index, error) {
 	switch cfg.Backend {
 	case "memory":
 		return vecstore.NewMemory(), nil
+	case "hnsw":
+		if cfg.Dim <= 0 {
+			return nil, fmt.Errorf("stores: vecstore %q (hnsw) requires positive dim", name)
+		}
+		if cfg.Dir == "" {
+			return nil, fmt.Errorf("stores: vecstore %q (hnsw) requires dir", name)
+		}
+		path := filepath.Join(resolveDir(baseDir, cfg.Dir), hnswIndexFilename)
+		return openPersistentHNSW(path, vecstore.HNSWConfig{Dim: cfg.Dim})
 	default:
 		return nil, fmt.Errorf("stores: vecstore %q unknown backend %q", name, cfg.Backend)
 	}

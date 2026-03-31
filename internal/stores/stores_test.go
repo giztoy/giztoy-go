@@ -245,6 +245,125 @@ stores:
 	}
 }
 
+func TestVecStoreHNSW(t *testing.T) {
+	reg := mustStores(t, t.TempDir(), []byte(`
+stores:
+  vec:
+    kind: vecstore
+    backend: hnsw
+    dir: vec-data
+    dim: 3
+`))
+	defer reg.Close()
+
+	idx, err := reg.VecStore("vec")
+	if err != nil {
+		t.Fatalf("VecStore(vec): %v", err)
+	}
+	if err := idx.Insert("a", []float32{1, 0, 0}); err != nil {
+		t.Fatalf("Insert: %v", err)
+	}
+	if err := idx.Insert("b", []float32{0, 1, 0}); err != nil {
+		t.Fatalf("Insert second: %v", err)
+	}
+	if err := idx.Flush(); err != nil {
+		t.Fatalf("Flush: %v", err)
+	}
+
+	matches, err := idx.Search([]float32{1, 0, 0}, 1)
+	if err != nil {
+		t.Fatalf("Search: %v", err)
+	}
+	if len(matches) != 1 || matches[0].ID != "a" {
+		t.Fatalf("Search mismatch: %+v", matches)
+	}
+}
+
+func TestVecStoreHNSWPersistsAcrossReopen(t *testing.T) {
+	dir := t.TempDir()
+	cfgs := map[string]Config{
+		"vec": {
+			Kind:    KindVecStore,
+			Backend: "hnsw",
+			Dir:     "vec-data",
+			Dim:     3,
+		},
+	}
+
+	reg, err := New(dir, cfgs)
+	if err != nil {
+		t.Fatalf("New first: %v", err)
+	}
+	idx, err := reg.VecStore("vec")
+	if err != nil {
+		t.Fatalf("VecStore first: %v", err)
+	}
+	if err := idx.Insert("persisted", []float32{1, 0, 0}); err != nil {
+		t.Fatalf("Insert: %v", err)
+	}
+	if err := reg.Close(); err != nil {
+		t.Fatalf("Close first: %v", err)
+	}
+
+	reg2, err := New(dir, cfgs)
+	if err != nil {
+		t.Fatalf("New second: %v", err)
+	}
+	defer reg2.Close()
+
+	idx2, err := reg2.VecStore("vec")
+	if err != nil {
+		t.Fatalf("VecStore second: %v", err)
+	}
+	if idx2.Len() != 1 {
+		t.Fatalf("Len after reopen = %d, want 1", idx2.Len())
+	}
+	matches, err := idx2.Search([]float32{1, 0, 0}, 1)
+	if err != nil {
+		t.Fatalf("Search after reopen: %v", err)
+	}
+	if len(matches) != 1 || matches[0].ID != "persisted" {
+		t.Fatalf("Search after reopen mismatch: %+v", matches)
+	}
+}
+
+func TestVecStoreHNSWRejectsDimMismatchOnReopen(t *testing.T) {
+	dir := t.TempDir()
+	cfgs := map[string]Config{
+		"vec": {
+			Kind:    KindVecStore,
+			Backend: "hnsw",
+			Dir:     "vec-data",
+			Dim:     3,
+		},
+	}
+
+	reg, err := New(dir, cfgs)
+	if err != nil {
+		t.Fatalf("New first: %v", err)
+	}
+	idx, err := reg.VecStore("vec")
+	if err != nil {
+		t.Fatalf("VecStore first: %v", err)
+	}
+	if err := idx.Insert("persisted", []float32{1, 0, 0}); err != nil {
+		t.Fatalf("Insert: %v", err)
+	}
+	if err := reg.Close(); err != nil {
+		t.Fatalf("Close first: %v", err)
+	}
+
+	cfgs["vec"] = Config{
+		Kind:    KindVecStore,
+		Backend: "hnsw",
+		Dir:     "vec-data",
+		Dim:     4,
+	}
+	if _, err := New(dir, cfgs); err == nil {
+		t.Fatal("expected error for HNSW dimension mismatch on reopen")
+	}
+}
+
 func TestVecStoreNotFound(t *testing.T) {
 	reg := mustStores(t, t.TempDir(), []byte(`
 stores:
@@ -267,6 +386,22 @@ func TestNewVecStoreUnknownBackend(t *testing.T) {
 		"x": {Kind: KindVecStore, Backend: "qdrant"},
 	}); err == nil {
 		t.Fatal("expected error for unknown vecstore backend")
+	}
+}
+
+func TestNewVecStoreHNSWNoDim(t *testing.T) {
+	if _, err := New(t.TempDir(), map[string]Config{
+		"x": {Kind: KindVecStore, Backend: "hnsw", Dir: "vec-data"},
+	}); err == nil {
+		t.Fatal("expected error for hnsw without dim")
+	}
+}
+
+func TestNewVecStoreHNSWNoDir(t *testing.T) {
+	if _, err := New(t.TempDir(), map[string]Config{
+		"x": {Kind: KindVecStore, Backend: "hnsw", Dim: 3},
+	}); err == nil {
+		t.Fatal("expected error for hnsw without dir")
 	}
 }
 
