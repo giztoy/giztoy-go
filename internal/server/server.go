@@ -217,7 +217,6 @@ func (s *Server) servePeer(ctx context.Context, conn *peer.Conn) {
 	publicKey := conn.PublicKey().String()
 	s.markPeerOnline(publicKey, conn)
 	defer s.markPeerOffline(publicKey, conn)
-	defer s.listener.Release(conn.PublicKey())
 
 	go func() {
 		if err := s.serveAdminHTTP(ctx, conn); err != nil && !errors.Is(err, net.ErrClosed) {

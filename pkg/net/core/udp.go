@@ -751,22 +751,16 @@ func (u *UDP) handleHandshakeInit(data []byte, from *net.UDPAddr) {
 		return
 	}
 
-	// Create ServiceMux before acquiring the lock
-	smux := u.createServiceMux(peer)
-
 	peer.mu.Lock()
-	oldSmux := peer.serviceMux
+	if peer.serviceMux == nil {
+		peer.serviceMux = u.createServiceMux(peer)
+	}
 	oldSession := peer.session
 	peer.endpoint = from
 	peer.session = session
-	peer.serviceMux = smux
 	peer.state = PeerStateEstablished
 	peer.lastSeen = time.Now()
 	peer.mu.Unlock()
-
-	if oldSmux != nil {
-		oldSmux.Close()
-	}
 
 	// Register in index map and clean up stale entry
 	u.mu.Lock()

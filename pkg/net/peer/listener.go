@@ -143,18 +143,6 @@ func (l *Listener) HostInfo() *core.HostInfo {
 	return l.udp.HostInfo()
 }
 
-// Release removes a peer from the known set, allowing it to be re-accepted
-// by a subsequent Accept call. Intended to be called when the application is
-// done serving a peer (e.g. the serve loop exits).
-func (l *Listener) Release(pk noise.PublicKey) {
-	if l == nil {
-		return
-	}
-	l.mu.Lock()
-	delete(l.known, pk)
-	l.mu.Unlock()
-}
-
 func (l *Listener) Close() error {
 	if l == nil {
 		return ErrNilListener
