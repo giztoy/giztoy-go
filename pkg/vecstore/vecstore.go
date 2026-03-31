@@ -3,7 +3,7 @@
 //
 // The [Index] interface defines the contract for vector storage and search.
 // Implementations include an in-memory brute-force index for testing
-// ([NewMemory]) and HNSW for production use (planned).
+// ([NewMemory]) and HNSW for persisted ANN search.
 //
 // This package follows the same pattern as [kv]: a generic interface with
 // pluggable backends. For all-in-one deployment, use the built-in

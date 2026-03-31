@@ -151,6 +151,14 @@ func (h *HNSW) SetEfSearch(ef int) error {
 	return nil
 }
 
+// Config returns a copy of the index configuration.
+func (h *HNSW) Config() HNSWConfig {
+	h.mu.RLock()
+	cfg := h.cfg
+	h.mu.RUnlock()
+	return cfg
+}
+
 // Len returns the number of vectors in the index.
 func (h *HNSW) Len() int {
 	h.mu.RLock()

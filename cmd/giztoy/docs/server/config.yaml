@@ -38,7 +38,7 @@ stores:
   postgres:
     kind: sql
     backend: postgres
-    dsn: "postgres://user:pass@localhost:5432/giztoy?sslmode=disable"
+    dsn: "postgres://giztoy:giztoy@localhost:5432/giztoy?sslmode=disable"
 
   badger:
     kind: keyvalue
@@ -46,10 +46,12 @@ stores:
     dir: badger-data
 
   # 向量近似最近邻搜索。
-  # 当前只支持 memory 后端（brute-force，适合小规模）。
+  # memory 适合小规模；hnsw 支持落盘并在重启后恢复。
   vecstore:
     kind: vecstore
-    backend: memory
+    backend: hnsw
+    dir: vec-data
+    dim: 768
 
   # 实体-关系图。
   # backend: kv 表示底层使用一个 keyvalue store 存储。
