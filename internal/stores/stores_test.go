@@ -555,10 +555,12 @@ func TestCloseEmpty(t *testing.T) {
 // --- resolveDir ---
 
 func TestResolveDir(t *testing.T) {
-	if got := resolveDir("/base", "rel"); got != filepath.Join("/base", "rel") {
+	base := filepath.Join(string(filepath.Separator), "base")
+	if got := resolveDir(base, "rel"); got != filepath.Join(base, "rel") {
 		t.Fatalf("resolveDir relative = %q", got)
 	}
-	if got := resolveDir("/base", "/abs/path"); got != "/abs/path" {
+	abs := filepath.Join(string(filepath.Separator), "abs", "path")
+	if got := resolveDir(base, abs); got != abs {
 		t.Fatalf("resolveDir absolute = %q", got)
 	}
 }

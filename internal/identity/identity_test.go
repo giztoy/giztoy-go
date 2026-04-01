@@ -3,6 +3,7 @@ package identity
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/giztoy/giztoy-go/pkg/net/noise"
@@ -29,8 +30,12 @@ func TestLoadOrGenerate_NewFile(t *testing.T) {
 	}
 
 	info, _ := os.Stat(path)
-	if perm := info.Mode().Perm(); perm != 0o600 {
+	perm := info.Mode().Perm()
+	if runtime.GOOS != "windows" && perm != 0o600 {
 		t.Fatalf("key file perm=%o, want 0600", perm)
+	}
+	if runtime.GOOS == "windows" && perm == 0 {
+		t.Fatalf("key file perm=%o, want non-zero", perm)
 	}
 }
 
