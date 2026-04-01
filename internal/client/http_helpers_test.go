@@ -56,6 +56,7 @@ func newTestClient(t *testing.T, srv *server.Server) *Client {
 	if err != nil {
 		t.Fatalf("Dial error: %v", err)
 	}
+	waitForClientPublicReady(t, c)
 	t.Cleanup(func() { _ = c.Close() })
 	return c
 }
@@ -77,9 +78,7 @@ func waitForTestServerReady(t *testing.T, srv *server.Server) {
 		}
 		c, err := Dial(key, addr, srv.PublicKey())
 		if err == nil {
-			ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
-			_, infoErr := c.GetServerInfo(ctx)
-			cancel()
+			infoErr := probeClientPublicReady(c)
 			_ = c.Close()
 			if infoErr == nil {
 				return
@@ -90,4 +89,25 @@ func waitForTestServerReady(t *testing.T, srv *server.Server) {
 	}
 
 	t.Fatal("test server did not become ready")
+}
+
+func waitForClientPublicReady(t *testing.T, c *Client) {
+	t.Helper()
+
+	deadline := time.Now().Add(5 * time.Second)
+	for time.Now().Before(deadline) {
+		if err := probeClientPublicReady(c); err == nil {
+			return
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+
+	t.Fatal("test client public service did not become ready")
+}
+
+func probeClientPublicReady(c *Client) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
+	defer cancel()
+	_, err := c.GetServerInfo(ctx)
+	return err
 }
