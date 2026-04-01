@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/haivivi/giztoy/go/pkg/gears"
+	"github.com/giztoy/giztoy-go/pkg/gears"
 )
 
 func TestAdminGearsPutConfigMergesExistingConfig(t *testing.T) {

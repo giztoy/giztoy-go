@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/haivivi/giztoy/go/pkg/genx/profilers"
-	"github.com/haivivi/giztoy/go/pkg/genx/segmentors"
+	"github.com/giztoy/giztoy-go/pkg/genx/profilers"
+	"github.com/giztoy/giztoy-go/pkg/genx/segmentors"
 )
 
 // LLMCompressorConfig configures an [LLMCompressor].

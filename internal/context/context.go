@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 
 	"github.com/goccy/go-yaml"
-	"github.com/haivivi/giztoy/go/internal/identity"
-	"github.com/haivivi/giztoy/go/pkg/net/noise"
+	"github.com/giztoy/giztoy-go/internal/identity"
+	"github.com/giztoy/giztoy-go/pkg/net/noise"
 )
 
 // ServerConfig holds the connection info for a remote server.

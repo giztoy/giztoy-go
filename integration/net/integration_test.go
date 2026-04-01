@@ -8,9 +8,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/haivivi/giztoy/go/integration/testutil"
-	"github.com/haivivi/giztoy/go/pkg/net/core"
-	"github.com/haivivi/giztoy/go/pkg/net/noise"
+	"github.com/giztoy/giztoy-go/integration/testutil"
+	"github.com/giztoy/giztoy-go/pkg/net/core"
+	"github.com/giztoy/giztoy-go/pkg/net/noise"
 )
 
 // TestIntegration_ConnectionPoolCapacity verifies the server can handle

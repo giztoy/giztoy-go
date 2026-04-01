@@ -7,9 +7,9 @@ import (
 	"testing"
 	"time"
 
-	gnet "github.com/haivivi/giztoy/go/pkg/net/core"
-	"github.com/haivivi/giztoy/go/pkg/net/noise"
-	"github.com/haivivi/giztoy/go/pkg/net/peer"
+	gnet "github.com/giztoy/giztoy-go/pkg/net/core"
+	"github.com/giztoy/giztoy-go/pkg/net/noise"
+	"github.com/giztoy/giztoy-go/pkg/net/peer"
 )
 
 // NewUDPNode 创建一个新的 UDP 节点用于测试

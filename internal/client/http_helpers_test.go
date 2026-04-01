@@ -5,9 +5,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/haivivi/giztoy/go/internal/server"
-	"github.com/haivivi/giztoy/go/pkg/gears"
-	"github.com/haivivi/giztoy/go/pkg/net/noise"
+	"github.com/giztoy/giztoy-go/internal/server"
+	"github.com/giztoy/giztoy-go/pkg/gears"
+	"github.com/giztoy/giztoy-go/pkg/net/noise"
 )
 
 func startTestServer(t *testing.T) (*server.Server, context.CancelFunc) {

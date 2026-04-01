@@ -3,7 +3,7 @@ package netbench
 import (
 	"testing"
 
-	"github.com/haivivi/giztoy/go/benchmark/net/internal/framework"
+	"github.com/giztoy/giztoy-go/benchmark/net/internal/framework"
 )
 
 func requireScaleMode(b *testing.B) {

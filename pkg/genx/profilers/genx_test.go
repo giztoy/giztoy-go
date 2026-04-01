@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/haivivi/giztoy/go/pkg/genx"
+	"github.com/giztoy/giztoy-go/pkg/genx"
 )
 
 func TestParseResultSuccess(t *testing.T) {

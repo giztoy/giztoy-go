@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/haivivi/giztoy/go/pkg/kv"
+	"github.com/giztoy/giztoy-go/pkg/kv"
 )
 
 func TestServiceRegisterApproveBlockDeleteRefresh(t *testing.T) {

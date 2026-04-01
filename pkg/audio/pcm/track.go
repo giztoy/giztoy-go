@@ -6,7 +6,7 @@ import (
 	"io"
 	"sync"
 
-	"github.com/haivivi/giztoy/go/pkg/audio/resampler"
+	"github.com/giztoy/giztoy-go/pkg/audio/resampler"
 )
 
 // Track is a writable audio track in a Mixer.

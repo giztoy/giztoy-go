@@ -7,9 +7,9 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/haivivi/giztoy/go/pkg/gears"
-	"github.com/haivivi/giztoy/go/pkg/net/httptransport"
-	"github.com/haivivi/giztoy/go/pkg/net/peer"
+	"github.com/giztoy/giztoy-go/pkg/gears"
+	"github.com/giztoy/giztoy-go/pkg/net/httptransport"
+	"github.com/giztoy/giztoy-go/pkg/net/peer"
 )
 
 var ErrDeviceOffline = errors.New("server: device offline")

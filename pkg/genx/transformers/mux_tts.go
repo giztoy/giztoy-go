@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/haivivi/giztoy/go/pkg/genx"
-	"github.com/haivivi/giztoy/go/pkg/trie"
+	"github.com/giztoy/giztoy-go/pkg/genx"
+	"github.com/giztoy/giztoy-go/pkg/trie"
 )
 
 // TTSMux is the default TTS transformer multiplexer.

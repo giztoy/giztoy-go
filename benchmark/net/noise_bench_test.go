@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/haivivi/giztoy/go/benchmark/net/internal/adapters"
-	"github.com/haivivi/giztoy/go/benchmark/net/internal/framework"
-	"github.com/haivivi/giztoy/go/benchmark/net/internal/scenarios"
-	"github.com/haivivi/giztoy/go/pkg/net/noise"
+	"github.com/giztoy/giztoy-go/benchmark/net/internal/adapters"
+	"github.com/giztoy/giztoy-go/benchmark/net/internal/framework"
+	"github.com/giztoy/giztoy-go/benchmark/net/internal/scenarios"
+	"github.com/giztoy/giztoy-go/pkg/net/noise"
 )
 
 const maxNoiseDatagramPayload = 4096

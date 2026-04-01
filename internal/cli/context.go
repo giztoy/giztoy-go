@@ -3,7 +3,7 @@ package cli
 import (
 	"fmt"
 
-	gctx "github.com/haivivi/giztoy/go/internal/context"
+	gctx "github.com/giztoy/giztoy-go/internal/context"
 	"github.com/spf13/cobra"
 )
 

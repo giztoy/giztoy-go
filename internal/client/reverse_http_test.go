@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/haivivi/giztoy/go/pkg/gears"
+	"github.com/giztoy/giztoy-go/pkg/gears"
 )
 
 func TestReverseHTTPRefresh(t *testing.T) {

@@ -8,9 +8,9 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/haivivi/giztoy/go/pkg/firmware"
-	"github.com/haivivi/giztoy/go/pkg/gears"
-	"github.com/haivivi/giztoy/go/pkg/net/peer"
+	"github.com/giztoy/giztoy-go/pkg/firmware"
+	"github.com/giztoy/giztoy-go/pkg/gears"
+	"github.com/giztoy/giztoy-go/pkg/net/peer"
 )
 
 func (c *Client) GetServerInfo(ctx context.Context) (map[string]any, error) {

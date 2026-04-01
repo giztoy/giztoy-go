@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/haivivi/giztoy/go/pkg/net/noise"
+	"github.com/giztoy/giztoy-go/pkg/net/noise"
 )
 
 func TestTickNewConn(t *testing.T) {

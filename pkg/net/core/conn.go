@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/haivivi/giztoy/go/pkg/net/noise"
+	"github.com/giztoy/giztoy-go/pkg/net/noise"
 )
 
 // recvBufferPool is a pool for receive buffers to reduce allocations.

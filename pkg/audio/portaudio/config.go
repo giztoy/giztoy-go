@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/haivivi/giztoy/go/pkg/audio/pcm"
+	"github.com/giztoy/giztoy-go/pkg/audio/pcm"
 )
 
 const (

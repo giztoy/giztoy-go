@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/haivivi/giztoy/go/pkg/net/kcp"
-	"github.com/haivivi/giztoy/go/pkg/net/noise"
+	"github.com/giztoy/giztoy-go/pkg/net/kcp"
+	"github.com/giztoy/giztoy-go/pkg/net/noise"
 )
 
 func serviceMuxPair() (client, server *ServiceMux) {

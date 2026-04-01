@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/haivivi/giztoy/go/pkg/net/noise"
+	"github.com/giztoy/giztoy-go/pkg/net/noise"
 )
 
 // MockAddr is a simple address for testing.

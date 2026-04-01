@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/haivivi/giztoy/go/pkg/net/noise"
+	"github.com/giztoy/giztoy-go/pkg/net/noise"
 )
 
 const noiseWireNonceSize = 8

@@ -1,8 +1,8 @@
 package adapters
 
 import (
-	"github.com/haivivi/giztoy/go/benchmark/net/internal/framework"
-	"github.com/haivivi/giztoy/go/pkg/net/kcp"
+	"github.com/giztoy/giztoy-go/benchmark/net/internal/framework"
+	"github.com/giztoy/giztoy-go/pkg/net/kcp"
 )
 
 // KCPNoisePair is a KCP-over-Noise benchmark adapter over local UDP sockets.

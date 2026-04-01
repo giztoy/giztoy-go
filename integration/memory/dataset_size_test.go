@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/haivivi/giztoy/go/pkg/memory"
+	"github.com/giztoy/giztoy-go/pkg/memory"
 )
 
 // 场景 1：加载不同 size 数据文件，且对每一档都运行真实模型的

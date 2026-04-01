@@ -7,10 +7,10 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/haivivi/giztoy/go/pkg/embed"
-	"github.com/haivivi/giztoy/go/pkg/kv"
-	"github.com/haivivi/giztoy/go/pkg/recall"
-	"github.com/haivivi/giztoy/go/pkg/vecstore"
+	"github.com/giztoy/giztoy-go/pkg/embed"
+	"github.com/giztoy/giztoy-go/pkg/kv"
+	"github.com/giztoy/giztoy-go/pkg/recall"
+	"github.com/giztoy/giztoy-go/pkg/vecstore"
 )
 
 // HostConfig configures a [Host].

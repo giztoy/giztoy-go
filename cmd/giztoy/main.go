@@ -3,7 +3,7 @@ package main
 import (
 	"os"
 
-	"github.com/haivivi/giztoy/go/internal/cli"
+	"github.com/giztoy/giztoy-go/internal/cli"
 )
 
 func main() {

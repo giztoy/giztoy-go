@@ -4,7 +4,7 @@ package profilers
 import (
 	"context"
 
-	"github.com/haivivi/giztoy/go/pkg/genx/segmentors"
+	"github.com/giztoy/giztoy-go/pkg/genx/segmentors"
 )
 
 // Profiler evolves schemas and updates profiles.

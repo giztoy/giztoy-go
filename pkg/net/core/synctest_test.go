@@ -7,7 +7,7 @@ import (
 	"testing/synctest"
 	"time"
 
-	"github.com/haivivi/giztoy/go/pkg/net/noise"
+	"github.com/giztoy/giztoy-go/pkg/net/noise"
 )
 
 // TestTickKeepaliveWithFakeTime tests keepalive using fake time.

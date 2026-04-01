@@ -9,7 +9,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/haivivi/giztoy/go/pkg/kv"
+	"github.com/giztoy/giztoy-go/pkg/kv"
 )
 
 // KV key layout (relative to the configured prefix):

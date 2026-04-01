@@ -4,7 +4,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/haivivi/giztoy/go/pkg/kv"
+	"github.com/giztoy/giztoy-go/pkg/kv"
 )
 
 var gearsRoot = kv.Key{"gears"}

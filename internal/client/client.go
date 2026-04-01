@@ -7,11 +7,11 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/haivivi/giztoy/go/internal/server"
-	"github.com/haivivi/giztoy/go/pkg/net/core"
-	"github.com/haivivi/giztoy/go/pkg/net/httptransport"
-	"github.com/haivivi/giztoy/go/pkg/net/noise"
-	"github.com/haivivi/giztoy/go/pkg/net/peer"
+	"github.com/giztoy/giztoy-go/internal/server"
+	"github.com/giztoy/giztoy-go/pkg/net/core"
+	"github.com/giztoy/giztoy-go/pkg/net/httptransport"
+	"github.com/giztoy/giztoy-go/pkg/net/noise"
+	"github.com/giztoy/giztoy-go/pkg/net/peer"
 )
 
 // Client connects to a Giztoy server.

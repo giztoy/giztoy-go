@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/haivivi/giztoy/go/pkg/net/noise"
+	"github.com/giztoy/giztoy-go/pkg/net/noise"
 )
 
 // Dial establishes a connection to a remote peer with context support.

@@ -10,12 +10,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/haivivi/giztoy/go/pkg/audio/codec/mp3"
-	"github.com/haivivi/giztoy/go/pkg/audio/codec/ogg"
-	"github.com/haivivi/giztoy/go/pkg/audio/codec/opus"
-	"github.com/haivivi/giztoy/go/pkg/audio/pcm"
-	"github.com/haivivi/giztoy/go/pkg/audio/portaudio"
-	"github.com/haivivi/giztoy/go/pkg/audio/resampler"
+	"github.com/giztoy/giztoy-go/pkg/audio/codec/mp3"
+	"github.com/giztoy/giztoy-go/pkg/audio/codec/ogg"
+	"github.com/giztoy/giztoy-go/pkg/audio/codec/opus"
+	"github.com/giztoy/giztoy-go/pkg/audio/pcm"
+	"github.com/giztoy/giztoy-go/pkg/audio/portaudio"
+	"github.com/giztoy/giztoy-go/pkg/audio/resampler"
 )
 
 func patchDeps(t *testing.T) {

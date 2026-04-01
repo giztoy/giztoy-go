@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/haivivi/giztoy/go/pkg/net/noise"
+	"github.com/giztoy/giztoy-go/pkg/net/noise"
 )
 
 // TestSetSession tests the Conn.SetSession method.

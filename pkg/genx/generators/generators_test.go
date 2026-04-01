@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/haivivi/giztoy/go/pkg/genx"
+	"github.com/giztoy/giztoy-go/pkg/genx"
 )
 
 type stubGenerator struct {

@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/haivivi/giztoy/go/pkg/gears"
+	"github.com/giztoy/giztoy-go/pkg/gears"
 )
 
 func TestAdminGearsLifecycle(t *testing.T) {

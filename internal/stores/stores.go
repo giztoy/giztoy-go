@@ -13,10 +13,10 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/haivivi/giztoy/go/pkg/firmware"
-	"github.com/haivivi/giztoy/go/pkg/graph"
-	"github.com/haivivi/giztoy/go/pkg/kv"
-	"github.com/haivivi/giztoy/go/pkg/vecstore"
+	"github.com/giztoy/giztoy-go/pkg/firmware"
+	"github.com/giztoy/giztoy-go/pkg/graph"
+	"github.com/giztoy/giztoy-go/pkg/kv"
+	"github.com/giztoy/giztoy-go/pkg/vecstore"
 )
 
 // Kind constants for the store category.

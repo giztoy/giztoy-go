@@ -6,8 +6,8 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/haivivi/giztoy/go/pkg/net/kcp"
-	"github.com/haivivi/giztoy/go/pkg/net/noise"
+	"github.com/giztoy/giztoy-go/pkg/net/kcp"
+	"github.com/giztoy/giztoy-go/pkg/net/noise"
 )
 
 var (

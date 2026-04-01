@@ -4,8 +4,8 @@ import (
 	"net"
 	"sync/atomic"
 
-	"github.com/haivivi/giztoy/go/pkg/net/core"
-	"github.com/haivivi/giztoy/go/pkg/net/noise"
+	"github.com/giztoy/giztoy-go/pkg/net/core"
+	"github.com/giztoy/giztoy-go/pkg/net/noise"
 )
 
 type Conn struct {

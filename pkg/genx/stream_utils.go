@@ -4,7 +4,7 @@ import (
 	"io"
 	"sync"
 
-	"github.com/haivivi/giztoy/go/pkg/buffer"
+	"github.com/giztoy/giztoy-go/pkg/buffer"
 )
 
 // Matcher is a function that determines if a MessageChunk matches a criteria.

@@ -9,8 +9,8 @@ import (
 	"testing"
 
 	"github.com/goccy/go-yaml"
-	"github.com/haivivi/giztoy/go/pkg/graph"
-	"github.com/haivivi/giztoy/go/pkg/kv"
+	"github.com/giztoy/giztoy-go/pkg/graph"
+	"github.com/giztoy/giztoy-go/pkg/kv"
 )
 
 type fakeDriver struct{}

@@ -6,7 +6,7 @@ import (
 	"io"
 	"time"
 
-	"github.com/haivivi/giztoy/go/pkg/audio/pcm"
+	"github.com/giztoy/giztoy-go/pkg/audio/pcm"
 )
 
 // PCMPlaybackWriter adapts PlaybackStream to pcm.WriteCloser.

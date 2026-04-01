@@ -11,10 +11,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/haivivi/giztoy/go/integration/testutil"
-	"github.com/haivivi/giztoy/go/pkg/net/core"
-	"github.com/haivivi/giztoy/go/pkg/net/noise"
-	"github.com/haivivi/giztoy/go/pkg/net/peer"
+	"github.com/giztoy/giztoy-go/integration/testutil"
+	"github.com/giztoy/giztoy-go/pkg/net/core"
+	"github.com/giztoy/giztoy-go/pkg/net/noise"
+	"github.com/giztoy/giztoy-go/pkg/net/peer"
 )
 
 func TestHTTPTransportRoundTrip(t *testing.T) {

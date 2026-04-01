@@ -5,8 +5,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/haivivi/giztoy/go/pkg/firmware"
-	"github.com/haivivi/giztoy/go/pkg/gears"
+	"github.com/giztoy/giztoy-go/pkg/firmware"
+	"github.com/giztoy/giztoy-go/pkg/gears"
 )
 
 var BuildCommit = "dev"

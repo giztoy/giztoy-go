@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/haivivi/giztoy/go/benchmark/net/internal/framework"
-	"github.com/haivivi/giztoy/go/pkg/net/noise"
+	"github.com/giztoy/giztoy-go/benchmark/net/internal/framework"
+	"github.com/giztoy/giztoy-go/pkg/net/noise"
 )
 
 type noiseRecv struct {

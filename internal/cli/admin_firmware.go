@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"os"
 
-	"github.com/haivivi/giztoy/go/pkg/firmware"
+	"github.com/giztoy/giztoy-go/pkg/firmware"
 	"github.com/spf13/cobra"
 )
 

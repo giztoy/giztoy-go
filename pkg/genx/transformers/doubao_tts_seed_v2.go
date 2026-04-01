@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	doubaospeech "github.com/giztoy/doubao-speech-go"
-	"github.com/haivivi/giztoy/go/pkg/genx"
+	"github.com/giztoy/giztoy-go/pkg/genx"
 )
 
 // DoubaoTTSSeedV2 is a TTS transformer using Doubao seed-tts-2.0 (大模型 TTS 2.0).

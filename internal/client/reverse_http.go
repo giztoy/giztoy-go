@@ -5,9 +5,9 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/haivivi/giztoy/go/pkg/gears"
-	"github.com/haivivi/giztoy/go/pkg/net/httptransport"
-	"github.com/haivivi/giztoy/go/pkg/net/peer"
+	"github.com/giztoy/giztoy-go/pkg/gears"
+	"github.com/giztoy/giztoy-go/pkg/net/httptransport"
+	"github.com/giztoy/giztoy-go/pkg/net/peer"
 )
 
 type DeviceProvider interface {

@@ -5,8 +5,8 @@ import (
 	"os"
 
 	"github.com/goccy/go-yaml"
-	"github.com/haivivi/giztoy/go/internal/stores"
-	"github.com/haivivi/giztoy/go/pkg/gears"
+	"github.com/giztoy/giztoy-go/internal/stores"
+	"github.com/giztoy/giztoy-go/pkg/gears"
 )
 
 type GearsConfig struct {

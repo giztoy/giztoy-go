@@ -9,7 +9,7 @@ import (
 	"time"
 
 	dashscope "github.com/giztoy/dashscope-realtime-go"
-	"github.com/haivivi/giztoy/go/pkg/genx"
+	"github.com/giztoy/giztoy-go/pkg/genx"
 )
 
 // DashScopeRealtime is a realtime transformer using DashScope Qwen-Omni-Realtime.

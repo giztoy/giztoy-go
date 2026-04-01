@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/haivivi/giztoy/go/pkg/firmware"
+	"github.com/giztoy/giztoy-go/pkg/firmware"
 )
 
 func (s *Server) handleAdminFirmwares(w http.ResponseWriter, r *http.Request) {

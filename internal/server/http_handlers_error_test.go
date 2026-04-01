@@ -7,7 +7,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/haivivi/giztoy/go/pkg/firmware"
+	"github.com/giztoy/giztoy-go/pkg/firmware"
 )
 
 func TestPublicAndAdminErrorHandlers(t *testing.T) {

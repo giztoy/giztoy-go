@@ -10,8 +10,8 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/haivivi/giztoy/go/pkg/firmware"
-	"github.com/haivivi/giztoy/go/pkg/gears"
+	"github.com/giztoy/giztoy-go/pkg/firmware"
+	"github.com/giztoy/giztoy-go/pkg/gears"
 )
 
 func TestAdminFirmwareLifecycle(t *testing.T) {

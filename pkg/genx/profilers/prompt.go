@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/haivivi/giztoy/go/pkg/genx/segmentors"
+	"github.com/giztoy/giztoy-go/pkg/genx/segmentors"
 )
 
 func buildPrompt(input Input) string {

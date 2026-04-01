@@ -3,7 +3,7 @@ package modelloader
 import (
 	"fmt"
 
-	"github.com/haivivi/giztoy/go/pkg/genx/profilers"
+	"github.com/giztoy/giztoy-go/pkg/genx/profilers"
 )
 
 func registerProfilerBySchema(cfg ConfigFile) ([]string, error) {

@@ -23,7 +23,7 @@ github.com/felixge/httpsnoop v1.0.4 h1:NFTV2Zj1bL4mc9sqWACXbQFVBBg2W3GPvqp8/ESS2
 github.com/felixge/httpsnoop v1.0.4/go.mod h1:m8KPJKqk1gH5J9DgRY2ASl2lWCfGKXixSwevea8zH2U=
 github.com/giztoy/dashscope-realtime-go v0.0.0-20260302041155-244aa1f231b4 h1:CoVWzOdQ/FJEl7fYBIqMHYGgD3z7AsolukXBeio3ICE=
 github.com/giztoy/dashscope-realtime-go v0.0.0-20260302041155-244aa1f231b4/go.mod h1:vPTLDODBN8WYBEJE2a9oLyf2bPztbfQ0OZP+7NU6RzI=
-github.com/giztoy/doubao-speech-go v0.0.0-20260302071932-d05e4425e178 h1:JDL2YhLfSF4bx+aQ89MgXxe5EbUQ1yhQ/QpZPZ96xf4=
+github.com/giztoy/doubao-speech-go v0.0.0-20260302071932-d05e4425e178 h1:zwRfg15YNthpwwgqSE+lzGBcjFA0NAmKfCAn//zretE=
 github.com/giztoy/doubao-speech-go v0.0.0-20260302071932-d05e4425e178/go.mod h1:dtLrbCfBVlnKLxCAlsCCPRhKxUW0ZFcd+JQNzNIC5w8=
 github.com/giztoy/minimax-go v0.0.0-20260302043847-4eccf766026d h1:OUg+jExW/1noSQPIRs79RGEx6Zqg2kBcFwt8gNCeFcU=
 github.com/giztoy/minimax-go v0.0.0-20260302043847-4eccf766026d/go.mod h1:M7V54bBzrdfIYuDMrfBlnUWM+84v+5aScsH61qbUdLw=

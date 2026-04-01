@@ -3,7 +3,7 @@ package core
 import (
 	"net"
 
-	itransport "github.com/haivivi/giztoy/go/pkg/net/internal/transport"
+	itransport "github.com/giztoy/giztoy-go/pkg/net/internal/transport"
 )
 
 // Transport primitives used by core network stack.

@@ -1,6 +1,6 @@
 package kcp
 
-import thirdpartynet "github.com/haivivi/giztoy/go/third_party/net"
+import thirdpartynet "github.com/giztoy/giztoy-go/third_party/net"
 
 // KCP re-exports the third-party KCP binding type.
 type KCP = thirdpartynet.KCP

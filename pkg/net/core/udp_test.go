@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/haivivi/giztoy/go/pkg/net/noise"
+	"github.com/giztoy/giztoy-go/pkg/net/noise"
 )
 
 func buildHandshakeResponseForUDPTest(t *testing.T, initiator *noise.KeyPair, responder *noise.KeyPair, localIdx, remoteIdx uint32) (*noise.HandshakeState, []byte) {

@@ -6,7 +6,7 @@ import (
 	"io"
 	"testing"
 
-	"github.com/haivivi/giztoy/go/pkg/audio/pcm"
+	"github.com/giztoy/giztoy-go/pkg/audio/pcm"
 )
 
 func TestGenerateChordAndHelpers(t *testing.T) {

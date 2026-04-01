@@ -5,9 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/haivivi/giztoy/go/pkg/genx"
-	"github.com/haivivi/giztoy/go/pkg/genx/generators"
-	"github.com/haivivi/giztoy/go/pkg/genx/segmentors"
+	"github.com/giztoy/giztoy-go/pkg/genx"
+	"github.com/giztoy/giztoy-go/pkg/genx/generators"
+	"github.com/giztoy/giztoy-go/pkg/genx/segmentors"
 )
 
 var _ Profiler = (*GenX)(nil)

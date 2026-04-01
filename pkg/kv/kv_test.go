@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/haivivi/giztoy/go/pkg/kv"
+	"github.com/giztoy/giztoy-go/pkg/kv"
 )
 
 // storeFactory creates a new Store for testing. Tests in this file use the

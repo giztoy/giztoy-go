@@ -8,7 +8,7 @@ import (
 	"sync"
 
 	doubaospeech "github.com/giztoy/doubao-speech-go"
-	"github.com/haivivi/giztoy/go/pkg/genx"
+	"github.com/giztoy/giztoy-go/pkg/genx"
 )
 
 // DoubaoRealtime is a realtime transformer using Doubao realtime dialogue.

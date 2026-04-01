@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/haivivi/giztoy/go/pkg/genx"
-	"github.com/haivivi/giztoy/go/pkg/genx/generators"
+	"github.com/giztoy/giztoy-go/pkg/genx"
+	"github.com/giztoy/giztoy-go/pkg/genx/generators"
 )
 
 var _ Segmentor = (*GenX)(nil)

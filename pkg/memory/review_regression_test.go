@@ -6,9 +6,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/haivivi/giztoy/go/pkg/kv"
-	"github.com/haivivi/giztoy/go/pkg/recall"
-	"github.com/haivivi/giztoy/go/pkg/vecstore"
+	"github.com/giztoy/giztoy-go/pkg/kv"
+	"github.com/giztoy/giztoy-go/pkg/recall"
+	"github.com/giztoy/giztoy-go/pkg/vecstore"
 )
 
 type starvationEmbedder struct{}

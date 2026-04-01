@@ -4,7 +4,7 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/haivivi/giztoy/go/pkg/gears"
+	"github.com/giztoy/giztoy-go/pkg/gears"
 )
 
 type contextKey string

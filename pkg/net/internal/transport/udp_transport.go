@@ -4,8 +4,8 @@ import (
 	"net"
 	"time"
 
-	"github.com/haivivi/giztoy/go/pkg/net/internal/socketopt"
-	"github.com/haivivi/giztoy/go/pkg/net/noise"
+	"github.com/giztoy/giztoy-go/pkg/net/internal/socketopt"
+	"github.com/giztoy/giztoy-go/pkg/net/noise"
 )
 
 // UDPAddr wraps net.UDPAddr to implement the noise.Addr interface.

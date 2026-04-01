@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/haivivi/giztoy/go/pkg/kv"
+	"github.com/giztoy/giztoy-go/pkg/kv"
 )
 
 func TestEmbedMetaModelMismatch(t *testing.T) {

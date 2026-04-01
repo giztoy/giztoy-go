@@ -3,7 +3,7 @@ package modelloader
 import (
 	"fmt"
 
-	"github.com/haivivi/giztoy/go/pkg/genx/labelers"
+	"github.com/giztoy/giztoy-go/pkg/genx/labelers"
 )
 
 func registerLabelerBySchema(cfg ConfigFile) ([]string, error) {

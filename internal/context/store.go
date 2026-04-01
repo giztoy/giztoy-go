@@ -8,8 +8,8 @@ import (
 	"strings"
 
 	"github.com/goccy/go-yaml"
-	"github.com/haivivi/giztoy/go/internal/identity"
-	"github.com/haivivi/giztoy/go/internal/paths"
+	"github.com/giztoy/giztoy-go/internal/identity"
+	"github.com/giztoy/giztoy-go/internal/paths"
 )
 
 const currentLink = "current"

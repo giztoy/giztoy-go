@@ -8,7 +8,7 @@ import (
 	"math"
 	"sync"
 
-	"github.com/haivivi/giztoy/go/pkg/audio/pcm"
+	"github.com/giztoy/giztoy-go/pkg/audio/pcm"
 )
 
 // DefaultFormat is the default audio format for songs.

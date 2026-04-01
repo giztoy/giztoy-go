@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/haivivi/giztoy/go/benchmark/net/internal/framework"
+	"github.com/giztoy/giztoy-go/benchmark/net/internal/framework"
 )
 
 // BenchmarkConnOneWayThroughput benchmarks one-way reliable stream throughput.

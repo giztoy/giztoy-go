@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/haivivi/giztoy/go/pkg/net/noise"
+	"github.com/giztoy/giztoy-go/pkg/net/noise"
 )
 
 func TestDialMissingLocalKey(t *testing.T) {

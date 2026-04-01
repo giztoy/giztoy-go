@@ -3,7 +3,7 @@ package core
 import (
 	"sync"
 
-	"github.com/haivivi/giztoy/go/pkg/net/noise"
+	"github.com/giztoy/giztoy-go/pkg/net/noise"
 )
 
 // Listener listens for incoming connections on a transport.

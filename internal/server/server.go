@@ -15,15 +15,15 @@ import (
 	"sync"
 	"time"
 
-	"github.com/haivivi/giztoy/go/internal/identity"
-	"github.com/haivivi/giztoy/go/internal/paths"
-	"github.com/haivivi/giztoy/go/internal/stores"
-	"github.com/haivivi/giztoy/go/pkg/firmware"
-	"github.com/haivivi/giztoy/go/pkg/gears"
-	"github.com/haivivi/giztoy/go/pkg/net/core"
-	"github.com/haivivi/giztoy/go/pkg/net/httptransport"
-	"github.com/haivivi/giztoy/go/pkg/net/noise"
-	"github.com/haivivi/giztoy/go/pkg/net/peer"
+	"github.com/giztoy/giztoy-go/internal/identity"
+	"github.com/giztoy/giztoy-go/internal/paths"
+	"github.com/giztoy/giztoy-go/internal/stores"
+	"github.com/giztoy/giztoy-go/pkg/firmware"
+	"github.com/giztoy/giztoy-go/pkg/gears"
+	"github.com/giztoy/giztoy-go/pkg/net/core"
+	"github.com/giztoy/giztoy-go/pkg/net/httptransport"
+	"github.com/giztoy/giztoy-go/pkg/net/noise"
+	"github.com/giztoy/giztoy-go/pkg/net/peer"
 )
 
 // Config holds server startup parameters.

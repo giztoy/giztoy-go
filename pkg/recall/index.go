@@ -1,10 +1,10 @@
 package recall
 
 import (
-	"github.com/haivivi/giztoy/go/pkg/embed"
-	"github.com/haivivi/giztoy/go/pkg/graph"
-	"github.com/haivivi/giztoy/go/pkg/kv"
-	"github.com/haivivi/giztoy/go/pkg/vecstore"
+	"github.com/giztoy/giztoy-go/pkg/embed"
+	"github.com/giztoy/giztoy-go/pkg/graph"
+	"github.com/giztoy/giztoy-go/pkg/kv"
+	"github.com/giztoy/giztoy-go/pkg/vecstore"
 )
 
 // IndexConfig configures a new [Index].

@@ -5,7 +5,7 @@ import (
 	"io"
 
 	doubaospeech "github.com/giztoy/doubao-speech-go"
-	"github.com/haivivi/giztoy/go/pkg/genx"
+	"github.com/giztoy/giztoy-go/pkg/genx"
 )
 
 // DoubaoASRSAUC is an ASR transformer using Doubao BigModel ASR (大模型语音识别).

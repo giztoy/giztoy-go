@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"syscall"
 
-	"github.com/haivivi/giztoy/go/internal/server"
+	"github.com/giztoy/giztoy-go/internal/server"
 	"github.com/spf13/cobra"
 )
 

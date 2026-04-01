@@ -6,9 +6,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/haivivi/giztoy/go/pkg/genx"
-	"github.com/haivivi/giztoy/go/pkg/genx/generators"
-	"github.com/haivivi/giztoy/go/pkg/genx/segmentors"
+	"github.com/giztoy/giztoy-go/pkg/genx"
+	"github.com/giztoy/giztoy-go/pkg/genx/generators"
+	"github.com/giztoy/giztoy-go/pkg/genx/segmentors"
 )
 
 type profilerStub struct {

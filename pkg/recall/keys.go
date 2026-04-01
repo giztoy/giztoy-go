@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/haivivi/giztoy/go/pkg/kv"
+	"github.com/giztoy/giztoy-go/pkg/kv"
 )
 
 // Key layout (relative to the Index prefix):
