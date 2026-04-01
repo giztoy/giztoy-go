@@ -5,7 +5,7 @@ go 1.26
 require (
 	github.com/dgraph-io/badger/v4 v4.9.1
 	github.com/giztoy/dashscope-realtime-go v0.0.0-20260302041155-244aa1f231b4
-	github.com/giztoy/doubao-speech-go v0.0.0-20260302071932-d05e4425e178
+	github.com/giztoy/doubao-speech-go v0.0.0-20260401044340-ad4ba957efd7
 	github.com/giztoy/minimax-go v0.0.0-20260302043847-4eccf766026d
 	github.com/goccy/go-yaml v1.19.2
 	github.com/google/jsonschema-go v0.4.2
