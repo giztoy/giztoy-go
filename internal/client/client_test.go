@@ -212,24 +212,70 @@ func TestPingServerError(t *testing.T) {
 }
 
 func TestPingBadResponseJSON(t *testing.T) {
+	written := make(chan struct{})
+	release := make(chan struct{})
+	defer close(release)
+
 	c := dialMockClient(t, func(stream net.Conn) {
 		_, _ = server.ReadFrame(stream)
 		_ = server.WriteFrame(stream, []byte("{bad-json"))
+		close(written)
+		<-release
 	})
 
-	if _, err := c.Ping(); err == nil || !contains(err, "client: unmarshal:") {
-		t.Fatalf("Ping bad response err=%v", err)
+	errCh := make(chan error, 1)
+	go func() {
+		_, err := c.Ping()
+		errCh <- err
+	}()
+
+	select {
+	case <-written:
+	case <-time.After(2 * time.Second):
+		t.Fatal("mock server did not write bad response")
+	}
+
+	select {
+	case err := <-errCh:
+		if err == nil || !contains(err, "client: unmarshal:") {
+			t.Fatalf("Ping bad response err=%v", err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("Ping bad response did not return")
 	}
 }
 
 func TestPingBadResultJSON(t *testing.T) {
+	written := make(chan struct{})
+	release := make(chan struct{})
+	defer close(release)
+
 	c := dialMockClient(t, func(stream net.Conn) {
 		_, _ = server.ReadFrame(stream)
 		_ = server.WriteFrame(stream, []byte(`{"v":1,"id":"ping","result":{bad-result}`))
+		close(written)
+		<-release
 	})
 
-	if _, err := c.Ping(); err == nil || !contains(err, "client: unmarshal:") {
-		t.Fatalf("Ping bad result err=%v", err)
+	errCh := make(chan error, 1)
+	go func() {
+		_, err := c.Ping()
+		errCh <- err
+	}()
+
+	select {
+	case <-written:
+	case <-time.After(2 * time.Second):
+		t.Fatal("mock server did not write bad result")
+	}
+
+	select {
+	case err := <-errCh:
+		if err == nil || !contains(err, "client: unmarshal:") {
+			t.Fatalf("Ping bad result err=%v", err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("Ping bad result did not return")
 	}
 }
 
