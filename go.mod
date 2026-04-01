@@ -4,6 +4,9 @@ go 1.26
 
 require (
 	github.com/dgraph-io/badger/v4 v4.9.1
+	github.com/giztoy/dashscope-realtime-go v0.0.0-20260302041155-244aa1f231b4
+	github.com/giztoy/doubao-speech-go v0.0.0-20260401044340-ad4ba957efd7
+	github.com/giztoy/minimax-go v0.0.0-20260302043847-4eccf766026d
 	github.com/goccy/go-yaml v1.19.2
 	github.com/google/jsonschema-go v0.4.2
 	github.com/googleapis/gax-go/v2 v2.16.0
@@ -23,13 +26,10 @@ require (
 	cloud.google.com/go/auth v0.17.0 // indirect
 	cloud.google.com/go/compute/metadata v0.9.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
+	github.com/coder/websocket v1.8.14 // indirect
 	github.com/dgraph-io/ristretto/v2 v2.2.0 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
-	github.com/coder/websocket v1.8.14 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
-	github.com/giztoy/dashscope-realtime-go v0.0.0-20260302041155-244aa1f231b4 // indirect
-	github.com/giztoy/doubao-speech-go v0.0.0-20260302071932-d05e4425e178 // indirect
-	github.com/giztoy/minimax-go v0.0.0-20260302043847-4eccf766026d // indirect
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/google/flatbuffers v25.2.10+incompatible // indirect
