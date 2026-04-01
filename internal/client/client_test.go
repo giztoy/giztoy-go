@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"github.com/giztoy/giztoy-go/internal/server"
+	"github.com/giztoy/giztoy-go/internal/stores"
+	"github.com/giztoy/giztoy-go/pkg/gears"
 	"github.com/giztoy/giztoy-go/pkg/net/core"
 	"github.com/giztoy/giztoy-go/pkg/net/noise"
 	"github.com/giztoy/giztoy-go/pkg/net/peer"
@@ -15,7 +17,21 @@ import (
 
 func TestDialAndPing(t *testing.T) {
 	dir := t.TempDir()
-	cfg := server.Config{DataDir: dir, ListenAddr: "127.0.0.1:0"}
+	cfg := server.Config{
+		DataDir:    dir,
+		ListenAddr: "127.0.0.1:0",
+		Stores: map[string]stores.Config{
+			"mem": {Kind: stores.KindKeyValue, Backend: "memory"},
+			"fw":  {Kind: stores.KindFS, Backend: "filesystem", Dir: "firmware"},
+		},
+		Gears: server.GearsConfig{
+			Store: "mem",
+			RegistrationTokens: map[string]gears.RegistrationToken{
+				"device_default": {Role: gears.GearRoleDevice},
+			},
+		},
+		Depots: server.DepotsConfig{Store: "fw"},
+	}
 
 	srv, err := server.New(cfg)
 	if err != nil {
