@@ -27,7 +27,11 @@ func TestHTTPTransportRoundTrip(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	serverListener := testutil.NewListenerNode(t, serverKey)
+	serverListener := testutil.NewListenerNode(t, serverKey, core.WithServiceMuxConfig(core.ServiceMuxConfig{
+		OnNewService: func(_ noise.PublicKey, service uint64) bool {
+			return service == 7
+		},
+	}))
 	defer serverListener.Close()
 	clientListener := testutil.NewListenerNode(t, clientKey)
 	defer clientListener.Close()
@@ -271,7 +275,14 @@ func TestReverseServiceFirstRequestCanArriveBeforeServeStarts(t *testing.T) {
 }
 
 func TestServerShutdownDrainsActiveRequest(t *testing.T) {
-	clientConn, serverConn, cleanup := newHTTPTransportConnPair(t, core.ServiceMuxConfig{}, core.ServiceMuxConfig{})
+	clientConn, serverConn, cleanup := newHTTPTransportConnPair(t,
+		core.ServiceMuxConfig{},
+		core.ServiceMuxConfig{
+			OnNewService: func(_ noise.PublicKey, service uint64) bool {
+				return service == 7
+			},
+		},
+	)
 	defer cleanup()
 
 	started := make(chan struct{})
@@ -427,6 +438,9 @@ func TestRoundTripHandlesEarlyResponse(t *testing.T) {
 	clientConn, serverConn, cleanup := newHTTPTransportConnPair(t, core.ServiceMuxConfig{}, core.ServiceMuxConfig{})
 	defer cleanup()
 
+	responseWritten := make(chan struct{})
+	releaseStream := make(chan struct{})
+	defer close(releaseStream)
 	go func() {
 		stream, err := serverConn.AcceptService(13)
 		if err != nil {
@@ -452,7 +466,8 @@ func TestRoundTripHandlesEarlyResponse(t *testing.T) {
 			}
 		}
 		_, _ = io.WriteString(stream, "HTTP/1.1 401 Unauthorized\r\nContent-Length: 6\r\n\r\ndenied")
-		time.Sleep(10 * time.Millisecond)
+		close(responseWritten)
+		<-releaseStream
 	}()
 
 	bodyReader, bodyWriter := io.Pipe()
@@ -490,6 +505,12 @@ func TestRoundTripHandlesEarlyResponse(t *testing.T) {
 			err    error
 		}{status: resp.StatusCode, body: string(data), err: err}
 	}()
+
+	select {
+	case <-responseWritten:
+	case <-time.After(5 * time.Second):
+		t.Fatal("early response was not written")
+	}
 
 	select {
 	case result := <-respDone:

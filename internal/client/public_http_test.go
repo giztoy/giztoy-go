@@ -8,6 +8,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"runtime"
 	"testing"
 
 	"github.com/giztoy/giztoy-go/pkg/firmware"
@@ -15,6 +16,10 @@ import (
 )
 
 func TestPublicHTTPRegisterAndReadBack(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("nested firmware path validation is only supported in Linux runtime")
+	}
+
 	srv, cancel := startTestServer(t)
 	defer cancel()
 

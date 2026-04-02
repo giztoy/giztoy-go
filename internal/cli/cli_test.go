@@ -179,11 +179,12 @@ func TestPrepareServeWorkspace(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	workspaceRoot := t.TempDir()
 	t.Cleanup(func() {
 		_ = os.Chdir(cwd)
 	})
 
-	workspace := filepath.Join(t.TempDir(), "giztoy-workspace")
+	workspace := filepath.Join(workspaceRoot, "giztoy-workspace")
 	cfg, err := prepareServeWorkspace(workspace)
 	if err != nil {
 		t.Fatalf("prepareServeWorkspace error: %v", err)

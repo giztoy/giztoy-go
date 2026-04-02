@@ -36,6 +36,9 @@ jobs:
       - name: Ensure Git LFS assets are available
         run: git lfs pull
 
+      - name: Initialize required submodules
+        run: git submodule update --init --depth 1 third_party/net/kcp
+
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
