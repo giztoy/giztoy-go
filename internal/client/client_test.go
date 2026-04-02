@@ -127,7 +127,7 @@ func startReadLoop(u *core.UDP) {
 	}()
 }
 
-func startMockRPCServer(t *testing.T, handler func(net.Conn)) (string, noise.PublicKey, func()) {
+func startMockRPCServer(t *testing.T, handler func(net.Conn)) (string, noise.PublicKey, <-chan struct{}, func()) {
 	t.Helper()
 
 	serverKey, err := noise.GenerateKeyPair()
@@ -141,11 +141,13 @@ func startMockRPCServer(t *testing.T, handler func(net.Conn)) (string, noise.Pub
 	}
 	startReadLoop(serverListener.UDP())
 
+	accepted := make(chan struct{})
 	go func() {
 		conn, err := serverListener.Accept()
 		if err != nil {
 			return
 		}
+		close(accepted)
 		stream, err := conn.AcceptService(0)
 		if err != nil {
 			return
@@ -156,13 +158,13 @@ func startMockRPCServer(t *testing.T, handler func(net.Conn)) (string, noise.Pub
 	closeFn := func() {
 		_ = serverListener.Close()
 	}
-	return serverListener.HostInfo().Addr.String(), serverKey.Public, closeFn
+	return serverListener.HostInfo().Addr.String(), serverKey.Public, accepted, closeFn
 }
 
 func dialMockClient(t *testing.T, handler func(net.Conn)) *Client {
 	t.Helper()
 
-	addr, serverPK, closeServer := startMockRPCServer(t, handler)
+	addr, serverPK, accepted, closeServer := startMockRPCServer(t, handler)
 	t.Cleanup(closeServer)
 
 	clientKey, err := noise.GenerateKeyPair()
@@ -173,6 +175,11 @@ func dialMockClient(t *testing.T, handler func(net.Conn)) *Client {
 	c, err := Dial(clientKey, addr, serverPK)
 	if err != nil {
 		t.Fatalf("Dial err=%v", err)
+	}
+	select {
+	case <-accepted:
+	case <-time.After(2 * time.Second):
+		t.Fatal("mock server did not accept peer")
 	}
 	t.Cleanup(func() { _ = c.Close() })
 	return c

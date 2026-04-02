@@ -51,6 +51,7 @@ func TestServerPeerPing(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	startServerTestReadLoop(clientListener.UDP())
 	defer clientListener.Close()
 
 	udpAddr, err := parseUDPAddr(serverAddr)
@@ -141,6 +142,7 @@ func TestServerUnknownMethod(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	startServerTestReadLoop(clientListener.UDP())
 	defer clientListener.Close()
 
 	udpAddr, _ := parseUDPAddr(serverAddr)
@@ -303,6 +305,7 @@ func waitForServerRPCReady(t *testing.T, srv *Server) {
 		if err != nil {
 			t.Fatalf("peer.Listen(ready check): %v", err)
 		}
+		startServerTestReadLoop(clientListener.UDP())
 
 		ready := false
 		func() {
@@ -343,6 +346,17 @@ func waitForServerRPCReady(t *testing.T, srv *Server) {
 	}
 
 	t.Fatal("server rpc did not become ready")
+}
+
+func startServerTestReadLoop(u *core.UDP) {
+	go func() {
+		buf := make([]byte, 65535)
+		for {
+			if _, _, err := u.ReadFrom(buf); err != nil {
+				return
+			}
+		}
+	}()
 }
 
 type errConn struct {
