@@ -16,6 +16,7 @@ import (
 	"github.com/giztoy/giztoy-go/pkg/firmware"
 	"github.com/giztoy/giztoy-go/pkg/graph"
 	"github.com/giztoy/giztoy-go/pkg/kv"
+	"github.com/giztoy/giztoy-go/pkg/vecstore"
 	_ "github.com/lib/pq"
 	_ "modernc.org/sqlite"
 )
@@ -23,6 +24,7 @@ import (
 // Kind constants for the store category.
 const (
 	KindKeyValue = "keyvalue"
+	KindVecStore = "vecstore"
 	KindGraph    = "graph"
 	KindFS       = "filestore"
 	KindSQL      = "sql"
@@ -40,12 +42,14 @@ type Config struct {
 	Backend string `yaml:"backend"`
 	Dir     string `yaml:"dir"`
 	Store   string `yaml:"store"` // graph backend "kv": reference to a keyvalue store
+	Dim     int    `yaml:"dim"`   // vecstore/hnsw: vector dimension
 	DSN     string `yaml:"dsn"`   // sql: connection string (reserved)
 }
 
 // Stores holds named store instances created eagerly by New.
 type Stores struct {
 	kvs     map[string]kv.Store
+	vecs    map[string]vecstore.Index
 	graphs  map[string]graph.Graph
 	sqls    map[string]*sql.DB
 	fss     map[string]*firmware.Store
@@ -62,6 +66,7 @@ func New(baseDir string, configs map[string]Config) (*Stores, error) {
 	}
 	s := &Stores{
 		kvs:    make(map[string]kv.Store),
+		vecs:   make(map[string]vecstore.Index),
 		graphs: make(map[string]graph.Graph),
 		sqls:   make(map[string]*sql.DB),
 		fss:    make(map[string]*firmware.Store),
@@ -85,6 +90,13 @@ func New(baseDir string, configs map[string]Config) (*Stores, error) {
 				return nil, err
 			}
 			s.kvs[name] = st
+			s.closers = append(s.closers, st)
+		case KindVecStore:
+			st, err := s.newVecStore(baseDir, name, cfg)
+			if err != nil {
+				return nil, err
+			}
+			s.vecs[name] = st
 			s.closers = append(s.closers, st)
 		case KindSQL:
 			st, err := s.newSQL(baseDir, name, cfg)
@@ -128,6 +140,15 @@ func (r *Stores) KV(name string) (kv.Store, error) {
 	s, ok := r.kvs[name]
 	if !ok {
 		return nil, fmt.Errorf("stores: kv %q not found", name)
+	}
+	return s, nil
+}
+
+// VecStore returns the named vecstore.Index.
+func (r *Stores) VecStore(name string) (vecstore.Index, error) {
+	s, ok := r.vecs[name]
+	if !ok {
+		return nil, fmt.Errorf("stores: vecstore %q not found", name)
 	}
 	return s, nil
 }
@@ -188,6 +209,15 @@ func (r *Stores) newKV(baseDir, name string, cfg Config) (kv.Store, error) {
 		return kv.NewBadger(dir, nil)
 	default:
 		return nil, fmt.Errorf("stores: keyvalue %q unknown backend %q", name, cfg.Backend)
+	}
+}
+
+func (r *Stores) newVecStore(baseDir, name string, cfg Config) (vecstore.Index, error) {
+	switch cfg.Backend {
+	case "memory":
+		return vecstore.NewMemory(), nil
+	default:
+		return nil, fmt.Errorf("stores: vecstore %q unknown backend %q", name, cfg.Backend)
 	}
 }
 

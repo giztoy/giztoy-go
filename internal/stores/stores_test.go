@@ -8,9 +8,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/goccy/go-yaml"
 	"github.com/giztoy/giztoy-go/pkg/graph"
 	"github.com/giztoy/giztoy-go/pkg/kv"
+	"github.com/goccy/go-yaml"
 )
 
 type fakeDriver struct{}
@@ -211,6 +211,62 @@ func TestNewKVBadgerNoDir(t *testing.T) {
 		"x": {Kind: KindKeyValue, Backend: "badger"},
 	}); err == nil {
 		t.Fatal("expected error for badger without dir")
+	}
+}
+
+// --- VecStore ---
+
+func TestVecStoreMemory(t *testing.T) {
+	reg := mustStores(t, t.TempDir(), []byte(`
+stores:
+  vec:
+    kind: vecstore
+    backend: memory
+`))
+	defer reg.Close()
+
+	idx, err := reg.VecStore("vec")
+	if err != nil {
+		t.Fatalf("VecStore(vec): %v", err)
+	}
+	if err := idx.Insert("a", []float32{1, 0, 0}); err != nil {
+		t.Fatalf("Insert: %v", err)
+	}
+	if idx.Len() != 1 {
+		t.Fatalf("Len = %d", idx.Len())
+	}
+
+	idx2, err := reg.VecStore("vec")
+	if err != nil {
+		t.Fatalf("VecStore(vec) second: %v", err)
+	}
+	if idx != idx2 {
+		t.Fatal("expected same instance")
+	}
+}
+
+func TestVecStoreNotFound(t *testing.T) {
+	reg := mustStores(t, t.TempDir(), []byte(`
+stores:
+  kv:
+    kind: keyvalue
+    backend: memory
+`))
+	defer reg.Close()
+
+	if _, err := reg.VecStore("missing"); err == nil {
+		t.Fatal("expected error for missing")
+	}
+	if _, err := reg.VecStore("kv"); err == nil {
+		t.Fatal("expected error for wrong kind lookup")
+	}
+}
+
+func TestNewVecStoreUnknownBackend(t *testing.T) {
+	if _, err := New(t.TempDir(), map[string]Config{
+		"x": {Kind: KindVecStore, Backend: "qdrant"},
+	}); err == nil {
+		t.Fatal("expected error for unknown vecstore backend")
 	}
 }
 

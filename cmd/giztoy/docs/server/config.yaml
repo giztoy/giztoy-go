@@ -18,7 +18,7 @@ listen: ":9820"
 # gears.store / depots.store 会引用这里的名字。
 #
 # 每个条目包含：
-#   kind    — store 类别：keyvalue, graph, filestore, sql
+#   kind    — store 类别：keyvalue, vecstore, graph, filestore, sql
 #   backend — 具体实现
 #   dir     — 数据目录（badger、filesystem 等需要）
 #   store   — 依赖的 store 名（graph backend=kv 时引用 keyvalue store）
@@ -44,6 +44,12 @@ stores:
     kind: keyvalue
     backend: badger
     dir: badger-data
+
+  # 向量近似最近邻搜索。
+  # 当前只支持 memory 后端（brute-force，适合小规模）。
+  vecstore:
+    kind: vecstore
+    backend: memory
 
   # 实体-关系图。
   # backend: kv 表示底层使用一个 keyvalue store 存储。
