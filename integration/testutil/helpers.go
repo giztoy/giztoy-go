@@ -78,6 +78,9 @@ func ConnectListenerNodes(t *testing.T, client *peer.Listener, clientKey *noise.
 	if err := client.Connect(serverKey.Public); err != nil {
 		t.Fatalf("Connect failed: %v", err)
 	}
+
+	waitForPeerEstablished(t, client.UDP(), serverKey.Public)
+	waitForPeerEstablished(t, server.UDP(), clientKey.Public)
 }
 
 // ConnectNodes 建立两个 UDP 节点之间的连接
@@ -90,6 +93,28 @@ func ConnectNodes(t *testing.T, client *gnet.UDP, clientKey *noise.KeyPair, serv
 	if err := client.Connect(serverKey.Public); err != nil {
 		t.Fatalf("Connect failed: %v", err)
 	}
+
+	waitForPeerEstablished(t, client, serverKey.Public)
+	waitForPeerEstablished(t, server, clientKey.Public)
+}
+
+func waitForPeerEstablished(t *testing.T, u *gnet.UDP, pk noise.PublicKey) {
+	t.Helper()
+
+	deadline := time.Now().Add(5 * time.Second)
+	for time.Now().Before(deadline) {
+		info := u.PeerInfo(pk)
+		if info != nil && info.State == gnet.PeerStateEstablished {
+			return
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	info := u.PeerInfo(pk)
+	if info == nil {
+		t.Fatalf("peer %x was not registered before timeout", pk)
+	}
+	t.Fatalf("peer %x state=%v, want %v", pk, info.State, gnet.PeerStateEstablished)
 }
 
 func MustServiceMux(t *testing.T, u *gnet.UDP, pk noise.PublicKey) *gnet.ServiceMux {

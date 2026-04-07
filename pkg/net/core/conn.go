@@ -2,6 +2,7 @@ package core
 
 import (
 	"log"
+	"net"
 	"sync"
 	"time"
 
@@ -64,8 +65,8 @@ type Conn struct {
 	// Configuration
 	localKey   *noise.KeyPair
 	remotePK   noise.PublicKey
-	transport  noise.Transport
-	remoteAddr noise.Addr
+	transport  net.PacketConn
+	remoteAddr net.Addr
 
 	// Connection state
 	state    ConnState
@@ -104,12 +105,12 @@ type Conn struct {
 // inboundPacket represents a parsed transport message from the listener
 type inboundPacket struct {
 	msg  *noise.TransportMessage
-	addr noise.Addr
+	addr net.Addr
 }
 
 // newConn creates a new connection (internal use only).
 // Use Dial() or Listener.Accept() to create connections.
-func newConn(localKey *noise.KeyPair, transport noise.Transport, remoteAddr noise.Addr, remotePK noise.PublicKey) (*Conn, error) {
+func newConn(localKey *noise.KeyPair, transport net.PacketConn, remoteAddr net.Addr, remotePK noise.PublicKey) (*Conn, error) {
 	if localKey == nil {
 		return nil, ErrMissingLocalKey
 	}
@@ -367,7 +368,7 @@ func (c *Conn) sendPayload(plaintext []byte, isKeepalive bool) error {
 	msg := noise.BuildTransportMessage(session.RemoteIndex(), counter, ciphertext)
 
 	// Send
-	if err := c.transport.SendTo(msg, remoteAddr); err != nil {
+	if _, err := c.transport.WriteTo(msg, remoteAddr); err != nil {
 		return err
 	}
 
@@ -428,7 +429,7 @@ func (c *Conn) Recv() (protocol byte, payload []byte, err error) {
 	}
 
 	var data []byte
-	var fromAddr noise.Addr
+	var fromAddr net.Addr
 
 	if inbound != nil {
 		// Listener-managed connection: read pre-parsed message from inbound channel
@@ -451,7 +452,7 @@ func (c *Conn) Recv() (protocol byte, payload []byte, err error) {
 	defer recvBufferPool.Put(bufPtr)
 	buf := *bufPtr
 
-	n, addr, err := c.transport.RecvFrom(buf)
+	n, addr, err := c.transport.ReadFrom(buf)
 	if err != nil {
 		return 0, nil, err
 	}
@@ -569,7 +570,7 @@ func (c *Conn) handleTransportMessage(msg *noise.TransportMessage) (byte, []byte
 
 // handleHandshakeResponse processes an incoming handshake response.
 // This is called when we're the initiator and receive a response during rekey.
-func (c *Conn) handleHandshakeResponse(resp *noise.HandshakeRespMessage, fromAddr noise.Addr) (byte, []byte, error) {
+func (c *Conn) handleHandshakeResponse(resp *noise.HandshakeRespMessage, fromAddr net.Addr) (byte, []byte, error) {
 	// Copy necessary data under lock, then release for crypto operations
 	c.mu.RLock()
 	hsState := c.hsState
@@ -663,7 +664,7 @@ func (c *Conn) handleHandshakeResponse(resp *noise.HandshakeRespMessage, fromAdd
 
 // handleHandshakeInit processes an incoming handshake initiation.
 // This is called when the peer initiates a rekey.
-func (c *Conn) handleHandshakeInit(init *noise.HandshakeInitMessage, fromAddr noise.Addr) (byte, []byte, error) {
+func (c *Conn) handleHandshakeInit(init *noise.HandshakeInitMessage, fromAddr net.Addr) (byte, []byte, error) {
 	// Copy necessary data under lock, then release for crypto operations
 	c.mu.RLock()
 	localKey := c.localKey
@@ -734,7 +735,7 @@ func (c *Conn) handleHandshakeInit(init *noise.HandshakeInitMessage, fromAddr no
 	}
 
 	// Send response (outside lock)
-	if err := transport.SendTo(wireResp, remoteAddr); err != nil {
+	if _, err := transport.WriteTo(wireResp, remoteAddr); err != nil {
 		return 0, nil, err
 	}
 
@@ -947,7 +948,7 @@ func (c *Conn) initiateRekey() error {
 	wireMsg := noise.BuildHandshakeInit(newIdx, hs.LocalEphemeral(), msg1[noise.KeySize:])
 
 	// Send outside lock
-	if err := transport.SendTo(wireMsg, remoteAddr); err != nil {
+	if _, err := transport.WriteTo(wireMsg, remoteAddr); err != nil {
 		return err
 	}
 
@@ -1006,7 +1007,7 @@ func (c *Conn) retransmitHandshake() error {
 	wireMsg := noise.BuildHandshakeInit(localIdx, hs.LocalEphemeral(), msg1[noise.KeySize:])
 
 	// Send outside lock
-	if err := transport.SendTo(wireMsg, remoteAddr); err != nil {
+	if _, err := transport.WriteTo(wireMsg, remoteAddr); err != nil {
 		return err
 	}
 
@@ -1059,7 +1060,7 @@ func (c *Conn) RemotePublicKey() noise.PublicKey {
 }
 
 // RemoteAddr returns the remote peer's address.
-func (c *Conn) RemoteAddr() noise.Addr {
+func (c *Conn) RemoteAddr() net.Addr {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 	return c.remoteAddr
@@ -1097,7 +1098,7 @@ func (c *Conn) SetSession(s *noise.Session) {
 }
 
 // SetRemoteAddr updates the remote address (for NAT traversal).
-func (c *Conn) SetRemoteAddr(addr noise.Addr) {
+func (c *Conn) SetRemoteAddr(addr net.Addr) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.remoteAddr = addr
@@ -1127,7 +1128,7 @@ func (c *Conn) setInbound(ch chan inboundPacket) {
 
 // deliverPacket delivers a parsed transport message to the connection's inbound channel.
 // Returns false if the channel is full or the connection is closed.
-func (c *Conn) deliverPacket(msg *noise.TransportMessage, addr noise.Addr) bool {
+func (c *Conn) deliverPacket(msg *noise.TransportMessage, addr net.Addr) bool {
 	c.mu.RLock()
 	inbound := c.inbound
 	state := c.state

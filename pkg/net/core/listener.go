@@ -1,6 +1,7 @@
 package core
 
 import (
+	"net"
 	"sync"
 
 	"github.com/giztoy/giztoy-go/pkg/net/noise"
@@ -13,7 +14,7 @@ type Listener struct {
 	mu sync.Mutex
 
 	localKey  *noise.KeyPair
-	transport noise.Transport
+	transport net.PacketConn
 
 	// Active connections indexed by local session index
 	conns map[uint32]*Conn
@@ -34,7 +35,7 @@ type ListenerConfig struct {
 	// LocalKey is the local static key pair.
 	LocalKey *noise.KeyPair
 	// Transport is the underlying datagram transport.
-	Transport noise.Transport
+	Transport net.PacketConn
 	// AcceptQueueSize is the size of the accept queue (default: 16).
 	AcceptQueueSize int
 }
@@ -112,7 +113,7 @@ func (l *Listener) RemoveConn(localIdx uint32) {
 }
 
 // LocalAddr returns the local address of the listener.
-func (l *Listener) LocalAddr() noise.Addr {
+func (l *Listener) LocalAddr() net.Addr {
 	return l.transport.LocalAddr()
 }
 
@@ -137,7 +138,7 @@ func (l *Listener) receiveLoop() {
 		default:
 		}
 
-		n, addr, err := l.transport.RecvFrom(buf)
+		n, addr, err := l.transport.ReadFrom(buf)
 		if err != nil {
 			// Check if closed
 			l.mu.Lock()
@@ -169,7 +170,7 @@ func (l *Listener) receiveLoop() {
 }
 
 // handleHandshakeInit processes an incoming handshake initiation.
-func (l *Listener) handleHandshakeInit(data []byte, addr noise.Addr) {
+func (l *Listener) handleHandshakeInit(data []byte, addr net.Addr) {
 	msg, err := noise.ParseHandshakeInit(data)
 	if err != nil {
 		return
@@ -193,7 +194,7 @@ func (l *Listener) handleHandshakeInit(data []byte, addr noise.Addr) {
 	}
 
 	// Send the response
-	if err := l.transport.SendTo(resp, addr); err != nil {
+	if _, err := l.transport.WriteTo(resp, addr); err != nil {
 		close(inbound)
 		return
 	}
@@ -224,7 +225,7 @@ func (l *Listener) handleHandshakeInit(data []byte, addr noise.Addr) {
 }
 
 // handleTransport processes an incoming transport message.
-func (l *Listener) handleTransport(data []byte, addr noise.Addr) {
+func (l *Listener) handleTransport(data []byte, addr net.Addr) {
 	msg, err := noise.ParseTransportMessage(data)
 	if err != nil {
 		return
@@ -257,6 +258,7 @@ func (l *Listener) handleTransport(data []byte, addr noise.Addr) {
 
 // SendTo sends data through the listener's transport.
 // This is useful for sending responses without a Conn.
-func (l *Listener) SendTo(data []byte, addr noise.Addr) error {
-	return l.transport.SendTo(data, addr)
+func (l *Listener) SendTo(data []byte, addr net.Addr) error {
+	_, err := l.transport.WriteTo(data, addr)
+	return err
 }

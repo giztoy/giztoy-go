@@ -3,6 +3,7 @@ package core
 import (
 	"context"
 	"fmt"
+	"net"
 	"time"
 
 	"github.com/giztoy/giztoy-go/pkg/net/noise"
@@ -25,7 +26,7 @@ import (
 //   - Gives up after context deadline or cancellation
 //
 // Returns an established connection ready for Send/Recv, or an error.
-func Dial(ctx context.Context, transport noise.Transport, addr noise.Addr, remotePK noise.PublicKey, localKey *noise.KeyPair) (*Conn, error) {
+func Dial(ctx context.Context, transport net.PacketConn, addr net.Addr, remotePK noise.PublicKey, localKey *noise.KeyPair) (*Conn, error) {
 	if localKey == nil {
 		return nil, ErrMissingLocalKey
 	}
@@ -99,7 +100,7 @@ func (c *Conn) dialWithRetry(ctx context.Context) error {
 
 		// Build and send wire message
 		wireMsg := noise.BuildHandshakeInit(localIdx, hs.LocalEphemeral(), msg1[noise.KeySize:])
-		if err := transport.SendTo(wireMsg, remoteAddr); err != nil {
+		if _, err := transport.WriteTo(wireMsg, remoteAddr); err != nil {
 			return c.failHandshake(err)
 		}
 
@@ -143,7 +144,7 @@ func (c *Conn) waitForHandshakeResponse(ctx context.Context, hs *noise.Handshake
 
 	// Read response (will timeout based on deadline)
 	buf := make([]byte, noise.MaxPacketSize)
-	n, fromAddr, err := c.transport.RecvFrom(buf)
+	n, fromAddr, err := c.transport.ReadFrom(buf)
 
 	// Clear deadline
 	_ = c.transport.SetReadDeadline(time.Time{})

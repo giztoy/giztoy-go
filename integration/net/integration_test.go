@@ -381,9 +381,12 @@ func TestIntegration_KCPService0AndNonZeroConcurrentActivity(t *testing.T) {
 	done := make(chan string, 2)
 	svc0RespRead := make(chan struct{})
 	svc7RespRead := make(chan struct{})
+	svc0Accepting := make(chan struct{})
+	svc7Accepting := make(chan struct{})
 	var clientWG sync.WaitGroup
 
 	go func() {
+		close(svc0Accepting)
 		stream, err := testutil.MustServiceMux(t, server, clientKey.Public).AcceptStream(0)
 		if err != nil {
 			errCh <- err
@@ -406,6 +409,7 @@ func TestIntegration_KCPService0AndNonZeroConcurrentActivity(t *testing.T) {
 	}()
 
 	go func() {
+		close(svc7Accepting)
 		stream, err := testutil.MustServiceMux(t, server, clientKey.Public).AcceptStream(7)
 		if err != nil {
 			errCh <- err
@@ -427,7 +431,16 @@ func TestIntegration_KCPService0AndNonZeroConcurrentActivity(t *testing.T) {
 		done <- "svc7"
 	}()
 
-	time.Sleep(20 * time.Millisecond)
+	select {
+	case <-svc0Accepting:
+	case <-time.After(5 * time.Second):
+		t.Fatal("service 0 accept goroutine did not start")
+	}
+	select {
+	case <-svc7Accepting:
+	case <-time.After(5 * time.Second):
+		t.Fatal("service 7 accept goroutine did not start")
+	}
 
 	clientWG.Add(1)
 	go func() {

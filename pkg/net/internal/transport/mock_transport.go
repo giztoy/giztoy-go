@@ -2,10 +2,9 @@ package transport
 
 import (
 	"errors"
+	"net"
 	"sync"
 	"time"
-
-	"github.com/giztoy/giztoy-go/pkg/net/noise"
 )
 
 // MockAddr is a simple address for testing.
@@ -41,7 +40,7 @@ type MockTransport struct {
 
 type mockPacket struct {
 	data []byte
-	from noise.Addr
+	from net.Addr
 }
 
 // NewMockTransport creates a new mock transport.
@@ -64,19 +63,19 @@ func (t *MockTransport) Connect(peer *MockTransport) {
 	peer.mu.Unlock()
 }
 
-// SendTo sends data to the specified address.
+// WriteTo sends data to the specified address.
 // For MockTransport, this sends to the connected peer.
-func (t *MockTransport) SendTo(data []byte, addr noise.Addr) error {
+func (t *MockTransport) WriteTo(data []byte, addr net.Addr) (int, error) {
 	t.mu.Lock()
 	if t.closed {
 		t.mu.Unlock()
-		return ErrMockTransportClosed
+		return 0, ErrMockTransportClosed
 	}
 	peer := t.peer
 	t.mu.Unlock()
 
 	if peer == nil {
-		return ErrMockNoPeer
+		return 0, ErrMockNoPeer
 	}
 
 	// Copy data to prevent mutation
@@ -87,16 +86,22 @@ func (t *MockTransport) SendTo(data []byte, addr noise.Addr) error {
 	// This avoids a TOCTOU race between checking closed and sending
 	select {
 	case <-peer.done:
-		return ErrMockTransportClosed
+		return 0, ErrMockTransportClosed
 	case peer.inbox <- mockPacket{data: dataCopy, from: t.localAddr}:
-		return nil
+		return len(data), nil
 	default:
-		return ErrMockInboxFull
+		return 0, ErrMockInboxFull
 	}
 }
 
-// RecvFrom receives data and returns the sender's address.
-func (t *MockTransport) RecvFrom(buf []byte) (int, noise.Addr, error) {
+// SendTo is a compatibility wrapper around WriteTo.
+func (t *MockTransport) SendTo(data []byte, addr net.Addr) error {
+	_, err := t.WriteTo(data, addr)
+	return err
+}
+
+// ReadFrom receives data and returns the sender's address.
+func (t *MockTransport) ReadFrom(buf []byte) (int, net.Addr, error) {
 	select {
 	case <-t.done:
 		return 0, nil, ErrMockTransportClosed
@@ -110,6 +115,11 @@ func (t *MockTransport) RecvFrom(buf []byte) (int, noise.Addr, error) {
 		n := copy(buf, pkt.data)
 		return n, pkt.from, nil
 	}
+}
+
+// RecvFrom is a compatibility wrapper around ReadFrom.
+func (t *MockTransport) RecvFrom(buf []byte) (int, net.Addr, error) {
+	return t.ReadFrom(buf)
 }
 
 // Close closes the transport.
@@ -127,8 +137,13 @@ func (t *MockTransport) Close() error {
 }
 
 // LocalAddr returns the local address.
-func (t *MockTransport) LocalAddr() noise.Addr {
+func (t *MockTransport) LocalAddr() net.Addr {
 	return t.localAddr
+}
+
+// SetDeadline sets both read and write deadlines (no-op for mock transport).
+func (t *MockTransport) SetDeadline(_ time.Time) error {
+	return nil
 }
 
 // SetReadDeadline sets the read deadline (no-op for mock transport).
@@ -143,7 +158,7 @@ func (t *MockTransport) SetWriteDeadline(_ time.Time) error {
 
 // InjectPacket injects a packet into the transport's inbox.
 // This is useful for testing without a connected peer.
-func (t *MockTransport) InjectPacket(data []byte, from noise.Addr) error {
+func (t *MockTransport) InjectPacket(data []byte, from net.Addr) error {
 	dataCopy := make([]byte, len(data))
 	copy(dataCopy, data)
 

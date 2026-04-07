@@ -1,43 +1,44 @@
 package noise
 
-import "time"
+import "net"
 
 // Addr represents a transport-layer address.
-// This abstraction allows the connection layer to work with different
-// underlying transports (UDP, QUIC, etc.) without modification.
-type Addr interface {
-	// Network returns the name of the network (e.g., "udp", "quic").
-	Network() string
-	// String returns a string representation of the address.
-	String() string
-}
+// Use net.Addr directly for new code.
+type Addr = net.Addr
 
-// Transport is an abstraction over datagram-based transports.
-// It provides a unified interface for sending and receiving packets,
-// regardless of the underlying protocol (UDP, QUIC, etc.).
+// Transport is a compatibility interface for datagram transports.
+// New code can depend on net.PacketConn directly.
 type Transport interface {
+	net.PacketConn
+
 	// SendTo sends data to the specified address.
-	// Returns an error if the send fails.
 	SendTo(data []byte, addr Addr) error
 
 	// RecvFrom receives data into the provided buffer.
-	// Returns the number of bytes read, the sender's address, and any error.
-	// The buffer should be large enough to hold the maximum expected packet size.
 	RecvFrom(buf []byte) (n int, addr Addr, err error)
+}
 
-	// Close closes the transport and releases any associated resources.
-	Close() error
+type packetConnTransport struct {
+	net.PacketConn
+}
 
-	// LocalAddr returns the local address of the transport.
-	LocalAddr() Addr
+// WrapPacketConn adapts a standard net.PacketConn to the legacy Transport
+// interface. If pc already implements Transport, it is returned as-is.
+func WrapPacketConn(pc net.PacketConn) Transport {
+	if pc == nil {
+		return nil
+	}
+	if transport, ok := pc.(Transport); ok {
+		return transport
+	}
+	return &packetConnTransport{PacketConn: pc}
+}
 
-	// SetReadDeadline sets the deadline for future RecvFrom calls.
-	// A zero value means RecvFrom will not time out.
-	// Returns an error if the transport does not support deadlines.
-	SetReadDeadline(t time.Time) error
+func (t *packetConnTransport) SendTo(data []byte, addr Addr) error {
+	_, err := t.WriteTo(data, addr)
+	return err
+}
 
-	// SetWriteDeadline sets the deadline for future SendTo calls.
-	// A zero value means SendTo will not time out.
-	// Returns an error if the transport does not support deadlines.
-	SetWriteDeadline(t time.Time) error
+func (t *packetConnTransport) RecvFrom(buf []byte) (int, Addr, error) {
+	return t.ReadFrom(buf)
 }

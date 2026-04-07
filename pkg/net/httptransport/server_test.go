@@ -27,7 +27,11 @@ func TestHTTPTransportRoundTrip(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	serverListener := testutil.NewListenerNode(t, serverKey)
+	serverListener := testutil.NewListenerNode(t, serverKey, core.WithServiceMuxConfig(core.ServiceMuxConfig{
+		OnNewService: func(_ noise.PublicKey, service uint64) bool {
+			return service == 7
+		},
+	}))
 	defer serverListener.Close()
 	clientListener := testutil.NewListenerNode(t, clientKey)
 	defer clientListener.Close()
@@ -271,7 +275,14 @@ func TestReverseServiceFirstRequestCanArriveBeforeServeStarts(t *testing.T) {
 }
 
 func TestServerShutdownDrainsActiveRequest(t *testing.T) {
-	clientConn, serverConn, cleanup := newHTTPTransportConnPair(t, core.ServiceMuxConfig{}, core.ServiceMuxConfig{})
+	clientConn, serverConn, cleanup := newHTTPTransportConnPair(t,
+		core.ServiceMuxConfig{},
+		core.ServiceMuxConfig{
+			OnNewService: func(_ noise.PublicKey, service uint64) bool {
+				return service == 7
+			},
+		},
+	)
 	defer cleanup()
 
 	started := make(chan struct{})
@@ -427,6 +438,7 @@ func TestRoundTripHandlesEarlyResponse(t *testing.T) {
 	clientConn, serverConn, cleanup := newHTTPTransportConnPair(t, core.ServiceMuxConfig{}, core.ServiceMuxConfig{})
 	defer cleanup()
 
+	responseStarted := make(chan struct{})
 	go func() {
 		stream, err := serverConn.AcceptService(13)
 		if err != nil {
@@ -451,12 +463,22 @@ func TestRoundTripHandlesEarlyResponse(t *testing.T) {
 				return
 			}
 		}
-		_, _ = io.WriteString(stream, "HTTP/1.1 401 Unauthorized\r\nContent-Length: 6\r\n\r\ndenied")
-		time.Sleep(10 * time.Millisecond)
+		resp := "HTTP/1.1 401 Unauthorized\r\nContent-Length: 6\r\n\r\ndenied"
+		close(responseStarted)
+		for i := 0; i < len(resp); i++ {
+			if _, err := io.WriteString(stream, resp[i:i+1]); err != nil {
+				return
+			}
+			time.Sleep(time.Millisecond)
+		}
 	}()
 
 	bodyReader, bodyWriter := io.Pipe()
-	defer bodyWriter.Close()
+	go func() {
+		<-responseStarted
+		_ = bodyWriter.CloseWithError(errors.New("client body aborted after early response"))
+	}()
+	defer func() { _ = bodyWriter.Close() }()
 
 	respDone := make(chan struct {
 		status int
@@ -490,6 +512,12 @@ func TestRoundTripHandlesEarlyResponse(t *testing.T) {
 			err    error
 		}{status: resp.StatusCode, body: string(data), err: err}
 	}()
+
+	select {
+	case <-responseStarted:
+	case <-time.After(5 * time.Second):
+		t.Fatal("early response did not start")
+	}
 
 	select {
 	case result := <-respDone:

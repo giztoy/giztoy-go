@@ -8,10 +8,10 @@ import (
 
 // Transport primitives used by core network stack.
 
-// UDPAddr wraps net.UDPAddr to implement the noise.Addr interface.
+// UDPAddr wraps net.UDPAddr.
 type UDPAddr = itransport.UDPAddr
 
-// UDPAddrFromNetAddr wraps a net.UDPAddr as a noise.Addr.
+// UDPAddrFromNetAddr wraps a net.UDPAddr.
 func UDPAddrFromNetAddr(addr *net.UDPAddr) *UDPAddr {
 	return itransport.UDPAddrFromNetAddr(addr)
 }

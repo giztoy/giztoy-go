@@ -5,10 +5,9 @@ import (
 	"time"
 
 	"github.com/giztoy/giztoy-go/pkg/net/internal/socketopt"
-	"github.com/giztoy/giztoy-go/pkg/net/noise"
 )
 
-// UDPAddr wraps net.UDPAddr to implement the noise.Addr interface.
+// UDPAddr wraps net.UDPAddr.
 type UDPAddr struct {
 	addr *net.UDPAddr
 }
@@ -23,7 +22,7 @@ func (a *UDPAddr) String() string {
 	return a.addr.String()
 }
 
-// UDPAddrFromNetAddr wraps a net.UDPAddr as a noise.Addr.
+// UDPAddrFromNetAddr wraps a net.UDPAddr.
 func UDPAddrFromNetAddr(addr *net.UDPAddr) *UDPAddr {
 	return &UDPAddr{addr: addr}
 }
@@ -51,33 +50,41 @@ func NewUDPTransport(addr string) (*UDPTransport, error) {
 	return &UDPTransport{conn: conn}, nil
 }
 
-// SendTo sends data to the specified address.
-func (t *UDPTransport) SendTo(data []byte, addr noise.Addr) error {
+// WriteTo sends data to the specified address.
+func (t *UDPTransport) WriteTo(data []byte, addr net.Addr) (int, error) {
 	var udpAddr *net.UDPAddr
 
 	switch a := addr.(type) {
 	case *UDPAddr:
 		udpAddr = a.addr
+	case *net.UDPAddr:
+		udpAddr = a
 	default:
 		// Try to resolve from string
 		var err error
 		udpAddr, err = net.ResolveUDPAddr("udp", addr.String())
 		if err != nil {
-			return err
+			return 0, err
 		}
 	}
 
-	_, err := t.conn.WriteToUDP(data, udpAddr)
+	return t.conn.WriteTo(data, udpAddr)
+}
+
+// SendTo is a compatibility wrapper around WriteTo.
+func (t *UDPTransport) SendTo(data []byte, addr net.Addr) error {
+	_, err := t.WriteTo(data, addr)
 	return err
 }
 
-// RecvFrom receives data and returns the sender's address.
-func (t *UDPTransport) RecvFrom(buf []byte) (int, noise.Addr, error) {
-	n, addr, err := t.conn.ReadFromUDP(buf)
-	if err != nil {
-		return 0, nil, err
-	}
-	return n, &UDPAddr{addr: addr}, nil
+// ReadFrom receives data and returns the sender's address.
+func (t *UDPTransport) ReadFrom(buf []byte) (int, net.Addr, error) {
+	return t.conn.ReadFrom(buf)
+}
+
+// RecvFrom is a compatibility wrapper around ReadFrom.
+func (t *UDPTransport) RecvFrom(buf []byte) (int, net.Addr, error) {
+	return t.ReadFrom(buf)
 }
 
 // Close closes the transport.
@@ -86,8 +93,13 @@ func (t *UDPTransport) Close() error {
 }
 
 // LocalAddr returns the local address.
-func (t *UDPTransport) LocalAddr() noise.Addr {
-	return &UDPAddr{addr: t.conn.LocalAddr().(*net.UDPAddr)}
+func (t *UDPTransport) LocalAddr() net.Addr {
+	return t.conn.LocalAddr()
+}
+
+// SetDeadline sets both read and write deadlines.
+func (t *UDPTransport) SetDeadline(tt time.Time) error {
+	return t.conn.SetDeadline(tt)
 }
 
 // SetReadDeadline sets the read deadline.

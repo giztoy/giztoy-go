@@ -29,18 +29,8 @@ func (rt *RoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 
 	stopCancel := watchRequestContext(req, stream)
 	writeReq, bodyCtrl := cloneRequestForWrite(req)
-	responseReady := make(chan struct{})
-	writeErrCh := make(chan error, 1)
 	go func() {
-		err := writeReq.Write(stream)
-		if err != nil {
-			select {
-			case <-responseReady:
-			default:
-				_ = stream.Close()
-			}
-		}
-		writeErrCh <- err
+		_ = writeReq.Write(stream)
 	}()
 
 	resp, err := http.ReadResponse(bufio.NewReader(stream), req)
@@ -50,7 +40,6 @@ func (rt *RoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 		_ = stream.Close()
 		return nil, fmt.Errorf("httptransport: read response: %w", err)
 	}
-	close(responseReady)
 	bodyCtrl.abort()
 	_ = stream.SetWriteDeadline(time.Now())
 	resp.Body = &readCloser{
