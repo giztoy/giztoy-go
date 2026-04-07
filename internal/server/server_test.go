@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"log"
 	"net"
@@ -16,9 +17,10 @@ import (
 
 func TestServerPeerPing(t *testing.T) {
 	dir := t.TempDir()
+	listenAddr := allocateUDPAddr(t)
 	cfg := Config{
 		DataDir:    dir,
-		ListenAddr: "127.0.0.1:0",
+		ListenAddr: listenAddr,
 		ConfigPath: writeTempConfig(t, minimalTestConfig),
 	}
 
@@ -26,7 +28,6 @@ func TestServerPeerPing(t *testing.T) {
 	if err != nil {
 		t.Fatalf("New err=%v", err)
 	}
-	t.Cleanup(func() { srv.stores.Close() })
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -35,8 +36,7 @@ func TestServerPeerPing(t *testing.T) {
 	go func() { errCh <- srv.Run(ctx) }()
 	waitForServerRPCReady(t, srv)
 
-	info := srv.listener.HostInfo()
-	serverAddr := info.Addr.String()
+	serverAddr := listenAddr
 	serverPK := srv.keyPair.Public
 
 	clientKey, err := noise.GenerateKeyPair()
@@ -112,9 +112,10 @@ func TestServerPeerPing(t *testing.T) {
 
 func TestServerUnknownMethod(t *testing.T) {
 	dir := t.TempDir()
+	listenAddr := allocateUDPAddr(t)
 	cfg := Config{
 		DataDir:    dir,
-		ListenAddr: "127.0.0.1:0",
+		ListenAddr: listenAddr,
 		ConfigPath: writeTempConfig(t, minimalTestConfig),
 	}
 
@@ -122,7 +123,6 @@ func TestServerUnknownMethod(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { srv.stores.Close() })
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -130,8 +130,7 @@ func TestServerUnknownMethod(t *testing.T) {
 	go srv.Run(ctx)
 	waitForServerRPCReady(t, srv)
 
-	info := srv.listener.HostInfo()
-	serverAddr := info.Addr.String()
+	serverAddr := listenAddr
 	serverPK := srv.keyPair.Public
 
 	clientKey, _ := noise.GenerateKeyPair()
@@ -169,6 +168,16 @@ func TestServerUnknownMethod(t *testing.T) {
 	json.Unmarshal(respData, &resp)
 	if resp.Error == nil {
 		t.Fatal("expected error for unknown method")
+	}
+
+	cancel()
+	select {
+	case err := <-errCh:
+		if err != nil {
+			t.Logf("server shutdown: %v", err)
+		}
+	case <-time.After(3 * time.Second):
+		t.Fatal("server did not shut down")
 	}
 }
 
@@ -278,6 +287,17 @@ func TestWriteRPCResponseMarshalError(t *testing.T) {
 	if err := WriteRPCResponse(io.Discard, resp); err == nil {
 		t.Fatal("WriteRPCResponse(marshal error) should fail")
 	}
+}
+
+func allocateUDPAddr(t *testing.T) string {
+	t.Helper()
+	pc, err := net.ListenPacket("udp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("allocateUDPAddr: %v", err)
+	}
+	addr := pc.LocalAddr().(*net.UDPAddr)
+	pc.Close()
+	return fmt.Sprintf("127.0.0.1:%d", addr.Port)
 }
 
 func parseUDPAddr(addr string) (*net.UDPAddr, error) {

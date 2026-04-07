@@ -2118,7 +2118,9 @@ func TestVecFSPerPersonaFiles(t *testing.T) {
 
 func BenchmarkConversationRecent(b *testing.B) {
 	store := kv.NewMemory(&kv.Options{Separator: testSep})
-	h, err := NewHost(context.Background(), HostConfig{Store: store, Separator: testSep})
+	h, err := NewHost(context.Background(), HostConfig{
+		Store: store, Embedder: newMockEmbedder(), FS: &testDirFS{root: b.TempDir()}, Separator: testSep,
+	})
 	if err != nil {
 		b.Fatal(err)
 	}

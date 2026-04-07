@@ -9,6 +9,7 @@ import (
 	"os"
 	"sort"
 	"sync"
+	"sync/atomic"
 
 	"github.com/giztoy/giztoy-go/pkg/filesystem"
 )
@@ -126,11 +127,13 @@ type HNSW struct {
 
 	// Persistence. When fs is non-nil, Flush and Close write the index
 	// through the filesystem.FS interface. fileMu serialises file I/O
-	// so that concurrent flushes do not race.
+	// so that concurrent flushes do not race. dirty is an atomic flag
+	// set by mutating operations (Insert/Delete) without holding fileMu,
+	// avoiding a lock-order inversion between mu and fileMu.
 	fs     filesystem.FS
 	name   string // file name within fs
 	fileMu sync.Mutex
-	dirty  bool
+	dirty  atomic.Bool
 }
 
 // Compile-time interface check.
@@ -249,30 +252,29 @@ func (h *HNSW) Close() error {
 }
 
 func (h *HNSW) markDirty() {
-	if h.fs == nil {
-		return
+	if h.fs != nil {
+		h.dirty.Store(true)
 	}
-	h.fileMu.Lock()
-	h.dirty = true
-	h.fileMu.Unlock()
 }
 
 func (h *HNSW) flushLocked() error {
-	if !h.dirty {
+	if !h.dirty.Swap(false) {
 		return nil
 	}
 	w, err := h.fs.Create(h.name)
 	if err != nil {
+		h.dirty.Store(true)
 		return fmt.Errorf("vecstore: hnsw create %q: %w", h.name, err)
 	}
 	if err := h.Save(w); err != nil {
 		_ = w.Close()
+		h.dirty.Store(true)
 		return fmt.Errorf("vecstore: hnsw save %q: %w", h.name, err)
 	}
 	if err := w.Close(); err != nil {
+		h.dirty.Store(true)
 		return fmt.Errorf("vecstore: hnsw flush %q: %w", h.name, err)
 	}
-	h.dirty = false
 	return nil
 }
 
