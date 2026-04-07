@@ -8,24 +8,30 @@ import (
 	"sync"
 
 	"github.com/giztoy/giztoy-go/pkg/embed"
+	"github.com/giztoy/giztoy-go/pkg/filesystem"
 	"github.com/giztoy/giztoy-go/pkg/kv"
 	"github.com/giztoy/giztoy-go/pkg/recall"
 	"github.com/giztoy/giztoy-go/pkg/vecstore"
 )
 
 // HostConfig configures a [Host].
+//
+// Store, FS, and Embedder are all required. NewHost returns an error if
+// any of them is nil.
 type HostConfig struct {
 	// Store is the shared KV store. Required.
 	// The store must be created with the same Separator as configured here.
 	// Each persona's data is isolated under "mem{sep}{id}{sep}..." prefixes.
 	Store kv.Store
 
-	// Vec is the shared vector index. Optional.
-	// If nil, semantic vector search is disabled.
-	Vec vecstore.Index
+	// FS provides filesystem access for per-persona HNSW vector index
+	// files. Required.
+	//
+	// Each persona's file name is stored in KV on first open and loaded
+	// through FS on subsequent opens.
+	FS filesystem.FS
 
-	// Embedder converts text to vectors. Optional.
-	// If nil, semantic vector search is disabled.
+	// Embedder converts text to vectors. Required.
 	//
 	// The embedder's Model() and Dimension() are persisted on first use.
 	// Subsequent calls to NewHost with a different model or dimension will
@@ -69,7 +75,8 @@ type embedMeta struct {
 
 // Host is the process-level entry point for the memory system.
 // It manages Memory instances for many personas, all sharing a single
-// KV store, vector index, and embedder.
+// KV store and embedder. Each persona gets its own HNSW vector index
+// file whose name is tracked in KV and opened through [HostConfig.FS].
 //
 // Host is safe for concurrent use. Multiple goroutines can call Open
 // simultaneously for different persona IDs.
@@ -78,30 +85,34 @@ type Host struct {
 
 	mu       sync.Mutex
 	memories map[string]*Memory
+	vecs     map[string]vecstore.Index // per-persona vec indexes
 }
 
-// NewHost creates a new Host and validates the embedding model consistency.
+// NewHost creates a new Host and validates configuration.
 //
-// If an Embedder is provided, NewHost checks the KV store for previously
-// persisted model metadata. If found and the model name or dimension differs,
-// NewHost returns an error. If not found, it persists the current model info.
-//
-// This ensures that vectors stored with one model are never searched with
-// another, which would produce meaningless similarity scores.
+// Store, FS, and Embedder must all be non-nil. NewHost checks the KV store
+// for previously persisted embedding model metadata. If found and the model
+// name or dimension differs, NewHost returns an error. If not found, it
+// persists the current model info.
 func NewHost(ctx context.Context, cfg HostConfig) (*Host, error) {
 	if cfg.Store == nil {
 		return nil, fmt.Errorf("memory: HostConfig.Store is required")
 	}
+	if cfg.FS == nil {
+		return nil, fmt.Errorf("memory: HostConfig.FS is required")
+	}
+	if cfg.Embedder == nil {
+		return nil, fmt.Errorf("memory: HostConfig.Embedder is required")
+	}
 
-	if cfg.Embedder != nil {
-		if err := checkEmbedMeta(ctx, cfg.Store, cfg.Embedder); err != nil {
-			return nil, err
-		}
+	if err := checkEmbedMeta(ctx, cfg.Store, cfg.Embedder); err != nil {
+		return nil, err
 	}
 
 	return &Host{
 		cfg:      cfg,
 		memories: make(map[string]*Memory),
+		vecs:     make(map[string]vecstore.Index),
 	}, nil
 }
 
@@ -126,11 +137,7 @@ func WithCompressPolicy(p CompressPolicy) OpenOption {
 
 // WithEmbedder overrides the host-level [embed.Embedder] for this persona.
 // The embedder's Model and Dimension must match the host's configured embedder
-// (if any) to ensure vector compatibility; Open returns an error on mismatch.
-//
-// If the host was created without a default embedder, Open still validates this
-// per-persona embedder against persisted embed metadata in KV to avoid mixing
-// incompatible vector spaces across personas.
+// to ensure vector compatibility; Open returns an error on mismatch.
 func WithEmbedder(e embed.Embedder) OpenOption {
 	return func(o *openConfig) { o.embedder = e }
 }
@@ -166,26 +173,17 @@ func (h *Host) Open(id string, opts ...OpenOption) (*Memory, error) {
 	// Resolve embedder.
 	emb := h.cfg.Embedder
 	if oc.embedder != nil {
-		if emb != nil {
-			// Validate model + dimension compatibility with host-level embedder.
-			if oc.embedder.Model() != emb.Model() {
-				return nil, fmt.Errorf(
-					"memory: Open %q: embedder model mismatch: host=%q, per-persona=%q",
-					id, emb.Model(), oc.embedder.Model(),
-				)
-			}
-			if oc.embedder.Dimension() != emb.Dimension() {
-				return nil, fmt.Errorf(
-					"memory: Open %q: embedder dimension mismatch: host=%d, per-persona=%d",
-					id, emb.Dimension(), oc.embedder.Dimension(),
-				)
-			}
-		} else {
-			// Host has no default embedder: still enforce persisted embed metadata
-			// consistency so per-persona overrides cannot bypass model checks.
-			if err := checkEmbedMeta(context.Background(), h.cfg.Store, oc.embedder); err != nil {
-				return nil, fmt.Errorf("memory: Open %q: validate per-persona embedder: %w", id, err)
-			}
+		if oc.embedder.Model() != emb.Model() {
+			return nil, fmt.Errorf(
+				"memory: Open %q: embedder model mismatch: host=%q, per-persona=%q",
+				id, emb.Model(), oc.embedder.Model(),
+			)
+		}
+		if oc.embedder.Dimension() != emb.Dimension() {
+			return nil, fmt.Errorf(
+				"memory: Open %q: embedder dimension mismatch: host=%d, per-persona=%d",
+				id, emb.Dimension(), oc.embedder.Dimension(),
+			)
 		}
 		emb = oc.embedder
 	}
@@ -202,10 +200,17 @@ func (h *Host) Open(id string, opts ...OpenOption) (*Memory, error) {
 		policy = *oc.compressPolicy
 	}
 
+	// Create per-persona vector index.
+	vec, err := h.openVec(id, emb.Dimension())
+	if err != nil {
+		return nil, fmt.Errorf("memory: Open %q: create vec index: %w", id, err)
+	}
+	h.vecs[id] = vec
+
 	idx := recall.NewIndex(recall.IndexConfig{
 		Store:     h.cfg.Store,
 		Embedder:  emb,
-		Vec:       h.cfg.Vec,
+		Vec:       vec,
 		Prefix:    memPrefix(id),
 		Separator: h.cfg.Separator,
 	})
@@ -215,20 +220,64 @@ func (h *Host) Open(id string, opts ...OpenOption) (*Memory, error) {
 	return m, nil
 }
 
+// openVec creates or loads a per-persona vector index.
+// The file name is read from KV (or generated and stored on first open),
+// then loaded through FS.
+func (h *Host) openVec(id string, dim int) (vecstore.Index, error) {
+	ctx := context.Background()
+	key := vecPathKey(id)
+	name, err := h.resolveVecName(ctx, key, id)
+	if err != nil {
+		return nil, err
+	}
+	return vecstore.OpenHNSW(h.cfg.FS, name, vecstore.HNSWConfig{Dim: dim})
+}
+
+// resolveVecName reads the HNSW file name from KV. If not found, it
+// generates "{id}.hnsw" and stores it.
+func (h *Host) resolveVecName(ctx context.Context, key kv.Key, id string) (string, error) {
+	data, err := h.cfg.Store.Get(ctx, key)
+	if err == nil {
+		return string(data), nil
+	}
+	if !errors.Is(err, kv.ErrNotFound) {
+		return "", fmt.Errorf("read vecpath: %w", err)
+	}
+	name := id + ".hnsw"
+	if err := h.cfg.Store.Set(ctx, key, []byte(name)); err != nil {
+		return "", fmt.Errorf("write vecpath: %w", err)
+	}
+	return name, nil
+}
+
 // Close releases all resources. After Close, the Host should not be used.
 func (h *Host) Close() error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
+	var errs []error
+	for _, v := range h.vecs {
+		if err := v.Close(); err != nil {
+			errs = append(errs, err)
+		}
+	}
 	h.memories = nil
-	return nil
+	h.vecs = nil
+	return errors.Join(errs...)
 }
 
 // Delete removes all data for a persona. Safe to call for non-existent IDs.
-// This removes the persona from the host's internal cache and deletes all
-// KV entries that start with the persona's prefix.
+// This removes the persona from the host's internal cache, closes and removes
+// the per-persona vector index, and deletes all KV entries under its prefix.
 func (h *Host) Delete(ctx context.Context, id string) error {
 	if err := validateKeySegment("id", id, h.cfg.Separator); err != nil {
 		return err
+	}
+
+	// Read the vec file name BEFORE we delete KV entries, because
+	// vecPathKey lives under the same prefix that batch-delete removes.
+	var vecName string
+	if data, err := h.cfg.Store.Get(ctx, vecPathKey(id)); err == nil {
+		vecName = string(data)
 	}
 
 	// Build prefix: mem{id} - List will automatically append separator
@@ -241,15 +290,6 @@ func (h *Host) Delete(ctx context.Context, id string) error {
 		return fmt.Errorf("memory: delete %q: list entries: %w", id, err)
 	}
 	if len(entries) > 0 {
-		if h.cfg.Vec != nil {
-			segmentIDs := collectSegmentIDs(entries, prefix)
-			for _, segID := range segmentIDs {
-				if err := h.cfg.Vec.Delete(segID); err != nil {
-					return fmt.Errorf("memory: delete %q: delete vector %q: %w", id, segID, err)
-				}
-			}
-		}
-
 		keys := make([]kv.Key, len(entries))
 		for i, e := range entries {
 			keys[i] = e.Key
@@ -259,9 +299,16 @@ func (h *Host) Delete(ctx context.Context, id string) error {
 		}
 	}
 
-	// Remove from internal cache.
+	// Close the in-memory vec index and remove its backing file.
 	h.mu.Lock()
 	defer h.mu.Unlock()
+	if vec, ok := h.vecs[id]; ok {
+		_ = vec.Close()
+		delete(h.vecs, id)
+	}
+	if vecName != "" {
+		_ = h.cfg.FS.Remove(vecName)
+	}
 	delete(h.memories, id)
 	return nil
 }
@@ -278,34 +325,6 @@ func listEntries(ctx context.Context, store kv.Store, prefix kv.Key) ([]kv.Entry
 	return results, nil
 }
 
-// collectSegmentIDs extracts segment IDs from sid keys under the given prefix.
-// sid key format: {prefix} + "sid" + {segmentID}
-func collectSegmentIDs(entries []kv.Entry, prefix kv.Key) []string {
-	if len(entries) == 0 {
-		return nil
-	}
-	prefixLen := len(prefix)
-	seen := make(map[string]struct{})
-	ids := make([]string, 0, len(entries))
-
-	for _, entry := range entries {
-		k := entry.Key
-		if len(k) != prefixLen+2 {
-			continue
-		}
-		if k[prefixLen] != "sid" {
-			continue
-		}
-		id := k[prefixLen+1]
-		if _, ok := seen[id]; ok {
-			continue
-		}
-		seen[id] = struct{}{}
-		ids = append(ids, id)
-	}
-
-	return ids
-}
 
 // checkEmbedMeta verifies embedding model consistency. On first call it
 // persists the current model; on subsequent calls it validates the stored

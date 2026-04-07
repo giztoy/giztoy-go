@@ -8,7 +8,6 @@ import (
 
 	"github.com/giztoy/giztoy-go/pkg/kv"
 	"github.com/giztoy/giztoy-go/pkg/recall"
-	"github.com/giztoy/giztoy-go/pkg/vecstore"
 )
 
 type starvationEmbedder struct{}
@@ -42,15 +41,14 @@ func (starvationEmbedder) Dimension() int { return 2 }
 
 func (starvationEmbedder) Model() string { return "starvation-embed-v1" }
 
-func TestRecallSharedVecPersonaIsolation(t *testing.T) {
+func TestRecallPerPersonaVecIsolation(t *testing.T) {
 	ctx := context.Background()
 	store := kv.NewMemory(&kv.Options{Separator: testSep})
-	vec := vecstore.NewMemory()
 
 	host, err := NewHost(ctx, HostConfig{
 		Store:     store,
-		Vec:       vec,
 		Embedder:  starvationEmbedder{},
+		FS:        &testDirFS{root: t.TempDir()},
 		Separator: testSep,
 	})
 	if err != nil {
@@ -80,22 +78,21 @@ func TestRecallSharedVecPersonaIsolation(t *testing.T) {
 		t.Fatalf("local recall: %v", err)
 	}
 	if len(res.Segments) == 0 {
-		t.Fatal("expected local recall to return local segment under shared vec")
+		t.Fatal("expected local recall to return local segment with per-persona vec")
 	}
 	if res.Segments[0].Summary != "local-target" {
 		t.Fatalf("expected top result local-target, got %q", res.Segments[0].Summary)
 	}
 }
 
-func TestHostDeleteAlsoDeletesVectors(t *testing.T) {
+func TestHostDeleteClearsPersonaData(t *testing.T) {
 	ctx := context.Background()
 	store := kv.NewMemory(&kv.Options{Separator: testSep})
-	vec := vecstore.NewMemory()
 
 	host, err := NewHost(ctx, HostConfig{
 		Store:     store,
-		Vec:       vec,
 		Embedder:  starvationEmbedder{},
+		FS:        &testDirFS{root: t.TempDir()},
 		Separator: testSep,
 	})
 	if err != nil {
@@ -118,16 +115,8 @@ func TestHostDeleteAlsoDeletesVectors(t *testing.T) {
 		t.Fatalf("store persona_b segment: %v", err)
 	}
 
-	if got := vec.Len(); got != 2 {
-		t.Fatalf("vec len before delete = %d, want 2", got)
-	}
-
 	if err := host.Delete(ctx, "persona_a"); err != nil {
 		t.Fatalf("delete persona_a: %v", err)
-	}
-
-	if got := vec.Len(); got != 1 {
-		t.Fatalf("vec len after delete = %d, want 1", got)
 	}
 
 	resB, err := b.Recall(ctx, RecallQuery{Text: "query", Limit: 3})

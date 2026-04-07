@@ -55,6 +55,12 @@ func hostMetaKey(name string) kv.Key {
 	return kv.Key{"mem", "__meta", name}
 }
 
+// vecPathKey returns the KV key for a persona's HNSW file name.
+// Format: "mem" + {mid} + "vecpath"
+func vecPathKey(mid string) kv.Key {
+	return kv.Key{"mem", mid, "vecpath"}
+}
+
 // convMsgKey builds the KV key for a conversation message.
 // Format: "mem" + {mid} + "conv" + {convID} + "msg" + {ts_ns}
 //

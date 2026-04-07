@@ -4,15 +4,48 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	"io"
 	"math"
 	"math/rand/v2"
+	"os"
+	"path/filepath"
 	"sync"
 	"testing"
+
+	"github.com/giztoy/giztoy-go/pkg/filesystem"
 )
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
+
+// testDirFS is a minimal [filesystem.FS] backed by a local directory.
+// Used only in tests — production implementations live elsewhere.
+type testDirFS struct{ root string }
+
+var _ filesystem.FS = (*testDirFS)(nil)
+
+func newTestDirFS(root string) *testDirFS { return &testDirFS{root: root} }
+
+func (d *testDirFS) Open(name string) (io.ReadCloser, error) {
+	return os.Open(filepath.Join(d.root, name))
+}
+
+func (d *testDirFS) Create(name string) (io.WriteCloser, error) {
+	path := filepath.Join(d.root, name)
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return nil, err
+	}
+	return os.Create(path)
+}
+
+func (d *testDirFS) Remove(name string) error {
+	err := os.Remove(filepath.Join(d.root, name))
+	if os.IsNotExist(err) {
+		return nil
+	}
+	return err
+}
 
 // newTestHNSW creates an HNSW index with small parameters for fast tests.
 func newTestHNSW(dim int) *HNSW {
@@ -959,4 +992,224 @@ func BenchmarkHNSWSaveLoad(b *testing.B) {
 			_, _ = LoadHNSW(bytes.NewReader(data))
 		}
 	})
+}
+
+// ---------------------------------------------------------------------------
+// OpenHNSW (persistent file-backed index)
+// ---------------------------------------------------------------------------
+
+func TestOpenHNSWCreateNew(t *testing.T) {
+	fs := newTestDirFS(t.TempDir())
+	idx, err := OpenHNSW(fs, "test.hnsw", HNSWConfig{Dim: 3})
+	if err != nil {
+		t.Fatalf("OpenHNSW: %v", err)
+	}
+	defer idx.Close()
+
+	if idx.Len() != 0 {
+		t.Fatalf("Len = %d, want 0", idx.Len())
+	}
+	if idx.Name() != "test.hnsw" {
+		t.Fatalf("Name = %q, want %q", idx.Name(), "test.hnsw")
+	}
+}
+
+func TestOpenHNSWInsertFlushReopen(t *testing.T) {
+	fs := newTestDirFS(t.TempDir())
+	idx, err := OpenHNSW(fs, "test.hnsw", HNSWConfig{Dim: 3})
+	if err != nil {
+		t.Fatalf("OpenHNSW: %v", err)
+	}
+
+	if err := idx.Insert("a", []float32{1, 0, 0}); err != nil {
+		t.Fatalf("Insert: %v", err)
+	}
+	if err := idx.Insert("b", []float32{0, 1, 0}); err != nil {
+		t.Fatalf("Insert b: %v", err)
+	}
+
+	matches, err := idx.Search([]float32{1, 0, 0}, 1)
+	if err != nil {
+		t.Fatalf("Search: %v", err)
+	}
+	if len(matches) != 1 || matches[0].ID != "a" {
+		t.Fatalf("Search mismatch: %+v", matches)
+	}
+
+	if err := idx.Close(); err != nil {
+		t.Fatalf("Close: %v", err)
+	}
+
+	// Reopen and verify.
+	idx2, err := OpenHNSW(fs, "test.hnsw", HNSWConfig{Dim: 3})
+	if err != nil {
+		t.Fatalf("OpenHNSW reopen: %v", err)
+	}
+	defer idx2.Close()
+
+	if idx2.Len() != 2 {
+		t.Fatalf("Len after reopen = %d, want 2", idx2.Len())
+	}
+	matches2, err := idx2.Search([]float32{1, 0, 0}, 1)
+	if err != nil {
+		t.Fatalf("Search after reopen: %v", err)
+	}
+	if len(matches2) != 1 || matches2[0].ID != "a" {
+		t.Fatalf("Search after reopen mismatch: %+v", matches2)
+	}
+}
+
+func TestOpenHNSWDeleteMarksDirty(t *testing.T) {
+	fs := newTestDirFS(t.TempDir())
+	idx, err := OpenHNSW(fs, "test.hnsw", HNSWConfig{Dim: 3})
+	if err != nil {
+		t.Fatalf("OpenHNSW: %v", err)
+	}
+
+	if err := idx.Insert("a", []float32{1, 0, 0}); err != nil {
+		t.Fatalf("Insert: %v", err)
+	}
+	if err := idx.Flush(); err != nil {
+		t.Fatalf("Flush: %v", err)
+	}
+	if err := idx.Delete("a"); err != nil {
+		t.Fatalf("Delete: %v", err)
+	}
+	if err := idx.Close(); err != nil {
+		t.Fatalf("Close: %v", err)
+	}
+
+	idx2, err := OpenHNSW(fs, "test.hnsw", HNSWConfig{Dim: 3})
+	if err != nil {
+		t.Fatalf("OpenHNSW reopen: %v", err)
+	}
+	defer idx2.Close()
+
+	if idx2.Len() != 0 {
+		t.Fatalf("Len after reopen = %d, want 0 (delete should have been persisted)", idx2.Len())
+	}
+}
+
+func TestOpenHNSWBatchInsert(t *testing.T) {
+	fs := newTestDirFS(t.TempDir())
+	idx, err := OpenHNSW(fs, "test.hnsw", HNSWConfig{Dim: 3})
+	if err != nil {
+		t.Fatalf("OpenHNSW: %v", err)
+	}
+
+	if err := idx.BatchInsert(
+		[]string{"a", "b"},
+		[][]float32{{1, 0, 0}, {0, 1, 0}},
+	); err != nil {
+		t.Fatalf("BatchInsert: %v", err)
+	}
+	if err := idx.Close(); err != nil {
+		t.Fatalf("Close: %v", err)
+	}
+
+	idx2, err := OpenHNSW(fs, "test.hnsw", HNSWConfig{Dim: 3})
+	if err != nil {
+		t.Fatalf("OpenHNSW reopen: %v", err)
+	}
+	defer idx2.Close()
+	if idx2.Len() != 2 {
+		t.Fatalf("Len after reopen = %d, want 2", idx2.Len())
+	}
+}
+
+func TestOpenHNSWDimMismatch(t *testing.T) {
+	fs := newTestDirFS(t.TempDir())
+	idx, err := OpenHNSW(fs, "test.hnsw", HNSWConfig{Dim: 3})
+	if err != nil {
+		t.Fatalf("OpenHNSW: %v", err)
+	}
+	if err := idx.Insert("x", []float32{1, 0, 0}); err != nil {
+		t.Fatalf("Insert: %v", err)
+	}
+	if err := idx.Close(); err != nil {
+		t.Fatalf("Close: %v", err)
+	}
+
+	if _, err := OpenHNSW(fs, "test.hnsw", HNSWConfig{Dim: 4}); err == nil {
+		t.Fatal("expected dimension mismatch error")
+	}
+}
+
+func TestOpenHNSWRemove(t *testing.T) {
+	dir := t.TempDir()
+	fs := newTestDirFS(dir)
+	idx, err := OpenHNSW(fs, "test.hnsw", HNSWConfig{Dim: 3})
+	if err != nil {
+		t.Fatalf("OpenHNSW: %v", err)
+	}
+	if err := idx.Insert("x", []float32{1, 0, 0}); err != nil {
+		t.Fatalf("Insert: %v", err)
+	}
+	if err := idx.Flush(); err != nil {
+		t.Fatalf("Flush: %v", err)
+	}
+	path := filepath.Join(dir, "test.hnsw")
+	if _, err := os.Stat(path); err != nil {
+		t.Fatalf("file should exist: %v", err)
+	}
+
+	if err := idx.Remove(); err != nil {
+		t.Fatalf("Remove: %v", err)
+	}
+	if _, err := os.Stat(path); !os.IsNotExist(err) {
+		t.Fatalf("file should be removed, got err=%v", err)
+	}
+}
+
+func TestOpenHNSWFlushNoopWhenClean(t *testing.T) {
+	dir := t.TempDir()
+	fs := newTestDirFS(dir)
+	idx, err := OpenHNSW(fs, "test.hnsw", HNSWConfig{Dim: 3})
+	if err != nil {
+		t.Fatalf("OpenHNSW: %v", err)
+	}
+	defer idx.Close()
+
+	if err := idx.Flush(); err != nil {
+		t.Fatalf("Flush clean: %v", err)
+	}
+	path := filepath.Join(dir, "test.hnsw")
+	if _, err := os.Stat(path); !os.IsNotExist(err) {
+		t.Fatalf("no file should be created for clean flush")
+	}
+}
+
+func TestOpenHNSWNestedDir(t *testing.T) {
+	dir := t.TempDir()
+	fs := newTestDirFS(dir)
+	idx, err := OpenHNSW(fs, "a/b/c/test.hnsw", HNSWConfig{Dim: 3})
+	if err != nil {
+		t.Fatalf("OpenHNSW nested: %v", err)
+	}
+	if err := idx.Insert("a", []float32{1, 0, 0}); err != nil {
+		t.Fatalf("Insert: %v", err)
+	}
+	if err := idx.Close(); err != nil {
+		t.Fatalf("Close: %v", err)
+	}
+	path := filepath.Join(dir, "a", "b", "c", "test.hnsw")
+	if _, err := os.Stat(path); err != nil {
+		t.Fatalf("file should exist: %v", err)
+	}
+}
+
+func TestNewHNSWNameIsEmpty(t *testing.T) {
+	h := NewHNSW(HNSWConfig{Dim: 3})
+	if h.Name() != "" {
+		t.Fatalf("NewHNSW should have empty name, got %q", h.Name())
+	}
+	if err := h.Flush(); err != nil {
+		t.Fatalf("Flush in-memory: %v", err)
+	}
+	if err := h.Close(); err != nil {
+		t.Fatalf("Close in-memory: %v", err)
+	}
+	if err := h.Remove(); err != nil {
+		t.Fatalf("Remove in-memory: %v", err)
+	}
 }

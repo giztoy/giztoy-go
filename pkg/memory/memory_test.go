@@ -3,13 +3,16 @@ package memory
 import (
 	"context"
 	"fmt"
+	"io"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
+	"github.com/giztoy/giztoy-go/pkg/filesystem"
 	"github.com/giztoy/giztoy-go/pkg/graph"
 	"github.com/giztoy/giztoy-go/pkg/kv"
 	"github.com/giztoy/giztoy-go/pkg/recall"
-	"github.com/giztoy/giztoy-go/pkg/vecstore"
 )
 
 // ---------------------------------------------------------------------------
@@ -184,12 +187,11 @@ func newTestHost(t *testing.T) *Host {
 	t.Helper()
 	store := kv.NewMemory(&kv.Options{Separator: testSep})
 	emb := newMockEmbedder()
-	vec := vecstore.NewMemory()
 
 	h, err := NewHost(context.Background(), HostConfig{
 		Store:     store,
-		Vec:       vec,
 		Embedder:  emb,
+		FS:        &testDirFS{root: t.TempDir()},
 		Separator: testSep,
 	})
 	if err != nil {
@@ -198,16 +200,6 @@ func newTestHost(t *testing.T) *Host {
 	return h
 }
 
-// newTestHostNoVec creates a Host without vector search.
-func newTestHostNoVec(t *testing.T) *Host {
-	t.Helper()
-	store := kv.NewMemory(&kv.Options{Separator: testSep})
-	h, err := NewHost(context.Background(), HostConfig{Store: store, Separator: testSep})
-	if err != nil {
-		t.Fatalf("NewHost: %v", err)
-	}
-	return h
-}
 
 // mustOpen is a test helper that calls h.Open and fails the test on error.
 func mustOpen(t testing.TB, h *Host, id string, opts ...OpenOption) *Memory {
@@ -264,11 +256,12 @@ func TestHostNilStoreReturnsError(t *testing.T) {
 func TestHostEmbedModelPersistence(t *testing.T) {
 	ctx := context.Background()
 	store := kv.NewMemory(&kv.Options{Separator: testSep})
+	fs := &testDirFS{root: t.TempDir()}
 
 	// First NewHost: should persist mock-embed model metadata.
 	emb := newMockEmbedder()
 	h1, err := NewHost(ctx, HostConfig{
-		Store: store, Embedder: emb, Separator: testSep,
+		Store: store, Embedder: emb, FS: fs, Separator: testSep,
 	})
 	if err != nil {
 		t.Fatalf("first NewHost: %v", err)
@@ -277,7 +270,7 @@ func TestHostEmbedModelPersistence(t *testing.T) {
 
 	// Second NewHost with same embedder: should succeed.
 	h2, err := NewHost(ctx, HostConfig{
-		Store: store, Embedder: emb, Separator: testSep,
+		Store: store, Embedder: emb, FS: fs, Separator: testSep,
 	})
 	if err != nil {
 		t.Fatalf("second NewHost (same model): %v", err)
@@ -288,7 +281,7 @@ func TestHostEmbedModelPersistence(t *testing.T) {
 	differentEmb := &mockEmbedder{dim: 8, vectors: map[string][]float32{}}
 	differentEmb.model = "different-model"
 	_, err = NewHost(ctx, HostConfig{
-		Store: store, Embedder: differentEmb, Separator: testSep,
+		Store: store, Embedder: differentEmb, FS: fs, Separator: testSep,
 	})
 	if err == nil {
 		t.Fatal("expected error on model mismatch, got nil")
@@ -299,11 +292,12 @@ func TestHostEmbedModelPersistence(t *testing.T) {
 func TestHostEmbedDimensionMismatch(t *testing.T) {
 	ctx := context.Background()
 	store := kv.NewMemory(&kv.Options{Separator: testSep})
+	fs := &testDirFS{root: t.TempDir()}
 
 	// First NewHost with dim=8.
 	emb8 := newMockEmbedder() // dim=8
 	h1, err := NewHost(ctx, HostConfig{
-		Store: store, Embedder: emb8, Separator: testSep,
+		Store: store, Embedder: emb8, FS: fs, Separator: testSep,
 	})
 	if err != nil {
 		t.Fatalf("first NewHost: %v", err)
@@ -313,7 +307,7 @@ func TestHostEmbedDimensionMismatch(t *testing.T) {
 	// Second NewHost with same model but dim=4: should fail.
 	emb4 := &mockEmbedder{dim: 4, vectors: map[string][]float32{}}
 	_, err = NewHost(ctx, HostConfig{
-		Store: store, Embedder: emb4, Separator: testSep,
+		Store: store, Embedder: emb4, FS: fs, Separator: testSep,
 	})
 	if err == nil {
 		t.Fatal("expected error on dimension mismatch, got nil")
@@ -321,22 +315,29 @@ func TestHostEmbedDimensionMismatch(t *testing.T) {
 	t.Logf("got expected error: %v", err)
 }
 
-func TestHostNoEmbedderSkipsCheck(t *testing.T) {
+func TestNewHostRejectsNilFields(t *testing.T) {
 	ctx := context.Background()
 	store := kv.NewMemory(&kv.Options{Separator: testSep})
+	emb := newMockEmbedder()
+	fs := &testDirFS{root: t.TempDir()}
 
-	// NewHost without embedder: should succeed, no metadata written.
-	h, err := NewHost(ctx, HostConfig{Store: store, Separator: testSep})
-	if err != nil {
-		t.Fatalf("NewHost without embedder: %v", err)
+	if _, err := NewHost(ctx, HostConfig{FS: fs, Embedder: emb, Separator: testSep}); err == nil {
+		t.Fatal("expected error on nil Store")
 	}
-	h.Close()
+	if _, err := NewHost(ctx, HostConfig{Store: store, Embedder: emb, Separator: testSep}); err == nil {
+		t.Fatal("expected error on nil FS")
+	}
+	if _, err := NewHost(ctx, HostConfig{Store: store, FS: fs, Separator: testSep}); err == nil {
+		t.Fatal("expected error on nil Embedder")
+	}
 }
 
 func TestHostOpenRejectsIDContainingSeparator(t *testing.T) {
 	ctx := context.Background()
 	store := kv.NewMemory(nil) // default separator ':'
-	h, err := NewHost(ctx, HostConfig{Store: store})
+	h, err := NewHost(ctx, HostConfig{
+		Store: store, Embedder: newMockEmbedder(), FS: &testDirFS{root: t.TempDir()},
+	})
 	if err != nil {
 		t.Fatalf("NewHost: %v", err)
 	}
@@ -672,12 +673,11 @@ func newTestHostWithCompactor(t *testing.T, policy CompressPolicy) *Host {
 	t.Helper()
 	store := kv.NewMemory(&kv.Options{Separator: testSep})
 	emb := newMockEmbedder()
-	vec := vecstore.NewMemory()
 
 	h, err := NewHost(context.Background(), HostConfig{
 		Store:          store,
-		Vec:            vec,
 		Embedder:       emb,
+		FS:             &testDirFS{root: t.TempDir()},
 		Separator:      testSep,
 		Compressor:     &mockCompressor{},
 		CompressPolicy: policy,
@@ -885,6 +885,8 @@ func TestZeroCompressPolicyDisablesAutoCompression(t *testing.T) {
 	store := kv.NewMemory(&kv.Options{Separator: testSep})
 	h, err := NewHost(context.Background(), HostConfig{
 		Store:          store,
+		Embedder:       newMockEmbedder(),
+		FS:             &testDirFS{root: t.TempDir()},
 		Compressor:     &mockCompressor{},
 		CompressPolicy: CompressPolicy{}, // zero policy => disable auto-compress
 		Separator:      testSep,
@@ -1374,37 +1376,6 @@ func TestConvMsgKeyLexOrder(t *testing.T) {
 	k2 := convMsgKey("m", "c", 10000)
 	if k1[5] >= k2[5] {
 		t.Fatalf("expected %q < %q", k1[5], k2[5])
-	}
-}
-
-// ---------------------------------------------------------------------------
-// Host without vector search
-// ---------------------------------------------------------------------------
-
-func TestHostNoVecSearch(t *testing.T) {
-	h := newTestHostNoVec(t)
-	defer h.Close()
-	m := mustOpen(t, h, "test")
-	ctx := context.Background()
-
-	// Store a segment (no vector indexing).
-	if err := m.StoreSegment(ctx, SegmentInput{
-		Summary:  "test segment",
-		Keywords: []string{"test"},
-		Labels:   []string{"label"},
-	}, recall.Bucket1H); err != nil {
-		t.Fatalf("StoreSegment: %v", err)
-	}
-
-	// Recall should still work (keyword + label only).
-	result, err := m.Recall(ctx, RecallQuery{Text: "test", Limit: 10})
-	if err != nil {
-		t.Fatalf("Recall: %v", err)
-	}
-	// Without vector search, results rely on keyword/label matching.
-	// The segment should still be findable.
-	if len(result.Segments) == 0 {
-		t.Log("no segments returned without vector search (expected if no label/keyword match)")
 	}
 }
 
@@ -2066,6 +2037,85 @@ func BenchmarkConversationAppend(b *testing.B) {
 	}
 }
 
+// testDirFS is a minimal [filesystem.FS] backed by a local directory.
+type testDirFS struct{ root string }
+
+var _ filesystem.FS = (*testDirFS)(nil)
+
+func (d *testDirFS) Open(name string) (io.ReadCloser, error) {
+	return os.Open(filepath.Join(d.root, name))
+}
+
+func (d *testDirFS) Create(name string) (io.WriteCloser, error) {
+	path := filepath.Join(d.root, name)
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return nil, err
+	}
+	return os.Create(path)
+}
+
+func (d *testDirFS) Remove(name string) error {
+	err := os.Remove(filepath.Join(d.root, name))
+	if os.IsNotExist(err) {
+		return nil
+	}
+	return err
+}
+
+func TestVecFSPerPersonaFiles(t *testing.T) {
+	dir := t.TempDir()
+	store := kv.NewMemory(&kv.Options{Separator: testSep})
+	emb := newMockEmbedder()
+
+	h, err := NewHost(context.Background(), HostConfig{
+		Store:     store,
+		Embedder:  emb,
+		FS:        &testDirFS{root: dir},
+		Separator: testSep,
+	})
+	if err != nil {
+		t.Fatalf("NewHost: %v", err)
+	}
+	defer h.Close()
+
+	m1 := mustOpen(t, h, "alice")
+	m2 := mustOpen(t, h, "bob")
+
+	ctx := context.Background()
+	if err := m1.StoreSegment(ctx, SegmentInput{
+		Summary:  "alice likes dinosaurs",
+		Keywords: []string{"dinosaurs"},
+	}, recall.Bucket1H); err != nil {
+		t.Fatalf("store alice segment: %v", err)
+	}
+	if err := m2.StoreSegment(ctx, SegmentInput{
+		Summary:  "bob likes cooking",
+		Keywords: []string{"cooking"},
+	}, recall.Bucket1H); err != nil {
+		t.Fatalf("store bob segment: %v", err)
+	}
+
+	res, err := m1.Recall(ctx, RecallQuery{Text: "dinosaurs", Limit: 5})
+	if err != nil {
+		t.Fatalf("alice recall: %v", err)
+	}
+	if len(res.Segments) != 1 {
+		t.Fatalf("alice should have 1 segment, got %d", len(res.Segments))
+	}
+
+	if err := h.Delete(ctx, "alice"); err != nil {
+		t.Fatalf("delete alice: %v", err)
+	}
+
+	res2, err := m2.Recall(ctx, RecallQuery{Text: "cooking", Limit: 5})
+	if err != nil {
+		t.Fatalf("bob recall after delete alice: %v", err)
+	}
+	if len(res2.Segments) != 1 {
+		t.Fatalf("bob should still have 1 segment, got %d", len(res2.Segments))
+	}
+}
+
 func BenchmarkConversationRecent(b *testing.B) {
 	store := kv.NewMemory(&kv.Options{Separator: testSep})
 	h, err := NewHost(context.Background(), HostConfig{Store: store, Separator: testSep})
@@ -2094,9 +2144,8 @@ func BenchmarkConversationRecent(b *testing.B) {
 func BenchmarkStoreSegment(b *testing.B) {
 	store := kv.NewMemory(&kv.Options{Separator: testSep})
 	emb := newMockEmbedder()
-	vec := vecstore.NewMemory()
 	h, err := NewHost(context.Background(), HostConfig{
-		Store: store, Vec: vec, Embedder: emb, Separator: testSep,
+		Store: store, Embedder: emb, FS: &testDirFS{root: b.TempDir()}, Separator: testSep,
 	})
 	if err != nil {
 		b.Fatal(err)
@@ -2117,9 +2166,8 @@ func BenchmarkStoreSegment(b *testing.B) {
 func BenchmarkRecall(b *testing.B) {
 	store := kv.NewMemory(&kv.Options{Separator: testSep})
 	emb := newMockEmbedder()
-	vec := vecstore.NewMemory()
 	h, err := NewHost(context.Background(), HostConfig{
-		Store: store, Vec: vec, Embedder: emb, Separator: testSep,
+		Store: store, Embedder: emb, FS: &testDirFS{root: b.TempDir()}, Separator: testSep,
 	})
 	if err != nil {
 		b.Fatal(err)

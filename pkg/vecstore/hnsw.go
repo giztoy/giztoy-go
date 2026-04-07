@@ -2,11 +2,15 @@ package vecstore
 
 import (
 	"container/heap"
+	"errors"
 	"fmt"
 	"math"
 	"math/rand/v2"
+	"os"
 	"sort"
 	"sync"
+
+	"github.com/giztoy/giztoy-go/pkg/filesystem"
 )
 
 // ---------------------------------------------------------------------------
@@ -119,6 +123,14 @@ type HNSW struct {
 	count    int               // number of active (non-nil) nodes
 	free     []uint32          // recycled internal IDs for reuse
 	levelMul float64           // 1/ln(M), for random level generation
+
+	// Persistence. When fs is non-nil, Flush and Close write the index
+	// through the filesystem.FS interface. fileMu serialises file I/O
+	// so that concurrent flushes do not race.
+	fs     filesystem.FS
+	name   string // file name within fs
+	fileMu sync.Mutex
+	dirty  bool
 }
 
 // Compile-time interface check.
@@ -137,6 +149,53 @@ func NewHNSW(cfg HNSWConfig) *HNSW {
 		entryID:  -1,
 		levelMul: 1.0 / math.Log(float64(cfg.M)),
 	}
+}
+
+// OpenHNSW opens or creates a persistent HNSW index.
+// The index is stored in fs under the given name. If the file exists, it
+// is loaded and the dimension is validated against cfg. If the file does
+// not exist, a new empty index is created.
+//
+// Subsequent mutations mark the index as dirty, and [HNSW.Flush] /
+// [HNSW.Close] write the index through fs.
+func OpenHNSW(fs filesystem.FS, name string, cfg HNSWConfig) (*HNSW, error) {
+	r, err := fs.Open(name)
+	if err == nil {
+		defer r.Close()
+		idx, loadErr := LoadHNSW(r)
+		if loadErr != nil {
+			return nil, fmt.Errorf("vecstore: hnsw load %q: %w", name, loadErr)
+		}
+		if got := idx.Config().Dim; got != cfg.Dim {
+			return nil, fmt.Errorf("vecstore: hnsw %q: dimension mismatch: file=%d config=%d", name, got, cfg.Dim)
+		}
+		idx.fs = fs
+		idx.name = name
+		return idx, nil
+	}
+	if !errors.Is(err, os.ErrNotExist) {
+		return nil, fmt.Errorf("vecstore: hnsw open %q: %w", name, err)
+	}
+
+	idx := NewHNSW(cfg)
+	idx.fs = fs
+	idx.name = name
+	return idx, nil
+}
+
+// Name returns the file name within the [FS] for a persistent index,
+// or "" for in-memory indexes.
+func (h *HNSW) Name() string { return h.name }
+
+// Remove removes the underlying file from the [FS].
+// No-op for in-memory indexes. After Remove the index must not be used.
+func (h *HNSW) Remove() error {
+	if h.fs == nil {
+		return nil
+	}
+	h.fileMu.Lock()
+	defer h.fileMu.Unlock()
+	return h.fs.Remove(h.name)
 }
 
 // SetEfSearch adjusts the search-time candidate list size.
@@ -167,11 +226,55 @@ func (h *HNSW) Len() int {
 	return n
 }
 
-// Flush is a no-op for the in-memory HNSW index.
-func (h *HNSW) Flush() error { return nil }
+// Flush persists the index through the [FS] if it has pending changes.
+// For in-memory indexes (created via [NewHNSW]) this is a no-op.
+func (h *HNSW) Flush() error {
+	if h.fs == nil {
+		return nil
+	}
+	h.fileMu.Lock()
+	defer h.fileMu.Unlock()
+	return h.flushLocked()
+}
 
-// Close is a no-op. The index should not be used after Close.
-func (h *HNSW) Close() error { return nil }
+// Close persists any pending changes and releases resources.
+// The index should not be used after Close.
+func (h *HNSW) Close() error {
+	if h.fs == nil {
+		return nil
+	}
+	h.fileMu.Lock()
+	defer h.fileMu.Unlock()
+	return h.flushLocked()
+}
+
+func (h *HNSW) markDirty() {
+	if h.fs == nil {
+		return
+	}
+	h.fileMu.Lock()
+	h.dirty = true
+	h.fileMu.Unlock()
+}
+
+func (h *HNSW) flushLocked() error {
+	if !h.dirty {
+		return nil
+	}
+	w, err := h.fs.Create(h.name)
+	if err != nil {
+		return fmt.Errorf("vecstore: hnsw create %q: %w", h.name, err)
+	}
+	if err := h.Save(w); err != nil {
+		_ = w.Close()
+		return fmt.Errorf("vecstore: hnsw save %q: %w", h.name, err)
+	}
+	if err := w.Close(); err != nil {
+		return fmt.Errorf("vecstore: hnsw flush %q: %w", h.name, err)
+	}
+	h.dirty = false
+	return nil
+}
 
 // ---------------------------------------------------------------------------
 // Insert
@@ -221,6 +324,7 @@ func (h *HNSW) Insert(id string, vector []float32) error {
 	if h.entryID < 0 {
 		h.entryID = int32(idx)
 		h.maxLevel = level
+		h.markDirty()
 		return nil
 	}
 
@@ -289,6 +393,7 @@ func (h *HNSW) Insert(id string, vector []float32) error {
 		h.maxLevel = level
 	}
 
+	h.markDirty()
 	return nil
 }
 
@@ -406,6 +511,7 @@ func (h *HNSW) Delete(id string) error {
 		return nil
 	}
 	h.removeLocked(idx)
+	h.markDirty()
 	return nil
 }
 

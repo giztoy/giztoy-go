@@ -55,6 +55,8 @@ func TestCompactBucketMultiOutputKeepsUniqueSegments(t *testing.T) {
 	store := kv.NewMemory(&kv.Options{Separator: testSep})
 	host, err := NewHost(ctx, HostConfig{
 		Store:          store,
+		Embedder:       newMockEmbedder(),
+		FS:             &testDirFS{root: t.TempDir()},
 		Compressor:     multiOutputCompressor{},
 		CompressPolicy: CompressPolicy{MaxMessages: 2, MaxChars: 1 << 20},
 		Separator:      testSep,
@@ -148,6 +150,8 @@ func TestCompactBucketPreservesHistoricalLastTimestamp(t *testing.T) {
 	store := kv.NewMemory(&kv.Options{Separator: testSep})
 	host, err := NewHost(ctx, HostConfig{
 		Store:          store,
+		Embedder:       newMockEmbedder(),
+		FS:             &testDirFS{root: t.TempDir()},
 		Compressor:     singleOutputCompressor{},
 		CompressPolicy: CompressPolicy{MaxMessages: 2, MaxChars: 1 << 20},
 		Separator:      testSep,
