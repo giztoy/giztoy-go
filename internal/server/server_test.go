@@ -127,7 +127,8 @@ func TestServerUnknownMethod(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	go srv.Run(ctx)
+	errCh := make(chan error, 1)
+	go func() { errCh <- srv.Run(ctx) }()
 	waitForServerRPCReady(t, srv)
 
 	serverAddr := listenAddr
