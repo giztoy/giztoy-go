@@ -3,13 +3,13 @@ package server
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"io"
 	"log"
 	"net"
 	"testing"
 	"time"
 
+	itest "github.com/giztoy/giztoy-go/internal/testutil"
 	"github.com/giztoy/giztoy-go/pkg/net/core"
 	"github.com/giztoy/giztoy-go/pkg/net/noise"
 	"github.com/giztoy/giztoy-go/pkg/net/peer"
@@ -17,7 +17,7 @@ import (
 
 func TestServerPeerPing(t *testing.T) {
 	dir := t.TempDir()
-	listenAddr := allocateUDPAddr(t)
+	listenAddr := itest.AllocateUDPAddr(t)
 	cfg := Config{
 		DataDir:    dir,
 		ListenAddr: listenAddr,
@@ -34,7 +34,7 @@ func TestServerPeerPing(t *testing.T) {
 
 	errCh := make(chan error, 1)
 	go func() { errCh <- srv.Run(ctx) }()
-	waitForServerRPCReady(t, srv)
+	waitForServerRPCReady(t, srv, listenAddr, errCh)
 
 	serverAddr := listenAddr
 	serverPK := srv.keyPair.Public
@@ -112,7 +112,7 @@ func TestServerPeerPing(t *testing.T) {
 
 func TestServerUnknownMethod(t *testing.T) {
 	dir := t.TempDir()
-	listenAddr := allocateUDPAddr(t)
+	listenAddr := itest.AllocateUDPAddr(t)
 	cfg := Config{
 		DataDir:    dir,
 		ListenAddr: listenAddr,
@@ -129,7 +129,7 @@ func TestServerUnknownMethod(t *testing.T) {
 
 	errCh := make(chan error, 1)
 	go func() { errCh <- srv.Run(ctx) }()
-	waitForServerRPCReady(t, srv)
+	waitForServerRPCReady(t, srv, listenAddr, errCh)
 
 	serverAddr := listenAddr
 	serverPK := srv.keyPair.Public
@@ -290,29 +290,18 @@ func TestWriteRPCResponseMarshalError(t *testing.T) {
 	}
 }
 
-func allocateUDPAddr(t *testing.T) string {
-	t.Helper()
-	pc, err := net.ListenPacket("udp", "127.0.0.1:0")
-	if err != nil {
-		t.Fatalf("allocateUDPAddr: %v", err)
-	}
-	addr := pc.LocalAddr().(*net.UDPAddr)
-	pc.Close()
-	return fmt.Sprintf("127.0.0.1:%d", addr.Port)
-}
-
 func parseUDPAddr(addr string) (*net.UDPAddr, error) {
 	return net.ResolveUDPAddr("udp", addr)
 }
 
-func waitForServerRPCReady(t *testing.T, srv *Server) {
+func waitForServerRPCReady(t *testing.T, srv *Server, addr string, errCh <-chan error) {
 	t.Helper()
 
-	deadline := time.Now().Add(5 * time.Second)
-	for time.Now().Before(deadline) {
-		if srv.listener == nil {
-			time.Sleep(10 * time.Millisecond)
-			continue
+	if err := itest.WaitUntil(itest.ReadyTimeout, func() error {
+		select {
+		case err := <-errCh:
+			return err
+		default:
 		}
 
 		clientKey, err := noise.GenerateKeyPair()
@@ -328,24 +317,23 @@ func waitForServerRPCReady(t *testing.T, srv *Server) {
 		}
 		startServerTestReadLoop(clientListener.UDP())
 
-		ready := false
-		func() {
+		probeErr := func() error {
 			defer clientListener.Close()
 
-			udpAddr, err := parseUDPAddr(srv.listener.HostInfo().Addr.String())
+			udpAddr, err := parseUDPAddr(addr)
 			if err != nil {
 				t.Fatalf("parseUDPAddr(ready check): %v", err)
 			}
 			conn, err := clientListener.Dial(srv.keyPair.Public, udpAddr)
 			if err != nil {
-				return
+				return err
 			}
 			stream, err := conn.OpenService(peer.ServicePublic)
 			if err != nil {
-				return
+				return err
 			}
 			defer stream.Close()
-			_ = stream.SetDeadline(time.Now().Add(200 * time.Millisecond))
+			_ = stream.SetDeadline(time.Now().Add(itest.ProbeTimeout))
 
 			req := RPCRequest{V: 1, ID: "ready-check", Method: "peer.ping"}
 			reqData, err := json.Marshal(req)
@@ -353,20 +341,21 @@ func waitForServerRPCReady(t *testing.T, srv *Server) {
 				t.Fatalf("json.Marshal(ready check): %v", err)
 			}
 			if err := WriteFrame(stream, reqData); err != nil {
-				return
+				return err
 			}
-			if _, err := ReadFrame(stream); err == nil {
-				ready = true
+			if _, err := ReadFrame(stream); err != nil {
+				return err
 			}
+			return nil
 		}()
 
-		if ready {
-			return
+		if probeErr == nil {
+			return nil
 		}
-		time.Sleep(20 * time.Millisecond)
+		return probeErr
+	}); err != nil {
+		t.Fatalf("server rpc did not become ready: %v", err)
 	}
-
-	t.Fatal("server rpc did not become ready")
 }
 
 func startServerTestReadLoop(u *core.UDP) {

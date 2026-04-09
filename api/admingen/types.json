@@ -1,0 +1,178 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Admin Types",
+    "description": "Schemas used by the admin firmware API.",
+    "version": "1.0.0"
+  },
+  "paths": {},
+  "components": {
+    "parameters": {
+      "depotName": {
+        "name": "depot",
+        "in": "path",
+        "required": true,
+        "description": "Firmware depot name",
+        "schema": {
+          "type": "string"
+        }
+      },
+      "channel": {
+        "name": "channel",
+        "in": "path",
+        "required": true,
+        "description": "Release channel",
+        "schema": {
+          "$ref": "#/components/schemas/Channel"
+        }
+      }
+    },
+    "schemas": {
+      "Channel": {
+        "type": "string",
+        "enum": [
+          "rollback",
+          "stable",
+          "beta",
+          "testing"
+        ]
+      },
+      "Depot": {
+        "type": "object",
+        "required": [
+          "name",
+          "info",
+          "rollback",
+          "stable",
+          "beta",
+          "testing"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "info": {
+            "$ref": "#/components/schemas/DepotInfo"
+          },
+          "rollback": {
+            "$ref": "#/components/schemas/DepotRelease"
+          },
+          "stable": {
+            "$ref": "#/components/schemas/DepotRelease"
+          },
+          "beta": {
+            "$ref": "#/components/schemas/DepotRelease"
+          },
+          "testing": {
+            "$ref": "#/components/schemas/DepotRelease"
+          }
+        }
+      },
+      "DepotList": {
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Depot"
+            }
+          }
+        }
+      },
+      "DepotInfo": {
+        "type": "object",
+        "properties": {
+          "files": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DepotInfoFile"
+            }
+          }
+        }
+      },
+      "DepotInfoFile": {
+        "type": "object",
+        "required": [
+          "path"
+        ],
+        "properties": {
+          "path": {
+            "type": "string"
+          }
+        }
+      },
+      "DepotRelease": {
+        "type": "object",
+        "required": [
+          "firmware_semver"
+        ],
+        "properties": {
+          "firmware_semver": {
+            "type": "string"
+          },
+          "channel": {
+            "type": "string"
+          },
+          "files": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DepotFile"
+            }
+          }
+        }
+      },
+      "DepotFile": {
+        "type": "object",
+        "required": [
+          "path",
+          "sha256",
+          "md5"
+        ],
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "md5": {
+            "type": "string"
+          }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "$ref": "#/components/schemas/ErrorPayload"
+          }
+        }
+      },
+      "ErrorPayload": {
+        "type": "object",
+        "required": [
+          "code",
+          "message"
+        ],
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "details": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        }
+      }
+    }
+  }
+}

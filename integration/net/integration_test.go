@@ -377,30 +377,27 @@ func TestIntegration_KCPService0AndNonZeroConcurrentActivity(t *testing.T) {
 
 	testutil.ConnectNodes(t, client, clientKey, server, serverKey)
 
+	serverSvc0, clientSvc0 := openAcceptedStreamPair(t, server, client, clientKey.Public, serverKey.Public, 0)
+	defer serverSvc0.Close()
+	defer clientSvc0.Close()
+	serverSvc7, clientSvc7 := openAcceptedStreamPair(t, server, client, clientKey.Public, serverKey.Public, 7)
+	defer serverSvc7.Close()
+	defer clientSvc7.Close()
+
 	errCh := make(chan error, 4)
 	done := make(chan string, 2)
 	svc0RespRead := make(chan struct{})
 	svc7RespRead := make(chan struct{})
-	svc0Accepting := make(chan struct{})
-	svc7Accepting := make(chan struct{})
 	var clientWG sync.WaitGroup
 
 	go func() {
-		close(svc0Accepting)
-		stream, err := testutil.MustServiceMux(t, server, clientKey.Public).AcceptStream(0)
-		if err != nil {
-			errCh <- err
-			return
-		}
-		defer stream.Close()
-
 		req := []byte(`{"method":"ping"}`)
-		if got := testutil.ReadExactWithTimeout(t, stream, len(req), 5*time.Second); !bytes.Equal(got, req) {
+		if got := testutil.ReadExactWithTimeout(t, serverSvc0, len(req), 5*time.Second); !bytes.Equal(got, req) {
 			errCh <- fmt.Errorf("service 0 req mismatch: got=%q want=%q", got, req)
 			return
 		}
 		resp := []byte(`{"ok":true}`)
-		if _, err := stream.Write(resp); err != nil {
+		if _, err := serverSvc0.Write(resp); err != nil {
 			errCh <- err
 			return
 		}
@@ -409,21 +406,13 @@ func TestIntegration_KCPService0AndNonZeroConcurrentActivity(t *testing.T) {
 	}()
 
 	go func() {
-		close(svc7Accepting)
-		stream, err := testutil.MustServiceMux(t, server, clientKey.Public).AcceptStream(7)
-		if err != nil {
-			errCh <- err
-			return
-		}
-		defer stream.Close()
-
 		req := []byte("nonzero-request")
-		if got := testutil.ReadExactWithTimeout(t, stream, len(req), 5*time.Second); !bytes.Equal(got, req) {
+		if got := testutil.ReadExactWithTimeout(t, serverSvc7, len(req), 5*time.Second); !bytes.Equal(got, req) {
 			errCh <- fmt.Errorf("service 7 req mismatch: got=%q want=%q", got, req)
 			return
 		}
 		resp := []byte("nonzero-response")
-		if _, err := stream.Write(resp); err != nil {
+		if _, err := serverSvc7.Write(resp); err != nil {
 			errCh <- err
 			return
 		}
@@ -431,34 +420,16 @@ func TestIntegration_KCPService0AndNonZeroConcurrentActivity(t *testing.T) {
 		done <- "svc7"
 	}()
 
-	select {
-	case <-svc0Accepting:
-	case <-time.After(5 * time.Second):
-		t.Fatal("service 0 accept goroutine did not start")
-	}
-	select {
-	case <-svc7Accepting:
-	case <-time.After(5 * time.Second):
-		t.Fatal("service 7 accept goroutine did not start")
-	}
-
 	clientWG.Add(1)
 	go func() {
 		defer clientWG.Done()
-		stream, err := testutil.MustServiceMux(t, client, serverKey.Public).OpenStream(0)
-		if err != nil {
-			errCh <- err
-			return
-		}
-		defer stream.Close()
-
 		req := []byte(`{"method":"ping"}`)
-		if _, err := stream.Write(req); err != nil {
+		if _, err := clientSvc0.Write(req); err != nil {
 			errCh <- err
 			return
 		}
 		resp := []byte(`{"ok":true}`)
-		if got := testutil.ReadExactWithTimeout(t, stream, len(resp), 5*time.Second); !bytes.Equal(got, resp) {
+		if got := testutil.ReadExactWithTimeout(t, clientSvc0, len(resp), 5*time.Second); !bytes.Equal(got, resp) {
 			errCh <- fmt.Errorf("service 0 resp mismatch: got=%q want=%q", got, resp)
 			return
 		}
@@ -468,20 +439,13 @@ func TestIntegration_KCPService0AndNonZeroConcurrentActivity(t *testing.T) {
 	clientWG.Add(1)
 	go func() {
 		defer clientWG.Done()
-		stream, err := testutil.MustServiceMux(t, client, serverKey.Public).OpenStream(7)
-		if err != nil {
-			errCh <- err
-			return
-		}
-		defer stream.Close()
-
 		req := []byte("nonzero-request")
-		if _, err := stream.Write(req); err != nil {
+		if _, err := clientSvc7.Write(req); err != nil {
 			errCh <- err
 			return
 		}
 		resp := []byte("nonzero-response")
-		if got := testutil.ReadExactWithTimeout(t, stream, len(resp), 5*time.Second); !bytes.Equal(got, resp) {
+		if got := testutil.ReadExactWithTimeout(t, clientSvc7, len(resp), 5*time.Second); !bytes.Equal(got, resp) {
 			errCh <- fmt.Errorf("service 7 resp mismatch: got=%q want=%q", got, resp)
 			return
 		}
@@ -505,6 +469,41 @@ func TestIntegration_KCPService0AndNonZeroConcurrentActivity(t *testing.T) {
 		t.Fatal(err)
 	default:
 	}
+}
+
+func openAcceptedStreamPair(t *testing.T, server, client *core.UDP, clientPK, serverPK noise.PublicKey, service uint64) (net.Conn, net.Conn) {
+	t.Helper()
+
+	acceptCh := make(chan net.Conn, 1)
+	errCh := make(chan error, 1)
+	acceptReady := make(chan struct{})
+	go func() {
+		close(acceptReady)
+		stream, err := testutil.MustServiceMux(t, server, clientPK).AcceptStream(service)
+		if err != nil {
+			errCh <- err
+			return
+		}
+		acceptCh <- stream
+	}()
+
+	<-acceptReady
+	time.Sleep(50 * time.Millisecond)
+
+	clientStream, err := testutil.MustServiceMux(t, client, serverPK).OpenStream(service)
+	if err != nil {
+		t.Fatalf("OpenStream(service=%d) err=%v", service, err)
+	}
+
+	var serverStream net.Conn
+	select {
+	case serverStream = <-acceptCh:
+	case err := <-errCh:
+		t.Fatalf("AcceptStream(service=%d) err=%v", service, err)
+	case <-time.After(5 * time.Second):
+		t.Fatalf("AcceptStream(service=%d) timeout", service)
+	}
+	return serverStream, clientStream
 }
 
 // TestIntegration_KCPNonZeroServiceStream tests that non-zero service streams

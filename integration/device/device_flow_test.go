@@ -3,20 +3,21 @@ package device_test
 import (
 	"context"
 	"testing"
-	"time"
 
 	"github.com/giztoy/giztoy-go/internal/client"
 	"github.com/giztoy/giztoy-go/internal/server"
 	"github.com/giztoy/giztoy-go/internal/stores"
+	itest "github.com/giztoy/giztoy-go/internal/testutil"
 	"github.com/giztoy/giztoy-go/pkg/gears"
 	"github.com/giztoy/giztoy-go/pkg/net/noise"
 )
 
 func TestDeviceRegisterConfigPingFlow(t *testing.T) {
 	dataDir := t.TempDir()
+	listenAddr := itest.AllocateUDPAddr(t)
 	srv, err := server.New(server.Config{
 		DataDir:    dataDir,
-		ListenAddr: "127.0.0.1:0",
+		ListenAddr: listenAddr,
 		Stores: map[string]stores.Config{
 			"mem": {Kind: stores.KindKeyValue, Backend: "memory"},
 			"fw":  {Kind: stores.KindFS, Backend: "filesystem", Dir: "firmware"},
@@ -35,16 +36,17 @@ func TestDeviceRegisterConfigPingFlow(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+	errCh := make(chan error, 1)
 	go func() {
-		_ = srv.Run(ctx)
+		errCh <- srv.Run(ctx)
 	}()
-	waitForTestServerReady(t, srv)
+	waitForTestServerReady(t, srv, listenAddr, errCh)
 
 	key, err := noise.GenerateKeyPair()
 	if err != nil {
 		t.Fatal(err)
 	}
-	c, err := client.Dial(key, srv.ListenAddr(), srv.PublicKey())
+	c, err := client.Dial(key, listenAddr, srv.PublicKey())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -77,15 +79,14 @@ func TestDeviceRegisterConfigPingFlow(t *testing.T) {
 	}
 }
 
-func waitForTestServerReady(t *testing.T, srv *server.Server) {
+func waitForTestServerReady(t *testing.T, srv *server.Server, addr string, errCh <-chan error) {
 	t.Helper()
 
-	deadline := time.Now().Add(5 * time.Second)
-	for time.Now().Before(deadline) {
-		addr := srv.ListenAddr()
-		if addr == "" {
-			time.Sleep(10 * time.Millisecond)
-			continue
+	if err := itest.WaitUntil(itest.ReadyTimeout, func() error {
+		select {
+		case err := <-errCh:
+			return err
+		default:
 		}
 
 		key, err := noise.GenerateKeyPair()
@@ -97,32 +98,28 @@ func waitForTestServerReady(t *testing.T, srv *server.Server) {
 			infoErr := probeClientPublicReady(c)
 			_ = c.Close()
 			if infoErr == nil {
-				return
+				return nil
 			}
+			return infoErr
 		}
-
-		time.Sleep(20 * time.Millisecond)
+		return err
+	}); err != nil {
+		t.Fatalf("test server did not become ready: %v", err)
 	}
-
-	t.Fatal("test server did not become ready")
 }
 
 func waitForClientPublicReady(t *testing.T, c *client.Client) {
 	t.Helper()
 
-	deadline := time.Now().Add(5 * time.Second)
-	for time.Now().Before(deadline) {
-		if err := probeClientPublicReady(c); err == nil {
-			return
-		}
-		time.Sleep(20 * time.Millisecond)
+	if err := itest.WaitUntil(itest.ReadyTimeout, func() error {
+		return probeClientPublicReady(c)
+	}); err != nil {
+		t.Fatalf("test client public service did not become ready: %v", err)
 	}
-
-	t.Fatal("test client public service did not become ready")
 }
 
 func probeClientPublicReady(c *client.Client) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
+	ctx, cancel := context.WithTimeout(context.Background(), itest.ProbeTimeout)
 	defer cancel()
 	_, err := c.GetServerInfo(ctx)
 	return err

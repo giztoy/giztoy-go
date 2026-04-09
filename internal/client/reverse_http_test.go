@@ -3,10 +3,12 @@ package client
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
 
+	itest "github.com/giztoy/giztoy-go/internal/testutil"
 	"github.com/giztoy/giztoy-go/pkg/gears"
 )
 
@@ -48,9 +50,7 @@ func TestReverseHTTPRefresh(t *testing.T) {
 			},
 		})
 	}()
-	time.Sleep(200 * time.Millisecond)
-
-	result, err := admin.RefreshGear(context.Background(), deviceResult.Gear.PublicKey)
+	result, err := waitForRefreshGearSuccess(admin, deviceResult.Gear.PublicKey)
 	if err != nil {
 		t.Fatalf("RefreshGear error: %v", err)
 	}
@@ -85,9 +85,7 @@ func TestReverseHTTPRefreshErrorIsNotReportedAsOffline(t *testing.T) {
 	go func() {
 		_ = device.ServeReverseHTTP(ctx, failingReverseProvider{})
 	}()
-	time.Sleep(200 * time.Millisecond)
-
-	_, err = admin.RefreshGear(context.Background(), deviceResult.Gear.PublicKey)
+	err = waitForRefreshGearFailure(admin, deviceResult.Gear.PublicKey)
 	if err == nil {
 		t.Fatal("RefreshGear should fail when reverse provider fails")
 	}
@@ -129,4 +127,47 @@ func (failingReverseProvider) Identifiers(context.Context) (gears.RefreshIdentif
 
 func (failingReverseProvider) Version(context.Context) (gears.RefreshVersion, error) {
 	return gears.RefreshVersion{}, errors.New("provider boom")
+}
+
+func waitForRefreshGearSuccess(admin *Client, publicKey string) (gears.RefreshResult, error) {
+	var lastResult gears.RefreshResult
+	err := itest.WaitUntil(itest.ReadyTimeout, func() error {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		result, err := admin.RefreshGear(ctx, publicKey)
+		cancel()
+		lastResult = result
+		if err == nil && result.Gear.Device.Hardware.Manufacturer == "Acme" {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		return fmt.Errorf("refresh gear did not return expected manufacturer, got %q", lastResult.Gear.Device.Hardware.Manufacturer)
+	})
+	if err != nil {
+		return lastResult, err
+	}
+	return lastResult, nil
+}
+
+func waitForRefreshGearFailure(admin *Client, publicKey string) error {
+	err := itest.WaitUntil(itest.ReadyTimeout, func() error {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		_, err := admin.RefreshGear(ctx, publicKey)
+		cancel()
+		if err != nil && strings.Contains(err.Error(), "DEVICE_REFRESH_FAILED") && !strings.Contains(err.Error(), "DEVICE_OFFLINE") {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		return errors.New("refresh gear did not return expected failure")
+	})
+	if err != nil {
+		return err
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	_, err = admin.RefreshGear(ctx, publicKey)
+	return err
 }
