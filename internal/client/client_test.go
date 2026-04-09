@@ -9,6 +9,7 @@ import (
 
 	"github.com/giztoy/giztoy-go/internal/server"
 	"github.com/giztoy/giztoy-go/internal/stores"
+	itest "github.com/giztoy/giztoy-go/internal/testutil"
 	"github.com/giztoy/giztoy-go/pkg/gears"
 	"github.com/giztoy/giztoy-go/pkg/net/core"
 	"github.com/giztoy/giztoy-go/pkg/net/noise"
@@ -17,9 +18,10 @@ import (
 
 func TestDialAndPing(t *testing.T) {
 	dir := t.TempDir()
+	listenAddr := itest.AllocateUDPAddr(t)
 	cfg := server.Config{
 		DataDir:    dir,
-		ListenAddr: "127.0.0.1:0",
+		ListenAddr: listenAddr,
 		Stores: map[string]stores.Config{
 			"mem": {Kind: stores.KindKeyValue, Backend: "memory"},
 			"fw":  {Kind: stores.KindFS, Backend: "filesystem", Dir: "firmware"},
@@ -37,20 +39,24 @@ func TestDialAndPing(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	testServerAddrs.Store(srv, listenAddr)
+	t.Cleanup(func() {
+		testServerAddrs.Delete(srv)
+	})
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	errCh := make(chan error, 1)
 	go func() { errCh <- srv.Run(ctx) }()
+	testServerRunErrs.Store(srv, errCh)
+	t.Cleanup(func() {
+		testServerRunErrs.Delete(srv)
+	})
 	waitForTestServerReady(t, srv)
 
 	serverPK := srv.PublicKey()
-	// Access listener info via a ping to discover the address.
-	// We need to get the actual listen address since we used :0.
-	// The server logs it, but we need it programmatically.
-	// Let's use a helper that reads it from the server.
-	serverAddr := getServerAddr(t, srv)
+	serverAddr := listenAddr
 
 	clientKey, err := noise.GenerateKeyPair()
 	if err != nil {
@@ -103,17 +109,6 @@ func TestDialTimeout(t *testing.T) {
 	if err == nil {
 		t.Fatal("Dial(no server) should fail with timeout")
 	}
-}
-
-// getServerAddr extracts the actual listen address from a running server.
-// This is a test helper that accesses unexported fields via the exported API.
-func getServerAddr(t *testing.T, srv *server.Server) string {
-	t.Helper()
-	// We need to get the address. The server exposes PublicKey() but not the address.
-	// For testing, we'll use a workaround: the server test already showed how.
-	// Since Server doesn't export listener, we need to add a method or use reflection.
-	// For now, let's just add a ListenAddr method to Server.
-	return srv.ListenAddr()
 }
 
 func startReadLoop(u *core.UDP) {
@@ -201,12 +196,17 @@ func TestPingAfterClose(t *testing.T) {
 }
 
 func TestPingServerError(t *testing.T) {
-	written := make(chan struct{})
+	serverErr := make(chan error, 1)
 	release := make(chan struct{})
 	defer close(release)
 
 	c := dialMockClient(t, func(stream net.Conn) {
-		_, _ = server.ReadFrame(stream)
+		defer stream.Close()
+		_ = stream.SetDeadline(time.Now().Add(5 * time.Second))
+		if _, err := server.ReadFrame(stream); err != nil {
+			serverErr <- err
+			return
+		}
 		resp := &server.RPCResponse{
 			V:  1,
 			ID: "ping",
@@ -215,8 +215,10 @@ func TestPingServerError(t *testing.T) {
 				Message: "boom",
 			},
 		}
-		_ = server.WriteRPCResponse(stream, resp)
-		close(written)
+		if err := server.WriteRPCResponse(stream, resp); err != nil {
+			serverErr <- err
+			return
+		}
 		<-release
 	})
 
@@ -227,30 +229,28 @@ func TestPingServerError(t *testing.T) {
 	}()
 
 	select {
-	case <-written:
-	case <-time.After(2 * time.Second):
-		t.Fatal("mock server did not write error response")
-	}
-
-	select {
+	case err := <-serverErr:
+		t.Fatalf("mock server error: %v", err)
 	case err := <-errCh:
 		if err == nil || err.Error() != "client: server error: boom" {
 			t.Fatalf("Ping server error=%v", err)
 		}
-	case <-time.After(2 * time.Second):
+	case <-time.After(5 * time.Second):
 		t.Fatal("Ping server error did not return")
 	}
 }
 
 func TestPingBadResponseJSON(t *testing.T) {
-	written := make(chan struct{})
 	release := make(chan struct{})
 	defer close(release)
 
 	c := dialMockClient(t, func(stream net.Conn) {
-		_, _ = server.ReadFrame(stream)
+		defer stream.Close()
+		_ = stream.SetDeadline(time.Now().Add(5 * time.Second))
+		if _, err := server.ReadFrame(stream); err != nil {
+			return
+		}
 		_ = server.WriteFrame(stream, []byte("{bad-json"))
-		close(written)
 		<-release
 	})
 
@@ -259,32 +259,28 @@ func TestPingBadResponseJSON(t *testing.T) {
 		_, err := c.Ping()
 		errCh <- err
 	}()
-
-	select {
-	case <-written:
-	case <-time.After(2 * time.Second):
-		t.Fatal("mock server did not write bad response")
-	}
 
 	select {
 	case err := <-errCh:
 		if err == nil || !contains(err, "client: unmarshal:") {
 			t.Fatalf("Ping bad response err=%v", err)
 		}
-	case <-time.After(2 * time.Second):
+	case <-time.After(5 * time.Second):
 		t.Fatal("Ping bad response did not return")
 	}
 }
 
 func TestPingBadResultJSON(t *testing.T) {
-	written := make(chan struct{})
 	release := make(chan struct{})
 	defer close(release)
 
 	c := dialMockClient(t, func(stream net.Conn) {
-		_, _ = server.ReadFrame(stream)
+		defer stream.Close()
+		_ = stream.SetDeadline(time.Now().Add(5 * time.Second))
+		if _, err := server.ReadFrame(stream); err != nil {
+			return
+		}
 		_ = server.WriteFrame(stream, []byte(`{"v":1,"id":"ping","result":{bad-result}`))
-		close(written)
 		<-release
 	})
 
@@ -295,17 +291,11 @@ func TestPingBadResultJSON(t *testing.T) {
 	}()
 
 	select {
-	case <-written:
-	case <-time.After(2 * time.Second):
-		t.Fatal("mock server did not write bad result")
-	}
-
-	select {
 	case err := <-errCh:
 		if err == nil || !contains(err, "client: unmarshal:") {
 			t.Fatalf("Ping bad result err=%v", err)
 		}
-	case <-time.After(2 * time.Second):
+	case <-time.After(5 * time.Second):
 		t.Fatal("Ping bad result did not return")
 	}
 }

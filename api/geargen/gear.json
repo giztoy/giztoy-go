@@ -1,0 +1,697 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Gears Admin API",
+    "description": "Admin endpoints for managing gears (devices).",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "/"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Query",
+      "description": "List and resolve gears"
+    },
+    {
+      "name": "Resource",
+      "description": "Single gear CRUD and actions"
+    }
+  ],
+  "paths": {
+    "/gears": {
+      "get": {
+        "operationId": "listGears",
+        "summary": "List all gears",
+        "tags": [
+          "Query"
+        ],
+        "responses": {
+          "200": {
+            "description": "Gear registration list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "types.json#/components/schemas/RegistrationList"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "types.json#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/gears/sn/{sn}": {
+      "get": {
+        "operationId": "resolveBySN",
+        "summary": "Resolve gear public key by serial number",
+        "tags": [
+          "Query"
+        ],
+        "parameters": [
+          {
+            "name": "sn",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Resolved public key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "types.json#/components/schemas/PublicKeyResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Gear not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "types.json#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/gears/imei/{tac}/{serial}": {
+      "get": {
+        "operationId": "resolveByIMEI",
+        "summary": "Resolve gear public key by IMEI",
+        "tags": [
+          "Query"
+        ],
+        "parameters": [
+          {
+            "name": "tac",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "serial",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Resolved public key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "types.json#/components/schemas/PublicKeyResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Gear not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "types.json#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/gears/label/{key}/{value}": {
+      "get": {
+        "operationId": "listByLabel",
+        "summary": "List gears by label",
+        "tags": [
+          "Query"
+        ],
+        "parameters": [
+          {
+            "name": "key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "value",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Matched gears",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "types.json#/components/schemas/RegistrationList"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "types.json#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/gears/certification/{type}/{authority}/{id}": {
+      "get": {
+        "operationId": "listByCertification",
+        "summary": "List gears by certification",
+        "tags": [
+          "Query"
+        ],
+        "parameters": [
+          {
+            "name": "type",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "types.json#/components/schemas/GearCertificationType"
+            }
+          },
+          {
+            "name": "authority",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "types.json#/components/schemas/GearCertificationAuthority"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Matched gears",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "types.json#/components/schemas/RegistrationList"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "types.json#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/gears/firmware/{depot}/{channel}": {
+      "get": {
+        "operationId": "listByFirmware",
+        "summary": "List gears by firmware depot and channel",
+        "tags": [
+          "Query"
+        ],
+        "parameters": [
+          {
+            "name": "depot",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "channel",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "types.json#/components/schemas/GearFirmwareChannel"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Matched gears",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "types.json#/components/schemas/RegistrationList"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "types.json#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/gears/{publicKey}": {
+      "get": {
+        "operationId": "getGear",
+        "summary": "Get gear registration",
+        "tags": [
+          "Resource"
+        ],
+        "parameters": [
+          {
+            "$ref": "types.json#/components/parameters/publicKey"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Gear registration",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "types.json#/components/schemas/Registration"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Gear not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "types.json#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteGear",
+        "summary": "Delete a gear",
+        "tags": [
+          "Resource"
+        ],
+        "parameters": [
+          {
+            "$ref": "types.json#/components/parameters/publicKey"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Deleted gear registration",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "types.json#/components/schemas/Registration"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Gear not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "types.json#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/gears/{publicKey}:approve": {
+      "post": {
+        "operationId": "approveGear",
+        "summary": "Approve a gear with a given role",
+        "tags": [
+          "Resource"
+        ],
+        "parameters": [
+          {
+            "$ref": "types.json#/components/parameters/publicKey"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "types.json#/components/schemas/ApproveRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Approved gear registration",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "types.json#/components/schemas/Registration"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid role",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "types.json#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/gears/{publicKey}:block": {
+      "post": {
+        "operationId": "blockGear",
+        "summary": "Block a gear",
+        "tags": [
+          "Resource"
+        ],
+        "parameters": [
+          {
+            "$ref": "types.json#/components/parameters/publicKey"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Blocked gear registration",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "types.json#/components/schemas/Registration"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Gear not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "types.json#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/gears/{publicKey}:refresh": {
+      "post": {
+        "operationId": "refreshGear",
+        "summary": "Refresh gear info from connected device",
+        "tags": [
+          "Resource"
+        ],
+        "parameters": [
+          {
+            "$ref": "types.json#/components/parameters/publicKey"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Refresh result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "types.json#/components/schemas/RefreshResult"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Gear not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "types.json#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Device offline",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "types.json#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Device refresh failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "types.json#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/gears/{publicKey}/info": {
+      "get": {
+        "operationId": "getGearInfo",
+        "summary": "Get gear device info",
+        "tags": [
+          "Resource"
+        ],
+        "parameters": [
+          {
+            "$ref": "types.json#/components/parameters/publicKey"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Device info",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "types.json#/components/schemas/DeviceInfo"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Gear not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "types.json#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/gears/{publicKey}/config": {
+      "get": {
+        "operationId": "getGearConfig",
+        "summary": "Get gear configuration",
+        "tags": [
+          "Resource"
+        ],
+        "parameters": [
+          {
+            "$ref": "types.json#/components/parameters/publicKey"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Configuration",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "types.json#/components/schemas/Configuration"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Gear not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "types.json#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "operationId": "putGearConfig",
+        "summary": "Update gear configuration",
+        "tags": [
+          "Resource"
+        ],
+        "parameters": [
+          {
+            "$ref": "types.json#/components/parameters/publicKey"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "types.json#/components/schemas/Configuration"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated configuration",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "types.json#/components/schemas/Configuration"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid params",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "types.json#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Gear not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "types.json#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/gears/{publicKey}/runtime": {
+      "get": {
+        "operationId": "getGearRuntime",
+        "summary": "Get gear runtime status",
+        "tags": [
+          "Resource"
+        ],
+        "parameters": [
+          {
+            "$ref": "types.json#/components/parameters/publicKey"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Runtime status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "types.json#/components/schemas/Runtime"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/gears/{publicKey}/ota": {
+      "get": {
+        "operationId": "getGearOTA",
+        "summary": "Get gear OTA firmware summary",
+        "tags": [
+          "Resource"
+        ],
+        "parameters": [
+          {
+            "$ref": "types.json#/components/parameters/publicKey"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OTA summary",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "types.json#/components/schemas/OTASummary"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Gear or firmware not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "types.json#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

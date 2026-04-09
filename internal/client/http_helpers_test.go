@@ -2,14 +2,21 @@ package client
 
 import (
 	"context"
+	"fmt"
+	"strings"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/giztoy/giztoy-go/internal/server"
 	"github.com/giztoy/giztoy-go/internal/stores"
+	itest "github.com/giztoy/giztoy-go/internal/testutil"
 	"github.com/giztoy/giztoy-go/pkg/gears"
 	"github.com/giztoy/giztoy-go/pkg/net/noise"
 )
+
+var testServerAddrs sync.Map
+var testServerRunErrs sync.Map
 
 func startTestServer(t *testing.T) (*server.Server, context.CancelFunc) {
 	t.Helper()
@@ -34,16 +41,44 @@ func startTestServer(t *testing.T) (*server.Server, context.CancelFunc) {
 
 func startTestServerWithConfig(t *testing.T, cfg server.Config) (*server.Server, context.CancelFunc) {
 	t.Helper()
-	srv, err := server.New(cfg)
-	if err != nil {
-		t.Fatalf("server.New error: %v", err)
+	var lastErr error
+	for attempt := 0; attempt < 5; attempt++ {
+		attemptCfg := cfg
+		if attemptCfg.ListenAddr == "" || strings.HasSuffix(attemptCfg.ListenAddr, ":0") {
+			attemptCfg.ListenAddr = itest.AllocateUDPAddr(t)
+		}
+
+		srv, err := server.New(attemptCfg)
+		if err != nil {
+			t.Fatalf("server.New error: %v", err)
+		}
+
+		ctx, cancel := context.WithCancel(context.Background())
+		runErrCh := make(chan error, 1)
+		go func() {
+			runErrCh <- srv.Run(ctx)
+		}()
+
+		if err := waitForServerReady(attemptCfg.ListenAddr, srv.PublicKey(), runErrCh); err == nil {
+			testServerAddrs.Store(srv, attemptCfg.ListenAddr)
+			testServerRunErrs.Store(srv, runErrCh)
+			t.Cleanup(func() {
+				testServerAddrs.Delete(srv)
+				testServerRunErrs.Delete(srv)
+			})
+			return srv, cancel
+		} else {
+			lastErr = err
+		}
+
+		cancel()
+		select {
+		case <-runErrCh:
+		case <-time.After(500 * time.Millisecond):
+		}
 	}
-	ctx, cancel := context.WithCancel(context.Background())
-	go func() {
-		_ = srv.Run(ctx)
-	}()
-	waitForTestServerReady(t, srv)
-	return srv, cancel
+	t.Fatalf("test server did not become ready: %v", lastErr)
+	return nil, nil
 }
 
 func newTestClient(t *testing.T, srv *server.Server) *Client {
@@ -52,7 +87,7 @@ func newTestClient(t *testing.T, srv *server.Server) *Client {
 	if err != nil {
 		t.Fatal(err)
 	}
-	c, err := Dial(key, srv.ListenAddr(), srv.PublicKey())
+	c, err := Dial(key, testServerAddr(t, srv), srv.PublicKey())
 	if err != nil {
 		t.Fatalf("Dial error: %v", err)
 	}
@@ -64,49 +99,66 @@ func newTestClient(t *testing.T, srv *server.Server) *Client {
 func waitForTestServerReady(t *testing.T, srv *server.Server) {
 	t.Helper()
 
-	deadline := time.Now().Add(5 * time.Second)
-	for time.Now().Before(deadline) {
-		addr := srv.ListenAddr()
-		if addr == "" {
-			time.Sleep(10 * time.Millisecond)
-			continue
+	if err := waitForServerReady(testServerAddr(t, srv), srv.PublicKey(), testServerRunErrCh(t, srv)); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func testServerAddr(t *testing.T, srv *server.Server) string {
+	t.Helper()
+	addr, ok := testServerAddrs.Load(srv)
+	if !ok {
+		t.Fatal("missing test server addr")
+	}
+	return addr.(string)
+}
+
+func testServerRunErrCh(t *testing.T, srv *server.Server) <-chan error {
+	t.Helper()
+	runErrCh, ok := testServerRunErrs.Load(srv)
+	if !ok {
+		t.Fatal("missing test server run error channel")
+	}
+	return runErrCh.(chan error)
+}
+
+func waitForServerReady(addr string, pk noise.PublicKey, errCh <-chan error) error {
+	return itest.WaitUntil(itest.ReadyTimeout, func() error {
+		select {
+		case err := <-errCh:
+			return fmt.Errorf("test server exited before ready: %w", err)
+		default:
 		}
 
 		key, err := noise.GenerateKeyPair()
 		if err != nil {
-			t.Fatalf("GenerateKeyPair(ready check): %v", err)
+			return fmt.Errorf("GenerateKeyPair(ready check): %w", err)
 		}
-		c, err := Dial(key, addr, srv.PublicKey())
+		c, err := Dial(key, addr, pk)
 		if err == nil {
 			infoErr := probeClientPublicReady(c)
 			_ = c.Close()
 			if infoErr == nil {
-				return
+				return nil
 			}
+			return fmt.Errorf("probe client public ready: %w", infoErr)
 		}
-
-		time.Sleep(20 * time.Millisecond)
-	}
-
-	t.Fatal("test server did not become ready")
+		return fmt.Errorf("dial ready check: %w", err)
+	})
 }
 
 func waitForClientPublicReady(t *testing.T, c *Client) {
 	t.Helper()
 
-	deadline := time.Now().Add(5 * time.Second)
-	for time.Now().Before(deadline) {
-		if err := probeClientPublicReady(c); err == nil {
-			return
-		}
-		time.Sleep(20 * time.Millisecond)
+	if err := itest.WaitUntil(itest.ReadyTimeout, func() error {
+		return probeClientPublicReady(c)
+	}); err != nil {
+		t.Fatalf("test client public service did not become ready: %v", err)
 	}
-
-	t.Fatal("test client public service did not become ready")
 }
 
 func probeClientPublicReady(c *Client) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
+	ctx, cancel := context.WithTimeout(context.Background(), itest.ProbeTimeout)
 	defer cancel()
 	_, err := c.GetServerInfo(ctx)
 	return err
