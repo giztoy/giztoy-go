@@ -5,23 +5,20 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/giztoy/giztoy-go/api/publicgen"
 	"github.com/giztoy/giztoy-go/pkg/firmware"
 	"github.com/giztoy/giztoy-go/pkg/gears"
+	"github.com/go-chi/chi/v5"
 )
 
 var BuildCommit = "dev"
 
+var _ publicgen.ServerInterface = (*Server)(nil)
+
 func (s *Server) publicHandler(publicKey string) http.Handler {
-	mux := http.NewServeMux()
-	mux.HandleFunc("/server-info", s.withCaller(publicKey, s.handleServerInfo))
-	mux.HandleFunc("/info", s.withCaller(publicKey, s.handlePublicInfo))
-	mux.HandleFunc("/registration", s.withCaller(publicKey, s.handleRegistration))
-	mux.HandleFunc("/runtime", s.withCaller(publicKey, s.handleRuntime))
-	mux.HandleFunc("/config", s.withCaller(publicKey, s.handleConfig))
-	mux.HandleFunc("/register", s.withCaller(publicKey, s.handleRegister))
-	mux.HandleFunc("/ota", s.withCaller(publicKey, s.handleOTA))
-	mux.HandleFunc("/download/firmware/", s.withCaller(publicKey, s.handleFirmwareDownload))
-	return mux
+	r := chi.NewRouter()
+	publicgen.HandlerFromMux(s, r)
+	return s.withCaller(publicKey, r.ServeHTTP)
 }
 
 func (s *Server) withCaller(publicKey string, next http.HandlerFunc) http.HandlerFunc {
@@ -30,11 +27,7 @@ func (s *Server) withCaller(publicKey string, next http.HandlerFunc) http.Handle
 	}
 }
 
-func (s *Server) handleServerInfo(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		writeError(w, http.StatusBadRequest, "INVALID_PARAMS", "method not allowed")
-		return
-	}
+func (s *Server) GetServerInfo(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{
 		"public_key":   s.keyPair.Public.String(),
 		"server_time":  time.Now().UnixMilli(),
@@ -42,38 +35,31 @@ func (s *Server) handleServerInfo(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func (s *Server) handlePublicInfo(w http.ResponseWriter, r *http.Request) {
-	publicKey := callerPublicKey(r.Context())
-	switch r.Method {
-	case http.MethodGet:
-		gear, err := s.gears.Get(r.Context(), publicKey)
-		if err != nil {
-			writeError(w, http.StatusNotFound, "GEAR_NOT_FOUND", err.Error())
-			return
-		}
-		writeJSON(w, http.StatusOK, gear.Device)
-	case http.MethodPut:
-		var info gears.DeviceInfo
-		if err := json.NewDecoder(r.Body).Decode(&info); err != nil {
-			writeError(w, http.StatusBadRequest, "INVALID_DEVICE_INFO", err.Error())
-			return
-		}
-		gear, err := s.gears.PutInfo(r.Context(), publicKey, info)
-		if err != nil {
-			writeError(w, http.StatusNotFound, "GEAR_NOT_FOUND", err.Error())
-			return
-		}
-		writeJSON(w, http.StatusOK, gear.Device)
-	default:
-		writeError(w, http.StatusBadRequest, "INVALID_PARAMS", "method not allowed")
-	}
-}
-
-func (s *Server) handleRegistration(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		writeError(w, http.StatusBadRequest, "INVALID_PARAMS", "method not allowed")
+func (s *Server) GetInfo(w http.ResponseWriter, r *http.Request) {
+	gear, err := s.gears.Get(r.Context(), callerPublicKey(r.Context()))
+	if err != nil {
+		writeError(w, http.StatusNotFound, "GEAR_NOT_FOUND", err.Error())
 		return
 	}
+	writeJSON(w, http.StatusOK, gear.Device)
+}
+
+func (s *Server) PutInfo(w http.ResponseWriter, r *http.Request) {
+	publicKey := callerPublicKey(r.Context())
+	var info gears.DeviceInfo
+	if err := json.NewDecoder(r.Body).Decode(&info); err != nil {
+		writeError(w, http.StatusBadRequest, "INVALID_DEVICE_INFO", err.Error())
+		return
+	}
+	gear, err := s.gears.PutInfo(r.Context(), publicKey, info)
+	if err != nil {
+		writeError(w, http.StatusNotFound, "GEAR_NOT_FOUND", err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, gear.Device)
+}
+
+func (s *Server) GetRegistration(w http.ResponseWriter, r *http.Request) {
 	gear, err := s.gears.Get(r.Context(), callerPublicKey(r.Context()))
 	if err != nil {
 		writeError(w, http.StatusNotFound, "GEAR_NOT_FOUND", err.Error())
@@ -82,19 +68,11 @@ func (s *Server) handleRegistration(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, gear.Registration())
 }
 
-func (s *Server) handleRuntime(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		writeError(w, http.StatusBadRequest, "INVALID_PARAMS", "method not allowed")
-		return
-	}
+func (s *Server) GetRuntime(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, s.peerRuntime(callerPublicKey(r.Context())))
 }
 
-func (s *Server) handleConfig(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		writeError(w, http.StatusBadRequest, "INVALID_PARAMS", "method not allowed")
-		return
-	}
+func (s *Server) GetConfig(w http.ResponseWriter, r *http.Request) {
 	gear, err := s.gears.Get(r.Context(), callerPublicKey(r.Context()))
 	if err != nil {
 		writeError(w, http.StatusNotFound, "GEAR_NOT_FOUND", err.Error())
@@ -103,11 +81,7 @@ func (s *Server) handleConfig(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, gear.Configuration)
 }
 
-func (s *Server) handleRegister(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		writeError(w, http.StatusBadRequest, "INVALID_PARAMS", "method not allowed")
-		return
-	}
+func (s *Server) RegisterGear(w http.ResponseWriter, r *http.Request) {
 	var req gears.RegistrationRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, http.StatusBadRequest, "INVALID_PARAMS", err.Error())
@@ -126,11 +100,7 @@ func (s *Server) handleRegister(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, result)
 }
 
-func (s *Server) handleOTA(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		writeError(w, http.StatusBadRequest, "INVALID_PARAMS", "method not allowed")
-		return
-	}
+func (s *Server) GetOTA(w http.ResponseWriter, r *http.Request) {
 	gear, err := s.gears.Get(r.Context(), callerPublicKey(r.Context()))
 	if err != nil {
 		writeError(w, http.StatusNotFound, "GEAR_NOT_FOUND", err.Error())
@@ -148,11 +118,7 @@ func (s *Server) handleOTA(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, ota)
 }
 
-func (s *Server) handleFirmwareDownload(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		writeError(w, http.StatusBadRequest, "INVALID_PARAMS", "method not allowed")
-		return
-	}
+func (s *Server) DownloadFirmware(w http.ResponseWriter, r *http.Request, path string) {
 	gear, err := s.gears.Get(r.Context(), callerPublicKey(r.Context()))
 	if err != nil {
 		writeError(w, http.StatusNotFound, "GEAR_NOT_FOUND", err.Error())
@@ -160,11 +126,6 @@ func (s *Server) handleFirmwareDownload(w http.ResponseWriter, r *http.Request) 
 	}
 	if gear.Device.Hardware.Depot == "" || gear.Configuration.Firmware.Channel == "" {
 		writeError(w, http.StatusNotFound, "OTA_NOT_AVAILABLE", "missing depot or channel")
-		return
-	}
-	path, err := decodeEscapedPath(escapedSubpath(r, "/download/firmware/"))
-	if err != nil {
-		writeError(w, http.StatusBadRequest, "INVALID_PARAMS", err.Error())
 		return
 	}
 	fullPath, file, err := s.firmwareOTA.ResolveFile(gear.Device.Hardware.Depot, firmware.Channel(gear.Configuration.Firmware.Channel), path)

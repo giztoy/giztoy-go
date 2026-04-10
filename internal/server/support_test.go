@@ -148,7 +148,7 @@ depots:
 
 	// --- New(): store-level errors via Registry ---
 	if _, err := New(Config{
-		DataDir:    t.TempDir(),
+		DataDir: t.TempDir(),
 		ConfigPath: writeTempConfig(t, `
 stores:
   bad:
@@ -167,7 +167,7 @@ depots:
 		t.Fatal("New should fail when depots references non-filestore kind")
 	}
 	if _, err := New(Config{
-		DataDir:    t.TempDir(),
+		DataDir: t.TempDir(),
 		ConfigPath: writeTempConfig(t, `
 stores:
   bg-nodir:
@@ -186,7 +186,7 @@ depots:
 		t.Fatal("New should fail for badger store without dir")
 	}
 	if _, err := New(Config{
-		DataDir:    t.TempDir(),
+		DataDir: t.TempDir(),
 		ConfigPath: writeTempConfig(t, `
 stores:
   unsup:
@@ -205,7 +205,7 @@ depots:
 		t.Fatal("New should fail for unsupported backend")
 	}
 	if _, err := New(Config{
-		DataDir:    t.TempDir(),
+		DataDir: t.TempDir(),
 		ConfigPath: writeTempConfig(t, `
 stores:
   mem:
@@ -223,7 +223,7 @@ depots:
 		t.Fatal("New should fail for filestore without dir")
 	}
 	if _, err := New(Config{
-		DataDir:    t.TempDir(),
+		DataDir: t.TempDir(),
 		ConfigPath: writeTempConfig(t, `
 stores:
   fw:
@@ -241,7 +241,7 @@ depots:
 
 	// --- New(): badger + filestore happy path ---
 	srv, err := New(Config{
-		DataDir:    t.TempDir(),
+		DataDir: t.TempDir(),
 		ConfigPath: writeTempConfig(t, `
 stores:
   bg:
@@ -265,7 +265,7 @@ depots:
 
 	// --- New(): missing gears.store ---
 	if _, err := New(Config{
-		DataDir:    t.TempDir(),
+		DataDir: t.TempDir(),
 		ConfigPath: writeTempConfig(t, `
 stores:
   fw:
@@ -281,7 +281,7 @@ depots:
 
 	// --- New(): missing depots.store ---
 	if _, err := New(Config{
-		DataDir:    t.TempDir(),
+		DataDir: t.TempDir(),
 		ConfigPath: writeTempConfig(t, `
 stores:
   mem:

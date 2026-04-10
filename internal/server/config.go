@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/goccy/go-yaml"
 	"github.com/giztoy/giztoy-go/internal/stores"
 	"github.com/giztoy/giztoy-go/pkg/gears"
+	"github.com/goccy/go-yaml"
 )
 
 type GearsConfig struct {
@@ -19,10 +19,10 @@ type DepotsConfig struct {
 }
 
 type FileConfig struct {
-	ListenAddr string                  `yaml:"listen"`
+	ListenAddr string                   `yaml:"listen"`
 	Stores     map[string]stores.Config `yaml:"stores"`
-	Gears      GearsConfig             `yaml:"gears"`
-	Depots     DepotsConfig            `yaml:"depots"`
+	Gears      GearsConfig              `yaml:"gears"`
+	Depots     DepotsConfig             `yaml:"depots"`
 }
 
 func LoadConfig(path string) (FileConfig, error) {
