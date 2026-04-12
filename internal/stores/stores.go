@@ -17,6 +17,7 @@ import (
 	"github.com/giztoy/giztoy-go/pkg/graph"
 	"github.com/giztoy/giztoy-go/pkg/kv"
 	"github.com/giztoy/giztoy-go/pkg/vecstore"
+
 	_ "github.com/lib/pq"
 	_ "modernc.org/sqlite"
 )

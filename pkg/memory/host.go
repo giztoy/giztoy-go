@@ -320,7 +320,6 @@ func listEntries(ctx context.Context, store kv.Store, prefix kv.Key) ([]kv.Entry
 	return results, nil
 }
 
-
 // checkEmbedMeta verifies embedding model consistency. On first call it
 // persists the current model; on subsequent calls it validates the stored
 // model matches.

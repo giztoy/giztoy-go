@@ -1,5 +1,0 @@
-package: publicgen
-generate:
-  models: true
-output-options:
-  skip-prune: true

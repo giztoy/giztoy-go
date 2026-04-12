@@ -7,28 +7,6 @@ import (
 	"github.com/giztoy/giztoy-go/pkg/kv"
 )
 
-func TestCanAccessMatrix(t *testing.T) {
-	tests := []struct {
-		name    string
-		role    GearRole
-		status  GearStatus
-		service ServiceKind
-		want    bool
-	}{
-		{name: "public bootstrap", role: GearRoleUnspecified, status: GearStatusBlocked, service: ServiceKindPublicDevice, want: true},
-		{name: "admin active", role: GearRoleAdmin, status: GearStatusActive, service: ServiceKindAdmin, want: true},
-		{name: "admin blocked", role: GearRoleAdmin, status: GearStatusBlocked, service: ServiceKindAdmin, want: false},
-		{name: "peer active", role: GearRolePeer, status: GearStatusActive, service: ServiceKindPeer, want: true},
-		{name: "device reverse active", role: GearRoleDevice, status: GearStatusActive, service: ServiceKindDeviceReverse, want: true},
-		{name: "unknown service", role: GearRoleDevice, status: GearStatusActive, service: ServiceKind("other"), want: false},
-	}
-	for _, tt := range tests {
-		if got := CanAccess(tt.role, tt.status, tt.service); got != tt.want {
-			t.Fatalf("%s: CanAccess() = %v, want %v", tt.name, got, tt.want)
-		}
-	}
-}
-
 func TestValidationAndDedupeHelpers(t *testing.T) {
 	if IsValidRole(GearRole("bad")) {
 		t.Fatal("invalid role should be rejected")

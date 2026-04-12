@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	servecmd "github.com/giztoy/giztoy-go/internal/cli/commands/serve"
 )
 
 func TestRootHelp(t *testing.T) {
@@ -185,7 +187,7 @@ func TestPrepareServeWorkspace(t *testing.T) {
 	})
 
 	workspace := filepath.Join(workspaceRoot, "giztoy-workspace")
-	cfg, err := prepareServeWorkspace(workspace)
+	cfg, err := servecmd.PrepareWorkspace(workspace)
 	if err != nil {
 		t.Fatalf("prepareServeWorkspace error: %v", err)
 	}

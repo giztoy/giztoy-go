@@ -200,7 +200,6 @@ func newTestHost(t *testing.T) *Host {
 	return h
 }
 
-
 // mustOpen is a test helper that calls h.Open and fails the test on error.
 func mustOpen(t testing.TB, h *Host, id string, opts ...OpenOption) *Memory {
 	t.Helper()

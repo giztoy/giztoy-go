@@ -1,12 +1,11 @@
 package identity
 
 import (
+	"github.com/giztoy/giztoy-go/pkg/giznet"
 	"os"
 	"path/filepath"
 	"runtime"
 	"testing"
-
-	"github.com/giztoy/giztoy-go/pkg/net/noise"
 )
 
 func TestLoadOrGenerate_NewFile(t *testing.T) {
@@ -25,8 +24,8 @@ func TestLoadOrGenerate_NewFile(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ReadFile err=%v", err)
 	}
-	if len(data) != noise.KeySize {
-		t.Fatalf("key file size=%d, want %d", len(data), noise.KeySize)
+	if len(data) != giznet.KeySize {
+		t.Fatalf("key file size=%d, want %d", len(data), giznet.KeySize)
 	}
 
 	info, _ := os.Stat(path)

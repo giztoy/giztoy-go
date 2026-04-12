@@ -2,14 +2,13 @@ package device_test
 
 import (
 	"context"
-	"testing"
-
-	"github.com/giztoy/giztoy-go/internal/client"
 	"github.com/giztoy/giztoy-go/internal/server"
 	"github.com/giztoy/giztoy-go/internal/stores"
 	itest "github.com/giztoy/giztoy-go/internal/testutil"
 	"github.com/giztoy/giztoy-go/pkg/gears"
-	"github.com/giztoy/giztoy-go/pkg/net/noise"
+	"github.com/giztoy/giztoy-go/pkg/gizclaw"
+	"github.com/giztoy/giztoy-go/pkg/giznet"
+	"testing"
 )
 
 func TestDeviceRegisterConfigPingFlow(t *testing.T) {
@@ -34,19 +33,18 @@ func TestDeviceRegisterConfigPingFlow(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 	errCh := make(chan error, 1)
 	go func() {
-		errCh <- srv.Run(ctx)
+		errCh <- srv.ListenAndServe(giznet.WithBindAddr(listenAddr))
 	}()
+	defer func() { _ = srv.Close() }()
 	waitForTestServerReady(t, srv, listenAddr, errCh)
 
-	key, err := noise.GenerateKeyPair()
+	key, err := giznet.GenerateKeyPair()
 	if err != nil {
 		t.Fatal(err)
 	}
-	c, err := client.Dial(key, listenAddr, srv.PublicKey())
+	c, err := gizclaw.Dial(key, listenAddr, srv.PublicKey())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -74,7 +72,10 @@ func TestDeviceRegisterConfigPingFlow(t *testing.T) {
 		t.Fatalf("unexpected firmware channel: %q", cfg.Firmware.Channel)
 	}
 
-	if _, err := c.Ping(); err != nil {
+	if err := itest.WaitUntil(itest.ReadyTimeout, func() error {
+		_, err := c.Ping()
+		return err
+	}); err != nil {
 		t.Fatalf("Ping error: %v", err)
 	}
 }
@@ -89,11 +90,11 @@ func waitForTestServerReady(t *testing.T, srv *server.Server, addr string, errCh
 		default:
 		}
 
-		key, err := noise.GenerateKeyPair()
+		key, err := giznet.GenerateKeyPair()
 		if err != nil {
 			t.Fatalf("GenerateKeyPair(ready check): %v", err)
 		}
-		c, err := client.Dial(key, addr, srv.PublicKey())
+		c, err := gizclaw.Dial(key, addr, srv.PublicKey())
 		if err == nil {
 			infoErr := probeClientPublicReady(c)
 			_ = c.Close()
@@ -108,7 +109,7 @@ func waitForTestServerReady(t *testing.T, srv *server.Server, addr string, errCh
 	}
 }
 
-func waitForClientPublicReady(t *testing.T, c *client.Client) {
+func waitForClientPublicReady(t *testing.T, c *gizclaw.Client) {
 	t.Helper()
 
 	if err := itest.WaitUntil(itest.ReadyTimeout, func() error {
@@ -118,7 +119,7 @@ func waitForClientPublicReady(t *testing.T, c *client.Client) {
 	}
 }
 
-func probeClientPublicReady(c *client.Client) error {
+func probeClientPublicReady(c *gizclaw.Client) error {
 	ctx, cancel := context.WithTimeout(context.Background(), itest.ProbeTimeout)
 	defer cancel()
 	_, err := c.GetServerInfo(ctx)

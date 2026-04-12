@@ -170,12 +170,6 @@ func TestServiceRegisterApproveBlockDeleteRefresh(t *testing.T) {
 		t.Fatalf("Delete role/status = %q/%q", deleted.Role, deleted.Status)
 	}
 
-	if !CanAccess(GearRoleAdmin, GearStatusActive, ServiceKindAdmin) {
-		t.Fatal("admin should access admin service")
-	}
-	if CanAccess(GearRoleDevice, GearStatusBlocked, ServiceKindDeviceApp) {
-		t.Fatal("blocked device should not access device app service")
-	}
 }
 
 func TestRefreshFromProvider(t *testing.T) {

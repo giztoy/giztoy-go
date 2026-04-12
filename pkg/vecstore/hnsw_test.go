@@ -530,8 +530,8 @@ func TestLoadHNSWRejectsOversizedFriendList(t *testing.T) {
 	write(int32(0))   // entryID
 	write(uint32(0))  // freeCount
 
-	write(uint8(1))   // active
-	write(uint32(1))  // idLen
+	write(uint8(1))  // active
+	write(uint32(1)) // idLen
 	if _, err := buf.Write([]byte("a")); err != nil {
 		t.Fatalf("write id: %v", err)
 	}
@@ -595,7 +595,7 @@ func TestLoadHNSWRejectsFreeCountExceedingNumSlots(t *testing.T) {
 	write(uint32(32)) // efSearch
 	write(uint32(1))  // numSlots
 	write(uint32(0))  // activeCount
-	write(uint32(0)) // maxLevel
+	write(uint32(0))  // maxLevel
 	write(int32(-1))
 	write(uint32(2)) // freeCount > numSlots should be rejected
 

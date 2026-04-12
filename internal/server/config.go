@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/goccy/go-yaml"
 	"github.com/giztoy/giztoy-go/internal/stores"
 	"github.com/giztoy/giztoy-go/pkg/gears"
+	"github.com/goccy/go-yaml"
 )
 
 type GearsConfig struct {
@@ -18,26 +18,26 @@ type DepotsConfig struct {
 	Store string `yaml:"store"`
 }
 
-type FileConfig struct {
-	ListenAddr string                  `yaml:"listen"`
+type ConfigFile struct {
+	ListenAddr string                   `yaml:"listen"`
 	Stores     map[string]stores.Config `yaml:"stores"`
-	Gears      GearsConfig             `yaml:"gears"`
-	Depots     DepotsConfig            `yaml:"depots"`
+	Gears      GearsConfig              `yaml:"gears"`
+	Depots     DepotsConfig             `yaml:"depots"`
 }
 
-func LoadConfig(path string) (FileConfig, error) {
+func LoadConfig(path string) (ConfigFile, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return FileConfig{}, err
+		return ConfigFile{}, err
 	}
-	var cfg FileConfig
+	var cfg ConfigFile
 	if err := yaml.Unmarshal(data, &cfg); err != nil {
-		return FileConfig{}, err
+		return ConfigFile{}, err
 	}
 	return cfg, nil
 }
 
-func mergeFileConfig(cfg Config, fileCfg FileConfig) Config {
+func mergeFileConfig(cfg Config, fileCfg ConfigFile) Config {
 	if cfg.ListenAddr == "" {
 		cfg.ListenAddr = fileCfg.ListenAddr
 	}

@@ -13,9 +13,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/goccy/go-yaml"
 	"github.com/giztoy/giztoy-go/pkg/genx"
 	"github.com/giztoy/giztoy-go/pkg/genx/generators"
+	"github.com/goccy/go-yaml"
 	"github.com/openai/openai-go"
 	"github.com/openai/openai-go/option"
 	"google.golang.org/genai"

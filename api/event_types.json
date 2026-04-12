@@ -1,0 +1,31 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Event Types",
+    "description": "Schemas used by the peer event protocol.",
+    "version": "1.0.0"
+  },
+  "paths": {},
+  "components": {
+    "schemas": {
+      "Event": {
+        "type": "object",
+        "required": [
+          "v",
+          "name"
+        ],
+        "properties": {
+          "v": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "data": {
+            "x-go-type": "json.RawMessage"
+          }
+        }
+      }
+    }
+  }
+}

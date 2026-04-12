@@ -2,15 +2,14 @@ package identity
 
 import (
 	"fmt"
+	"github.com/giztoy/giztoy-go/pkg/giznet"
 	"os"
 	"path/filepath"
-
-	"github.com/giztoy/giztoy-go/pkg/net/noise"
 )
 
 // LoadOrGenerate loads a key pair from path, or generates and saves a new one
 // if the file does not exist. The file contains the raw 32-byte private key.
-func LoadOrGenerate(path string) (*noise.KeyPair, error) {
+func LoadOrGenerate(path string) (*giznet.KeyPair, error) {
 	data, err := os.ReadFile(path)
 	if err == nil {
 		return parseKeyFile(data)
@@ -22,7 +21,7 @@ func LoadOrGenerate(path string) (*noise.KeyPair, error) {
 }
 
 // Load loads a key pair from an existing file.
-func Load(path string) (*noise.KeyPair, error) {
+func Load(path string) (*giznet.KeyPair, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("identity: read %s: %w", path, err)
@@ -30,17 +29,17 @@ func Load(path string) (*noise.KeyPair, error) {
 	return parseKeyFile(data)
 }
 
-func parseKeyFile(data []byte) (*noise.KeyPair, error) {
-	if len(data) != noise.KeySize {
-		return nil, fmt.Errorf("identity: invalid key file: got %d bytes, want %d", len(data), noise.KeySize)
+func parseKeyFile(data []byte) (*giznet.KeyPair, error) {
+	if len(data) != giznet.KeySize {
+		return nil, fmt.Errorf("identity: invalid key file: got %d bytes, want %d", len(data), giznet.KeySize)
 	}
-	var key noise.Key
+	var key giznet.Key
 	copy(key[:], data)
-	return noise.NewKeyPair(key)
+	return giznet.NewKeyPair(key)
 }
 
-func generate(path string) (*noise.KeyPair, error) {
-	kp, err := noise.GenerateKeyPair()
+func generate(path string) (*giznet.KeyPair, error) {
+	kp, err := giznet.GenerateKeyPair()
 	if err != nil {
 		return nil, fmt.Errorf("identity: generate: %w", err)
 	}

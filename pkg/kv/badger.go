@@ -165,4 +165,3 @@ func (b *Badger) RunGC(discardRatio float64) error {
 func (b *Badger) Size() (lsm, vlog int64) {
 	return b.db.Size()
 }
-

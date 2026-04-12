@@ -57,4 +57,3 @@ func TestOpenWithEmbedderModelMismatchAgainstHost(t *testing.T) {
 		t.Fatal("expected model mismatch on WithEmbedder override, got nil")
 	}
 }
-

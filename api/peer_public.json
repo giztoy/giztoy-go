@@ -1,0 +1,178 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Peripheral Host API",
+    "description": "Device-hosted API consumed over the reverse device channel.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "/"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Peripheral",
+      "description": "Device-side host endpoints"
+    }
+  ],
+  "paths": {
+    "/info": {
+      "get": {
+        "operationId": "getInfo",
+        "summary": "Get basic device information",
+        "tags": [
+          "Peripheral"
+        ],
+        "responses": {
+          "200": {
+            "description": "Basic device information",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RefreshInfo"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Unexpected error"
+          }
+        }
+      }
+    },
+    "/identifiers": {
+      "get": {
+        "operationId": "getIdentifiers",
+        "summary": "Get device identifiers",
+        "tags": [
+          "Peripheral"
+        ],
+        "responses": {
+          "200": {
+            "description": "Device identifiers",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RefreshIdentifiers"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Unexpected error"
+          }
+        }
+      }
+    },
+    "/version": {
+      "get": {
+        "operationId": "getVersion",
+        "summary": "Get current firmware version metadata",
+        "tags": [
+          "Peripheral"
+        ],
+        "responses": {
+          "200": {
+            "description": "Firmware version metadata",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RefreshVersion"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Unexpected error"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "RefreshInfo": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "manufacturer": {
+            "type": "string"
+          },
+          "model": {
+            "type": "string"
+          },
+          "hardware_revision": {
+            "type": "string"
+          }
+        }
+      },
+      "RefreshIdentifiers": {
+        "type": "object",
+        "properties": {
+          "sn": {
+            "type": "string"
+          },
+          "imeis": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GearIMEI"
+            }
+          },
+          "labels": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GearLabel"
+            }
+          }
+        }
+      },
+      "RefreshVersion": {
+        "type": "object",
+        "properties": {
+          "depot": {
+            "type": "string"
+          },
+          "firmware_semver": {
+            "type": "string"
+          }
+        }
+      },
+      "GearIMEI": {
+        "type": "object",
+        "required": [
+          "tac",
+          "serial"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "tac": {
+            "type": "string"
+          },
+          "serial": {
+            "type": "string"
+          }
+        }
+      },
+      "GearLabel": {
+        "type": "object",
+        "required": [
+          "key",
+          "value"
+        ],
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "value": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

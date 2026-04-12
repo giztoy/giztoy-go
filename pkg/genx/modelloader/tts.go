@@ -5,8 +5,8 @@ import (
 	"strings"
 
 	doubaospeech "github.com/giztoy/doubao-speech-go"
-	minimax "github.com/giztoy/minimax-go"
 	"github.com/giztoy/giztoy-go/pkg/genx/transformers"
+	minimax "github.com/giztoy/minimax-go"
 )
 
 func registerTTSBySchema(cfg ConfigFile) ([]string, error) {

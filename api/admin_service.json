@@ -1,0 +1,524 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Admin Firmware API",
+    "description": "Admin endpoints for managing firmware depots, channels, and releases.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "/"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Depots",
+      "description": "Firmware depot operations"
+    },
+    {
+      "name": "Channels",
+      "description": "Firmware channel operations"
+    }
+  ],
+  "paths": {
+    "/firmwares": {
+      "get": {
+        "operationId": "listDepots",
+        "summary": "List all firmware depots",
+        "tags": [
+          "Depots"
+        ],
+        "responses": {
+          "200": {
+            "description": "Depot list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DepotList"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/firmwares/{depot}": {
+      "get": {
+        "operationId": "getDepot",
+        "summary": "Get a firmware depot snapshot",
+        "tags": [
+          "Depots"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/depotName"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Depot snapshot",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Depot"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Depot not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "operationId": "putDepotInfo",
+        "summary": "Create or update depot info (file manifest)",
+        "tags": [
+          "Depots"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/depotName"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DepotInfo"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated depot snapshot",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Depot"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid JSON",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Info conflicts with existing releases",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/firmwares/{depot}:release": {
+      "put": {
+        "operationId": "releaseDepot",
+        "summary": "Promote testing channel to stable",
+        "tags": [
+          "Depots"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/depotName"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Updated depot snapshot after release",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Depot"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Depot not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Release not ready (testing channel missing)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/firmwares/{depot}:rollback": {
+      "put": {
+        "operationId": "rollbackDepot",
+        "summary": "Roll back stable channel to the rollback snapshot",
+        "tags": [
+          "Depots"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/depotName"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Updated depot snapshot after rollback",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Depot"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Depot not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Rollback not available",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/firmwares/{depot}/{channel}": {
+      "get": {
+        "operationId": "getChannel",
+        "summary": "Get a specific channel release",
+        "tags": [
+          "Channels"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/depotName"
+          },
+          {
+            "$ref": "#/components/parameters/channel"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Channel release",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DepotRelease"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Depot or channel not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "operationId": "putChannel",
+        "summary": "Upload a firmware release tarball for a channel",
+        "tags": [
+          "Channels"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/depotName"
+          },
+          {
+            "$ref": "#/components/parameters/channel"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/octet-stream": {
+              "schema": {
+                "type": "string",
+                "format": "binary"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Uploaded release",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DepotRelease"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Invalid manifest in tarball",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "parameters": {
+      "depotName": {
+        "name": "depot",
+        "in": "path",
+        "required": true,
+        "description": "Firmware depot name",
+        "schema": {
+          "type": "string"
+        }
+      },
+      "channel": {
+        "name": "channel",
+        "in": "path",
+        "required": true,
+        "description": "Release channel",
+        "schema": {
+          "$ref": "#/components/schemas/Channel"
+        }
+      }
+    },
+    "schemas": {
+      "Channel": {
+        "type": "string",
+        "enum": [
+          "rollback",
+          "stable",
+          "beta",
+          "testing"
+        ]
+      },
+      "Depot": {
+        "type": "object",
+        "required": [
+          "name",
+          "info",
+          "rollback",
+          "stable",
+          "beta",
+          "testing"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "info": {
+            "$ref": "#/components/schemas/DepotInfo"
+          },
+          "rollback": {
+            "$ref": "#/components/schemas/DepotRelease"
+          },
+          "stable": {
+            "$ref": "#/components/schemas/DepotRelease"
+          },
+          "beta": {
+            "$ref": "#/components/schemas/DepotRelease"
+          },
+          "testing": {
+            "$ref": "#/components/schemas/DepotRelease"
+          }
+        }
+      },
+      "DepotList": {
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Depot"
+            }
+          }
+        }
+      },
+      "DepotInfo": {
+        "type": "object",
+        "properties": {
+          "files": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DepotInfoFile"
+            }
+          }
+        }
+      },
+      "DepotInfoFile": {
+        "type": "object",
+        "required": [
+          "path"
+        ],
+        "properties": {
+          "path": {
+            "type": "string"
+          }
+        }
+      },
+      "DepotRelease": {
+        "type": "object",
+        "required": [
+          "firmware_semver"
+        ],
+        "properties": {
+          "firmware_semver": {
+            "type": "string"
+          },
+          "channel": {
+            "type": "string"
+          },
+          "files": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DepotFile"
+            }
+          }
+        }
+      },
+      "DepotFile": {
+        "type": "object",
+        "required": [
+          "path",
+          "sha256",
+          "md5"
+        ],
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "md5": {
+            "type": "string"
+          }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "$ref": "#/components/schemas/ErrorPayload"
+          }
+        }
+      },
+      "ErrorPayload": {
+        "type": "object",
+        "required": [
+          "code",
+          "message"
+        ],
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "details": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,96 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "RPC Types",
+    "description": "Schemas used by the internal framed RPC protocol.",
+    "version": "1.0.0"
+  },
+  "paths": {},
+  "components": {
+    "schemas": {
+      "RPCRequest": {
+        "type": "object",
+        "required": [
+          "v",
+          "id",
+          "method"
+        ],
+        "properties": {
+          "v": {
+            "type": "integer"
+          },
+          "id": {
+            "type": "string"
+          },
+          "method": {
+            "type": "string"
+          },
+          "params": {
+            "$ref": "#/components/schemas/PingRequest"
+          }
+        }
+      },
+      "RPCResponse": {
+        "type": "object",
+        "required": [
+          "v",
+          "id"
+        ],
+        "properties": {
+          "v": {
+            "type": "integer"
+          },
+          "id": {
+            "type": "string"
+          },
+          "result": {
+            "$ref": "#/components/schemas/PingResponse"
+          },
+          "error": {
+            "$ref": "#/components/schemas/RPCError"
+          }
+        }
+      },
+      "RPCError": {
+        "type": "object",
+        "required": [
+          "code",
+          "message"
+        ],
+        "properties": {
+          "code": {
+            "type": "integer"
+          },
+          "message": {
+            "type": "string"
+          }
+        }
+      },
+      "PingRequest": {
+        "type": "object",
+        "required": [
+          "client_send_time"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "client_send_time": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "PingResponse": {
+        "type": "object",
+        "required": [
+          "server_time"
+        ],
+        "properties": {
+          "server_time": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      }
+    }
+  }
+}
