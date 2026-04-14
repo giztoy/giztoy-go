@@ -634,7 +634,7 @@ func TestDecryptTransport_ReturnsPeerNotFoundWhenPeerRemovedMidFlight(t *testing
 		},
 	}
 
-	plaintext := noise.EncodePayload(testDirectProtoA, []byte("payload"))
+	plaintext := EncodePayload(testDirectProtoA, []byte("payload"))
 	ciphertext, counter, err := session.Encrypt(plaintext)
 	if err != nil {
 		t.Fatalf("Encrypt failed: %v", err)

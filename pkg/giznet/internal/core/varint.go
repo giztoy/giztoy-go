@@ -1,18 +1,17 @@
-package noise
+package core
 
 import "errors"
 
-// ErrVarintTruncated is returned when a varint is truncated (missing continuation bytes).
-var ErrVarintTruncated = errors.New("noise: varint truncated")
+// ErrVarintTruncated is returned when a varint is truncated.
+var ErrVarintTruncated = errors.New("core: varint truncated")
 
 // ErrVarintOverflow is returned when a varint exceeds 64 bits.
-var ErrVarintOverflow = errors.New("noise: varint overflow")
+var ErrVarintOverflow = errors.New("core: varint overflow")
 
 // MaxVarintLen is the maximum number of bytes in a varint-encoded uint64.
 const MaxVarintLen = 10
 
 // EncodeVarint encodes v as a protobuf-style varint into buf.
-// Returns the number of bytes written.
 // buf must be at least MaxVarintLen bytes to hold any uint64.
 func EncodeVarint(buf []byte, v uint64) int {
 	i := 0
@@ -25,7 +24,7 @@ func EncodeVarint(buf []byte, v uint64) int {
 	return i + 1
 }
 
-// AppendVarint appends a varint-encoded uint64 to dst and returns the extended slice.
+// AppendVarint appends a varint-encoded uint64 to dst.
 func AppendVarint(dst []byte, v uint64) []byte {
 	for v >= 0x80 {
 		dst = append(dst, byte(v)|0x80)
@@ -35,7 +34,6 @@ func AppendVarint(dst []byte, v uint64) []byte {
 }
 
 // DecodeVarint decodes a varint from buf.
-// Returns the value, the number of bytes consumed, and any error.
 func DecodeVarint(buf []byte) (uint64, int, error) {
 	var v uint64
 	for i, b := range buf {

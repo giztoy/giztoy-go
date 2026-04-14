@@ -299,7 +299,7 @@ func (c *Conn) Send(protocol byte, payload []byte) error {
 		}
 	}
 
-	plaintext := noise.EncodePayload(protocol, payload)
+	plaintext := EncodePayload(protocol, payload)
 	return c.sendPayload(plaintext, false)
 }
 
@@ -546,7 +546,7 @@ func (c *Conn) handleTransportMessage(msg *noise.TransportMessage) (byte, []byte
 		return 0, nil, nil
 	}
 
-	protocol, payload, err := noise.DecodePayload(plaintext)
+	protocol, payload, err := DecodePayload(plaintext)
 	if err != nil {
 		return 0, nil, err
 	}

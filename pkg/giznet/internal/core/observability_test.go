@@ -1,7 +1,6 @@
 package core
 
 import (
-	"encoding/binary"
 	"testing"
 	"time"
 
@@ -101,10 +100,8 @@ func TestRPCRouteErrorCounterOnSmuxInputFailure(t *testing.T) {
 	}
 
 	before := server.HostInfo().RPCRouteErrors
-	frame := binary.AppendUvarint(nil, 1)
-	frame = append(frame, 0)
-	if err := client.sendToPeer(clientPeer, ProtocolKCP, frame); err != nil {
-		t.Fatalf("sendToPeer(KCP) failed: %v", err)
+	if err := client.sendKCP(clientPeer, 1, []byte{0}); err != nil {
+		t.Fatalf("sendKCP failed: %v", err)
 	}
 
 	deadline := time.Now().Add(2 * time.Second)

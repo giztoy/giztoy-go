@@ -1,4 +1,4 @@
-package noise
+package core
 
 import (
 	"math"

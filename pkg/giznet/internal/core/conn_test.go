@@ -588,7 +588,7 @@ func TestConnPreviousSessionDecrypt(t *testing.T) {
 
 	// Encrypt a message
 	testData := []byte("message from previous session")
-	plaintext := noise.EncodePayload(testDirectProtoA, testData)
+	plaintext := EncodePayload(testDirectProtoA, testData)
 	ciphertext, counter, _ := peerSession.Encrypt(plaintext)
 	wireMsg := noise.BuildTransportMessage(100, counter, ciphertext) // ReceiverIndex = our prev session
 
@@ -1150,7 +1150,7 @@ func TestConnRecvWithHandshakeState(t *testing.T) {
 	})
 
 	testData := []byte("test message")
-	plaintext := noise.EncodePayload(testDirectProtoA, testData)
+	plaintext := EncodePayload(testDirectProtoA, testData)
 	ciphertext, counter, _ := peerSession.Encrypt(plaintext)
 	wireMsg := noise.BuildTransportMessage(100, counter, ciphertext)
 	clientTransport.InjectPacket(wireMsg, serverTransport.LocalAddr())
@@ -1206,7 +1206,7 @@ func TestConnHandleTransportMessageRekeyTrigger(t *testing.T) {
 	})
 
 	testData := []byte("test")
-	plaintext := noise.EncodePayload(testDirectProtoA, testData)
+	plaintext := EncodePayload(testDirectProtoA, testData)
 	ciphertext, counter, _ := peerSession.Encrypt(plaintext)
 	wireMsg := noise.BuildTransportMessage(100, counter, ciphertext)
 	clientTransport.InjectPacket(wireMsg, serverTransport.LocalAddr())

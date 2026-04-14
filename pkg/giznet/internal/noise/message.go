@@ -34,9 +34,6 @@ const (
 	// type(1) + receiver_idx(4) + counter(8) = 13
 	TransportHeaderSize = 1 + 4 + 8
 
-	// MaxPayloadSize is the maximum payload size (64KB - headers - tag).
-	MaxPayloadSize = 65535 - TransportHeaderSize - TagSize - 1 // -1 for protocol byte
-
 	// MaxPacketSize is the maximum packet size we accept.
 	MaxPacketSize = 65535
 )
@@ -73,27 +70,6 @@ func BuildTransportMessage(receiverIndex uint32, counter uint64, ciphertext []by
 	binary.LittleEndian.PutUint64(msg[5:13], counter)
 	copy(msg[13:], ciphertext)
 	return msg
-}
-
-// EncodePayload encodes protocol + payload into a single payload.
-//
-// Wire format: protocol(1B) | payload(N)
-func EncodePayload(protocol byte, payload []byte) []byte {
-	result := make([]byte, 1+len(payload))
-	result[0] = protocol
-	copy(result[1:], payload)
-	return result
-}
-
-// DecodePayload decodes protocol + payload from a payload.
-//
-// Wire format: protocol(1B) | payload(N)
-func DecodePayload(data []byte) (protocol byte, payload []byte, err error) {
-	if len(data) < 1 {
-		return 0, nil, ErrMessageTooShort
-	}
-	protocol = data[0]
-	return protocol, data[1:], nil
 }
 
 // HandshakeInitMessage represents a parsed handshake initiation (Type 1).
@@ -185,5 +161,4 @@ func GetMessageType(data []byte) (byte, error) {
 var (
 	ErrMessageTooShort    = errors.New("noise: message too short")
 	ErrInvalidMessageType = errors.New("noise: invalid message type")
-	ErrInvalidAddress     = errors.New("noise: invalid address type")
 )

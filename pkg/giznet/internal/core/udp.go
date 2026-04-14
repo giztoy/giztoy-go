@@ -605,7 +605,7 @@ func (u *UDP) WriteTo(pk noise.PublicKey, data []byte) error {
 		return ErrPeerNotFound
 	}
 
-	return u.sendToPeer(peer, 0x01, data)
+	return u.sendDirect(peer, 0x01, data)
 }
 
 // ReadFrom reads the next decrypted message from any peer.
@@ -1282,7 +1282,7 @@ func (u *UDP) decryptTransport(pkt *packet, data []byte, from *net.UDPAddr) {
 		return
 	}
 
-	protocol, payload, err := noise.DecodePayload(plaintext)
+	protocol, payload, err := DecodePayload(plaintext)
 	if err != nil {
 		pkt.err = err
 		return
@@ -1294,13 +1294,13 @@ func (u *UDP) decryptTransport(pkt *packet, data []byte, from *net.UDPAddr) {
 	pkt.payloadN = len(payload)
 	// Stream protocols are routed through KCP streams, not the raw passthrough path.
 	// Wire format: service_varint + kcp_data
-	if IsStreamProtocol(protocol) {
+	if protocol == ProtocolKCP {
 		if smux == nil {
 			u.rpcRouteErrors.Add(1)
 			pkt.err = ErrNoSession
 			return
 		}
-		service, n, err := noise.DecodeVarint(payload)
+		service, n, err := DecodeVarint(payload)
 		if err != nil {
 			u.rpcRouteErrors.Add(1)
 			pkt.err = err

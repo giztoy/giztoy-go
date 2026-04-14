@@ -21,7 +21,10 @@ func (u *UDP) createServiceMux(peer *peerState) *ServiceMux {
 
 	cfg.IsClient = isClient
 	cfg.Output = func(_ noise.PublicKey, service uint64, protocol byte, data []byte) error {
-		return u.sendToPeerWithService(peer, protocol, service, data)
+		if protocol == ProtocolKCP {
+			return u.sendKCP(peer, service, data)
+		}
+		return u.sendDirect(peer, protocol, data)
 	}
 	cfg.OnOutputError = func(_ noise.PublicKey, service uint64, err error) {
 		u.kcpOutputErrors.Add(1)
@@ -33,15 +36,7 @@ func (u *UDP) createServiceMux(peer *peerState) *ServiceMux {
 	return NewServiceMux(peer.pk, cfg)
 }
 
-// sendToPeerWithService sends data to a peer with protocol + service.
-func (u *UDP) sendToPeerWithService(peer *peerState, protocol byte, service uint64, data []byte) error {
-	return u.sendDirectWithService(peer, protocol, service, data)
-}
-
-// sendDirectWithService sends data directly to a peer with protocol + service.
-// For stream protocols, the service ID is encoded as a varint prefix in the payload
-// so the receiver can route to the correct ServiceMux entry.
-func (u *UDP) sendDirectWithService(peer *peerState, protocol byte, service uint64, data []byte) error {
+func (u *UDP) sendPayload(peer *peerState, protocol byte, payload []byte) error {
 	peer.mu.RLock()
 	session := peer.session
 	endpoint := peer.endpoint
@@ -54,13 +49,7 @@ func (u *UDP) sendDirectWithService(peer *peerState, protocol byte, service uint
 		return ErrNoSession
 	}
 
-	wirePayload := data
-	if IsStreamProtocol(protocol) {
-		wirePayload = noise.AppendVarint(nil, service)
-		wirePayload = append(wirePayload, data...)
-	}
-
-	plaintext := noise.EncodePayload(protocol, wirePayload)
+	plaintext := EncodePayload(protocol, payload)
 	ciphertext, counter, err := session.Encrypt(plaintext)
 	if err != nil {
 		return err
@@ -81,14 +70,16 @@ func (u *UDP) sendDirectWithService(peer *peerState, protocol byte, service uint
 	return nil
 }
 
-// sendToPeer sends data to a peer with the given protocol byte (service=0 default).
-func (u *UDP) sendToPeer(peer *peerState, protocol byte, data []byte) error {
-	return u.sendToPeerWithService(peer, protocol, 0, data)
+// sendKCP sends KCP/service-mux traffic to a peer.
+func (u *UDP) sendKCP(peer *peerState, service uint64, data []byte) error {
+	payload := AppendVarint(nil, service)
+	payload = append(payload, data...)
+	return u.sendPayload(peer, ProtocolKCP, payload)
 }
 
-// sendDirect sends data directly to a peer (service=0 default).
+// sendDirect sends non-KCP traffic directly to a peer.
 func (u *UDP) sendDirect(peer *peerState, protocol byte, data []byte) error {
-	return u.sendDirectWithService(peer, protocol, 0, data)
+	return u.sendPayload(peer, protocol, data)
 }
 
 // GetServiceMux returns the ServiceMux for a peer.
