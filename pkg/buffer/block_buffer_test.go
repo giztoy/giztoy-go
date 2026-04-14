@@ -8,6 +8,7 @@ import (
 	"io"
 	"strconv"
 	"testing"
+	"time"
 )
 
 func TestBlockBuffer(t *testing.T) {
@@ -234,5 +235,65 @@ func BenchmarkBlockBuffer(b *testing.B) {
 			b.Fatalf("read with data not equal")
 		}
 		ptr += n
+	}
+}
+
+func TestBlockBufferDiscardCloseAndBlockedAdd(t *testing.T) {
+	bb := BlockN[int](1)
+	if err := bb.Add(1); err != nil {
+		t.Fatalf("add 1 failed: %v", err)
+	}
+
+	addDone := make(chan error, 1)
+	go func() {
+		addDone <- bb.Add(2)
+	}()
+
+	time.Sleep(20 * time.Millisecond)
+	v, err := bb.Next()
+	if err != nil {
+		t.Fatalf("next failed: %v", err)
+	}
+	if v != 1 {
+		t.Fatalf("next=%d, want=1", v)
+	}
+
+	select {
+	case err := <-addDone:
+		if err != nil {
+			t.Fatalf("blocked add failed: %v", err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("blocked add did not resume")
+	}
+
+	if err := bb.Discard(1); err != nil {
+		t.Fatalf("discard failed: %v", err)
+	}
+	if bb.Len() != 0 {
+		t.Fatalf("len after discard=%d, want=0", bb.Len())
+	}
+
+	if err := bb.CloseWithError(nil); err != nil {
+		t.Fatalf("close with nil error failed: %v", err)
+	}
+	if !errors.Is(bb.Error(), io.ErrClosedPipe) {
+		t.Fatalf("expected io.ErrClosedPipe, got: %v", bb.Error())
+	}
+
+	if _, err := bb.Read(make([]int, 1)); err == nil {
+		t.Fatal("read should fail after CloseWithError")
+	}
+	if _, err := bb.Write([]int{3}); err == nil {
+		t.Fatal("write should fail after CloseWithError")
+	}
+	if err := bb.Add(3); err == nil {
+		t.Fatal("add should fail after CloseWithError")
+	}
+	if _, err := bb.Next(); err == nil {
+		t.Fatal("next should fail after CloseWithError")
+	}
+	if err := bb.Discard(1); err == nil {
+		t.Fatal("discard should fail after CloseWithError")
 	}
 }
