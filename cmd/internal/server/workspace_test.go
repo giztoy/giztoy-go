@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/giztoy/giztoy-go/cmd/internal/stores"
+	"github.com/GizClaw/gizclaw-go/cmd/internal/stores"
 )
 
 func TestPrepareWorkspaceConfigLoadsWorkspaceConfig(t *testing.T) {

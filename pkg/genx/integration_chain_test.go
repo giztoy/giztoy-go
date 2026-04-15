@@ -8,13 +8,13 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/giztoy/giztoy-go/pkg/genx"
-	"github.com/giztoy/giztoy-go/pkg/genx/generators"
-	"github.com/giztoy/giztoy-go/pkg/genx/labelers"
-	"github.com/giztoy/giztoy-go/pkg/genx/match"
-	"github.com/giztoy/giztoy-go/pkg/genx/profilers"
-	"github.com/giztoy/giztoy-go/pkg/genx/segmentors"
-	"github.com/giztoy/giztoy-go/pkg/genx/transformers"
+	"github.com/GizClaw/gizclaw-go/pkg/genx"
+	"github.com/GizClaw/gizclaw-go/pkg/genx/generators"
+	"github.com/GizClaw/gizclaw-go/pkg/genx/labelers"
+	"github.com/GizClaw/gizclaw-go/pkg/genx/match"
+	"github.com/GizClaw/gizclaw-go/pkg/genx/profilers"
+	"github.com/GizClaw/gizclaw-go/pkg/genx/segmentors"
+	"github.com/GizClaw/gizclaw-go/pkg/genx/transformers"
 )
 
 type gxMockGenerator struct{}

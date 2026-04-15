@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/giztoy/giztoy-go/pkg/genx/labelers"
+	"github.com/GizClaw/gizclaw-go/pkg/genx/labelers"
 )
 
 func TestExpandEnv(t *testing.T) {

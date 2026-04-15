@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/giztoy/giztoy-go/pkg/giznet/internal/noise"
+	"github.com/GizClaw/gizclaw-go/pkg/giznet/internal/noise"
 )
 
 func buildHandshakeInitForListener(t *testing.T, initiator *noise.KeyPair, responder noise.PublicKey, senderIdx uint32) []byte {

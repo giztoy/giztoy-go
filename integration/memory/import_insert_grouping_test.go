@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/giztoy/giztoy-go/pkg/agent/memory"
+	"github.com/GizClaw/gizclaw-go/pkg/agent/memory"
 )
 
 // 场景 3：导入(import)与插入(insert)测试，重点校验分组(label group)正确性。

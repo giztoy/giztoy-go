@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/giztoy/giztoy-go/pkg/gizclaw/api/gearservice"
+	"github.com/GizClaw/gizclaw-go/pkg/gizclaw/api/gearservice"
 )
 
 func TestIndexDedupeHelpers(t *testing.T) {

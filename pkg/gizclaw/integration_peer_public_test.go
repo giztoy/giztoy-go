@@ -8,10 +8,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/giztoy/giztoy-go/integration/testutil"
-	"github.com/giztoy/giztoy-go/pkg/gizclaw"
-	"github.com/giztoy/giztoy-go/pkg/gizclaw/api/gearservice"
-	"github.com/giztoy/giztoy-go/pkg/gizclaw/api/serverpublic"
+	"github.com/GizClaw/gizclaw-go/integration/testutil"
+	"github.com/GizClaw/gizclaw-go/pkg/gizclaw"
+	"github.com/GizClaw/gizclaw-go/pkg/gizclaw/api/gearservice"
+	"github.com/GizClaw/gizclaw-go/pkg/gizclaw/api/serverpublic"
 )
 
 func TestIntegrationPeerPublicRefresh(t *testing.T) {

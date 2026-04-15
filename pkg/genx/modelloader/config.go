@@ -13,8 +13,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/giztoy/giztoy-go/pkg/genx"
-	"github.com/giztoy/giztoy-go/pkg/genx/generators"
+	"github.com/GizClaw/gizclaw-go/pkg/genx"
+	"github.com/GizClaw/gizclaw-go/pkg/genx/generators"
 	"github.com/goccy/go-yaml"
 	"github.com/openai/openai-go"
 	"github.com/openai/openai-go/option"

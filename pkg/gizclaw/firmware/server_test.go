@@ -9,9 +9,9 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/giztoy/giztoy-go/pkg/gizclaw/api/adminservice"
-	"github.com/giztoy/giztoy-go/pkg/gizclaw/api/gearservice"
-	"github.com/giztoy/giztoy-go/pkg/gizclaw/api/serverpublic"
+	"github.com/GizClaw/gizclaw-go/pkg/gizclaw/api/adminservice"
+	"github.com/GizClaw/gizclaw-go/pkg/gizclaw/api/gearservice"
+	"github.com/GizClaw/gizclaw-go/pkg/gizclaw/api/serverpublic"
 	"github.com/gofiber/fiber/v2"
 )
 

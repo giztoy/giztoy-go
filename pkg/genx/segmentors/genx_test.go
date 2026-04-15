@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/giztoy/giztoy-go/pkg/genx"
+	"github.com/GizClaw/gizclaw-go/pkg/genx"
 )
 
 func TestParseResultConvertsAttrsArray(t *testing.T) {

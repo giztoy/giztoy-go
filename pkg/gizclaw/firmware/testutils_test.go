@@ -12,8 +12,8 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/giztoy/giztoy-go/pkg/gizclaw/api/adminservice"
-	"github.com/giztoy/giztoy-go/pkg/store/depotstore"
+	"github.com/GizClaw/gizclaw-go/pkg/gizclaw/api/adminservice"
+	"github.com/GizClaw/gizclaw-go/pkg/store/depotstore"
 )
 
 type testEnv struct {

@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	doubaospeech "github.com/giztoy/doubao-speech-go"
-	"github.com/giztoy/giztoy-go/pkg/genx/transformers"
+	doubaospeech "github.com/GizClaw/doubao-speech-go"
+	"github.com/GizClaw/gizclaw-go/pkg/genx/transformers"
 )
 
 func registerASRBySchema(cfg ConfigFile) ([]string, error) {

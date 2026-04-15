@@ -2,7 +2,7 @@
 
 ## User Story
 
-As a developer working against one Giztoy server, I want to:
+As a developer working against one GizClaw server, I want to:
 
 1. Create multiple CLI contexts for the same server.
 2. List the available contexts in a predictable order.
@@ -12,11 +12,11 @@ So that I can manage multiple local client identities without guessing which one
 
 ## Covered Behaviors
 
-- `giztoy context create <name>` creates isolated client identities.
-- `giztoy context list` prints sorted context names.
-- `giztoy context list` marks the current context with `*`.
-- `giztoy context use <name>` switches the current context.
-- Explicit `giztoy ping --context <name>` works for each created context.
+- `gizclaw context create <name>` creates isolated client identities.
+- `gizclaw context list` prints sorted context names.
+- `gizclaw context list` marks the current context with `*`.
+- `gizclaw context use <name>` switches the current context.
+- Explicit `gizclaw ping --context <name>` works for each created context.
 
 ## Isolation Rules
 

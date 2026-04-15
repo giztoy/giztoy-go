@@ -1,6 +1,6 @@
 package giznet
 
-import "github.com/giztoy/giztoy-go/pkg/giznet/internal/core"
+import "github.com/GizClaw/gizclaw-go/pkg/giznet/internal/core"
 
 type Option = core.Option
 type SocketConfig = core.SocketConfig

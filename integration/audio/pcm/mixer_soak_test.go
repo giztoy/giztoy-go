@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	audiopcm "github.com/giztoy/giztoy-go/pkg/audio/pcm"
+	audiopcm "github.com/GizClaw/gizclaw-go/pkg/audio/pcm"
 )
 
 func TestMixerSoakRepeatedBlockedReadCloseNoStuckReaders(t *testing.T) {

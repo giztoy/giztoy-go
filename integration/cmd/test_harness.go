@@ -13,10 +13,10 @@ import (
 	"testing"
 	"time"
 
-	itest "github.com/giztoy/giztoy-go/integration/testutil"
-	"github.com/giztoy/giztoy-go/pkg/gizclaw"
-	"github.com/giztoy/giztoy-go/pkg/gizclaw/api/serverpublic"
-	"github.com/giztoy/giztoy-go/pkg/giznet"
+	itest "github.com/GizClaw/gizclaw-go/integration/testutil"
+	"github.com/GizClaw/gizclaw-go/pkg/gizclaw"
+	"github.com/GizClaw/gizclaw-go/pkg/gizclaw/api/serverpublic"
+	"github.com/GizClaw/gizclaw-go/pkg/giznet"
 )
 
 const (
@@ -350,7 +350,7 @@ func (h *Harness) baseEnv() []string {
 }
 
 func (h *Harness) contextRoot() string {
-	return filepath.Join(h.XDGConfigHome, "giztoy")
+	return filepath.Join(h.XDGConfigHome, "gizclaw")
 }
 
 func (h *Harness) serverProcessError() error {
@@ -427,18 +427,18 @@ func mustBuildCLI(t testing.TB, repoRoot string) string {
 	t.Helper()
 
 	buildBinaryOnce.Do(func() {
-		outDir, err := os.MkdirTemp("", "giztoy-cli-bin-*")
+		outDir, err := os.MkdirTemp("", "gizclaw-cli-bin-*")
 		if err != nil {
 			buildBinaryErr = err
 			return
 		}
 
-		binaryPath := filepath.Join(outDir, "giztoy")
+		binaryPath := filepath.Join(outDir, "gizclaw")
 		cmd := exec.Command("go", "build", "-o", binaryPath, "./cmd")
 		cmd.Dir = repoRoot
 		output, err := cmd.CombinedOutput()
 		if err != nil {
-			buildBinaryErr = fmt.Errorf("build giztoy CLI: %w\n%s", err, string(output))
+			buildBinaryErr = fmt.Errorf("build gizclaw CLI: %w\n%s", err, string(output))
 			return
 		}
 		buildBinaryPath = binaryPath

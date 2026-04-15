@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"os"
 
-	"github.com/giztoy/giztoy-go/cmd/internal/client"
-	"github.com/giztoy/giztoy-go/pkg/gizclaw/api/adminservice"
+	"github.com/GizClaw/gizclaw-go/cmd/internal/client"
+	"github.com/GizClaw/gizclaw-go/pkg/gizclaw/api/adminservice"
 	"github.com/spf13/cobra"
 )
 

@@ -6,7 +6,7 @@ import (
 	"net"
 	"time"
 
-	"github.com/giztoy/giztoy-go/pkg/giznet/internal/noise"
+	"github.com/GizClaw/gizclaw-go/pkg/giznet/internal/noise"
 )
 
 // Dial establishes a connection to a remote peer with context support.

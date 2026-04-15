@@ -1,6 +1,6 @@
 # pkg/audio/codec/mp3
 
-MP3 codec package for giztoy-go audio pipeline.
+MP3 codec package for gizclaw-go audio pipeline.
 
 ## Features
 

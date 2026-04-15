@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/giztoy/giztoy-go/cmd/internal/stores"
-	"github.com/giztoy/giztoy-go/pkg/gizclaw/api/gearservice"
-	"github.com/giztoy/giztoy-go/pkg/giznet"
+	"github.com/GizClaw/gizclaw-go/cmd/internal/stores"
+	"github.com/GizClaw/gizclaw-go/pkg/gizclaw/api/gearservice"
+	"github.com/GizClaw/gizclaw-go/pkg/giznet"
 	"github.com/goccy/go-yaml"
 )
 

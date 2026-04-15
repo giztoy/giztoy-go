@@ -1,21 +1,21 @@
 # Server Commands
 
-## `giztoy serve`
+## `gizclaw serve`
 
 服务端启动方式只有一种：
 
 ```bash
-giztoy serve <dir>
+gizclaw serve <dir>
 ```
 
 例如：
 
 ```bash
-giztoy serve ~/data
-giztoy serve ./workspace/server-a
+gizclaw serve ~/data
+gizclaw serve ./workspace/server-a
 ```
 
-`giztoy serve <dir>` 的心智模型就是：把 `<dir>` 当成服务端工作目录来启动。启动时默认读取：
+`gizclaw serve <dir>` 的心智模型就是：把 `<dir>` 当成服务端工作目录来启动。启动时默认读取：
 
 ```text
 ./config.yaml
@@ -48,7 +48,7 @@ giztoy serve ./workspace/server-a
 准备好 `config.yaml` 之后，直接启动：
 
 ```bash
-giztoy serve ~/data
+gizclaw serve ~/data
 ```
 
 如果你要通过 CLI 连接服务端做设备管理或固件发布，请看 `../client/README.md` 中的 `admin` 部分。

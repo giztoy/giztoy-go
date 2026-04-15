@@ -1,6 +1,6 @@
 package giznet
 
-import "github.com/giztoy/giztoy-go/pkg/giznet/internal/noise"
+import "github.com/GizClaw/gizclaw-go/pkg/giznet/internal/noise"
 
 const KeySize = noise.KeySize
 

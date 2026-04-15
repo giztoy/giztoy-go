@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/giztoy/giztoy-go/pkg/buffer"
-	"github.com/giztoy/giztoy-go/pkg/genx"
-	"github.com/giztoy/giztoy-go/pkg/trie"
+	"github.com/GizClaw/gizclaw-go/pkg/buffer"
+	"github.com/GizClaw/gizclaw-go/pkg/genx"
+	"github.com/GizClaw/gizclaw-go/pkg/trie"
 )
 
 var _ genx.Transformer = (*Mux)(nil)

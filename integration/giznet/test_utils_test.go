@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/giztoy/giztoy-go/pkg/audio/stampedopus"
-	"github.com/giztoy/giztoy-go/pkg/giznet"
+	"github.com/GizClaw/gizclaw-go/pkg/audio/stampedopus"
+	"github.com/GizClaw/gizclaw-go/pkg/giznet"
 )
 
 const (

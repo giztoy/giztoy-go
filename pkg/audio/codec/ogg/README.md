@@ -1,6 +1,6 @@
 # pkg/audio/codec/ogg
 
-OGG container package for giztoy-go audio pipeline.
+OGG container package for gizclaw-go audio pipeline.
 
 ## Features
 

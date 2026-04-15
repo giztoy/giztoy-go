@@ -5,7 +5,7 @@ import (
 	"io/fs"
 	"testing"
 
-	"github.com/giztoy/giztoy-go/pkg/gizclaw/api/adminservice"
+	"github.com/GizClaw/gizclaw-go/pkg/gizclaw/api/adminservice"
 )
 
 func TestReleaseDepot(t *testing.T) {

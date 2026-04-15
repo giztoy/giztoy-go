@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/giztoy/giztoy-go/pkg/giznet/internal/noise"
+	"github.com/GizClaw/gizclaw-go/pkg/giznet/internal/noise"
 )
 
 // SessionManager manages multiple sessions with different peers.

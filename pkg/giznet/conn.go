@@ -4,7 +4,7 @@ import (
 	"net"
 	"sync/atomic"
 
-	"github.com/giztoy/giztoy-go/pkg/giznet/internal/core"
+	"github.com/GizClaw/gizclaw-go/pkg/giznet/internal/core"
 )
 
 type Conn struct {

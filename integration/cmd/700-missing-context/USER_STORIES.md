@@ -2,13 +2,13 @@
 
 ## User Story
 
-As a developer who has not created any CLI context yet, I want Giztoy commands to fail
+As a developer who has not created any CLI context yet, I want GizClaw commands to fail
 with clear guidance instead of silently using unexpected global state.
 
 ## Covered Behaviors
 
-- `giztoy context list` reports that no contexts exist.
-- `giztoy ping` without any current context fails with an actionable message.
+- `gizclaw context list` reports that no contexts exist.
+- `gizclaw ping` without any current context fails with an actionable message.
 
 ## Isolation Rules
 

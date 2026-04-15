@@ -1,10 +1,10 @@
 package playcmd
 
 import (
-	playconfigcmd "github.com/giztoy/giztoy-go/cmd/internal/commands/play/config"
-	playotacmd "github.com/giztoy/giztoy-go/cmd/internal/commands/play/ota"
-	playregistercmd "github.com/giztoy/giztoy-go/cmd/internal/commands/play/register"
-	playservecmd "github.com/giztoy/giztoy-go/cmd/internal/commands/play/serve"
+	playconfigcmd "github.com/GizClaw/gizclaw-go/cmd/internal/commands/play/config"
+	playotacmd "github.com/GizClaw/gizclaw-go/cmd/internal/commands/play/ota"
+	playregistercmd "github.com/GizClaw/gizclaw-go/cmd/internal/commands/play/register"
+	playservecmd "github.com/GizClaw/gizclaw-go/cmd/internal/commands/play/serve"
 	"github.com/spf13/cobra"
 )
 

@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/giztoy/giztoy-go/pkg/gizclaw/api/gearservice"
-	"github.com/giztoy/giztoy-go/pkg/store/kv"
+	"github.com/GizClaw/gizclaw-go/pkg/gizclaw/api/gearservice"
+	"github.com/GizClaw/gizclaw-go/pkg/store/kv"
 )
 
 func (s *Server) register(ctx context.Context, request gearservice.RegistrationRequest) (gearservice.RegistrationResult, error) {

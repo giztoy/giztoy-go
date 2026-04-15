@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/giztoy/giztoy-go/pkg/gizclaw/api/gearservice"
+	"github.com/GizClaw/gizclaw-go/pkg/gizclaw/api/gearservice"
 )
 
 func validateGear(gear gearservice.Gear) error {

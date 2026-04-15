@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/giztoy/giztoy-go/pkg/gizclaw/api/adminservice"
+	"github.com/GizClaw/gizclaw-go/pkg/gizclaw/api/adminservice"
 )
 
 func TestValidateVersionOrder(t *testing.T) {

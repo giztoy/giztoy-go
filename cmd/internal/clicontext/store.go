@@ -7,8 +7,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/giztoy/giztoy-go/cmd/internal/identity"
-	"github.com/giztoy/giztoy-go/cmd/internal/paths"
+	"github.com/GizClaw/gizclaw-go/cmd/internal/identity"
+	"github.com/GizClaw/gizclaw-go/cmd/internal/paths"
 	"github.com/goccy/go-yaml"
 )
 
@@ -19,7 +19,7 @@ type Store struct {
 	Root string
 }
 
-// DefaultStore returns a Store under the giztoy config directory.
+// DefaultStore returns a Store under the gizclaw config directory.
 func DefaultStore() (*Store, error) {
 	root, err := paths.ConfigDir()
 	if err != nil {

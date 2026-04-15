@@ -1,6 +1,6 @@
-# `giztoy` CLI Docs
+# `gizclaw` CLI Docs
 
-`giztoy` 是项目当前的命令行入口，定义在 `cmd/main.go`，实际命令树来自 `cmd/internal/cli`。
+`gizclaw` 是项目当前的命令行入口，定义在 `cmd/main.go`，实际命令树来自 `cmd/internal/cli`。
 
 按职责可以分成两类：
 
@@ -10,7 +10,7 @@
 当前根命令结构如下：
 
 ```text
-giztoy
+gizclaw
 ├── serve
 ├── context
 ├── ping
@@ -26,6 +26,6 @@ giztoy
 
 阅读建议：
 
-- 如果你要先连上某个 Giztoy 服务端，从 `docs/client/README.md` 的 `context` 开始
-- 如果你要启动一个 Giztoy 服务端，从 `docs/server/README.md` 的 `giztoy serve <workspace>` 开始
+- 如果你要先连上某个 GizClaw 服务端，从 `docs/client/README.md` 的 `context` 开始
+- 如果你要启动一个 GizClaw 服务端，从 `docs/server/README.md` 的 `gizclaw serve <workspace>` 开始
 - 如果你要做设备管理或固件发布，看 `docs/client/README.md` 的 `admin` 部分

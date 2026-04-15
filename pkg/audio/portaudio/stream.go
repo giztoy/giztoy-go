@@ -6,7 +6,7 @@ import (
 	"io"
 	"sync/atomic"
 
-	"github.com/giztoy/giztoy-go/pkg/audio/pcm"
+	"github.com/GizClaw/gizclaw-go/pkg/audio/pcm"
 )
 
 // CaptureOptions controls input stream creation.

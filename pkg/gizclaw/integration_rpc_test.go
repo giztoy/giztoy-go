@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/giztoy/giztoy-go/integration/testutil"
+	"github.com/GizClaw/gizclaw-go/integration/testutil"
 )
 
 func TestIntegrationRPCDialAndPing(t *testing.T) {

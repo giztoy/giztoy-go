@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/giztoy/giztoy-go/pkg/giznet"
+	"github.com/GizClaw/gizclaw-go/pkg/giznet"
 )
 
 func NewClient(conn *giznet.Conn, service uint64) *http.Client {

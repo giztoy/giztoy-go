@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/giztoy/giztoy-go/pkg/giznet"
+	"github.com/GizClaw/gizclaw-go/pkg/giznet"
 )
 
 type transport struct {

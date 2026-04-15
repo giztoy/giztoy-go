@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/giztoy/giztoy-go/pkg/store/kv"
+	"github.com/GizClaw/gizclaw-go/pkg/store/kv"
 )
 
 func keySeparator(sep byte) byte {

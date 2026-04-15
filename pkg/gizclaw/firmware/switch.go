@@ -6,7 +6,7 @@ import (
 	"io/fs"
 	"path"
 
-	"github.com/giztoy/giztoy-go/pkg/gizclaw/api/adminservice"
+	"github.com/GizClaw/gizclaw-go/pkg/gizclaw/api/adminservice"
 )
 
 func (s *Server) releaseDepot(depot string) (adminservice.Depot, error) {

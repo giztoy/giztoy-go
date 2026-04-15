@@ -5,8 +5,8 @@ import (
 	"io"
 	"strings"
 
-	doubaospeech "github.com/giztoy/doubao-speech-go"
-	"github.com/giztoy/giztoy-go/pkg/genx"
+	doubaospeech "github.com/GizClaw/doubao-speech-go"
+	"github.com/GizClaw/gizclaw-go/pkg/genx"
 )
 
 // DoubaoTTSICLV2 is a TTS transformer using Doubao seed-icl-2.0 (声音复刻 2.0).

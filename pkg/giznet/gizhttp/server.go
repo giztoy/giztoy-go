@@ -6,7 +6,7 @@ import (
 	"net"
 	"net/http"
 
-	"github.com/giztoy/giztoy-go/pkg/giznet"
+	"github.com/GizClaw/gizclaw-go/pkg/giznet"
 )
 
 type Server struct {

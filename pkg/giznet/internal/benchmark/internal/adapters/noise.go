@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/giztoy/giztoy-go/pkg/giznet/internal/benchmark/internal/framework"
-	"github.com/giztoy/giztoy-go/pkg/giznet/internal/noise"
+	"github.com/GizClaw/gizclaw-go/pkg/giznet/internal/benchmark/internal/framework"
+	"github.com/GizClaw/gizclaw-go/pkg/giznet/internal/noise"
 )
 
 type noiseRecv struct {

@@ -4,8 +4,8 @@ import (
 	"context"
 	"testing"
 
-	"github.com/giztoy/giztoy-go/pkg/gizclaw/api/gearservice"
-	"github.com/giztoy/giztoy-go/pkg/gizclaw/api/serverpublic"
+	"github.com/GizClaw/gizclaw-go/pkg/gizclaw/api/gearservice"
+	"github.com/GizClaw/gizclaw-go/pkg/gizclaw/api/serverpublic"
 )
 
 func TestIntegrationGearServiceLifecycle(t *testing.T) {

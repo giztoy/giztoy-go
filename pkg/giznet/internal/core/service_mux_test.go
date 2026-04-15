@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/giztoy/giztoy-go/pkg/giznet/internal/kcp"
-	"github.com/giztoy/giztoy-go/pkg/giznet/internal/noise"
+	"github.com/GizClaw/gizclaw-go/pkg/giznet/internal/kcp"
+	"github.com/GizClaw/gizclaw-go/pkg/giznet/internal/noise"
 )
 
 func routeServiceMuxInput(dst *ServiceMux, service uint64, protocol byte, data []byte) error {

@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/giztoy/giztoy-go/pkg/gizclaw/api/gearservice"
+	"github.com/GizClaw/gizclaw-go/pkg/gizclaw/api/gearservice"
 )
 
 func TestPutConfigMergesExistingConfig(t *testing.T) {

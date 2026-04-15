@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"net"
 
-	"github.com/giztoy/giztoy-go/pkg/giznet"
+	"github.com/GizClaw/gizclaw-go/pkg/giznet"
 )
 
 type listener struct {

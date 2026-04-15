@@ -6,9 +6,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/giztoy/giztoy-go/pkg/store/graph"
-	"github.com/giztoy/giztoy-go/pkg/store/kv"
-	"github.com/giztoy/giztoy-go/pkg/store/vecstore"
+	"github.com/GizClaw/gizclaw-go/pkg/store/graph"
+	"github.com/GizClaw/gizclaw-go/pkg/store/kv"
+	"github.com/GizClaw/gizclaw-go/pkg/store/vecstore"
 )
 
 // mockEmbedder returns deterministic vectors based on text content.

@@ -4,7 +4,7 @@ import (
 	"net"
 	"time"
 
-	"github.com/giztoy/giztoy-go/pkg/giznet/internal/socketopt"
+	"github.com/GizClaw/gizclaw-go/pkg/giznet/internal/socketopt"
 )
 
 // UDPAddr wraps net.UDPAddr.

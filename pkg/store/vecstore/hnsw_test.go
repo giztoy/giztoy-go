@@ -13,7 +13,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/giztoy/giztoy-go/pkg/store/filesystem"
+	"github.com/GizClaw/gizclaw-go/pkg/store/filesystem"
 )
 
 // ---------------------------------------------------------------------------

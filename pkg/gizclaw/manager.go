@@ -9,11 +9,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/giztoy/giztoy-go/pkg/gizclaw/api/gearservice"
-	"github.com/giztoy/giztoy-go/pkg/gizclaw/api/peerpublic"
-	"github.com/giztoy/giztoy-go/pkg/gizclaw/gear"
-	"github.com/giztoy/giztoy-go/pkg/giznet"
-	"github.com/giztoy/giztoy-go/pkg/giznet/gizhttp"
+	"github.com/GizClaw/gizclaw-go/pkg/gizclaw/api/gearservice"
+	"github.com/GizClaw/gizclaw-go/pkg/gizclaw/api/peerpublic"
+	"github.com/GizClaw/gizclaw-go/pkg/gizclaw/gear"
+	"github.com/GizClaw/gizclaw-go/pkg/giznet"
+	"github.com/GizClaw/gizclaw-go/pkg/giznet/gizhttp"
 )
 
 var (

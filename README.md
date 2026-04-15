@@ -1,8 +1,8 @@
-# giztoy-go
+# gizclaw-go
 
-[![CI](https://github.com/giztoy/giztoy-go/actions/workflows/ci.yml/badge.svg)](https://github.com/giztoy/giztoy-go/actions/workflows/ci.yml)
+[![CI](https://github.com/GizClaw/gizclaw-go/actions/workflows/ci.yml/badge.svg)](https://github.com/GizClaw/gizclaw-go/actions/workflows/ci.yml)
 
-`giztoy-go` is the Go implementation of the Giztoy server, CLI, store layer, and agent/runtime packages.
+`gizclaw-go` is the Go implementation of the GizClaw server, CLI, store layer, and agent/runtime packages.
 
 ## Layout
 
@@ -11,7 +11,7 @@
 - `pkg/store/`: storage primitives such as KV, graph, filesystem, and vector stores
 - `pkg/agent/`: agent-side runtime packages such as `embed`, `memory`, `ncnn`, and `recall`
 - `pkg/genx/`: model/generation abstractions and integrations
-- `examples/`: runnable examples, including `examples/genx`
+- `examples/`: runnable examples; each `main.go` example directory is its own Go module
 - `integration/`: end-to-end and scenario-driven tests
 
 ## Development

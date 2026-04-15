@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 
-	"github.com/giztoy/giztoy-go/cmd/internal/client"
+	"github.com/GizClaw/gizclaw-go/cmd/internal/client"
 	"github.com/spf13/cobra"
 )
 

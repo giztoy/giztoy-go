@@ -1,8 +1,8 @@
 package admincmd
 
 import (
-	firmwarecmd "github.com/giztoy/giztoy-go/cmd/internal/commands/admin/firmware"
-	gearscmd "github.com/giztoy/giztoy-go/cmd/internal/commands/admin/gears"
+	firmwarecmd "github.com/GizClaw/gizclaw-go/cmd/internal/commands/admin/firmware"
+	gearscmd "github.com/GizClaw/gizclaw-go/cmd/internal/commands/admin/gears"
 	"github.com/spf13/cobra"
 )
 

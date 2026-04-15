@@ -6,31 +6,31 @@ import (
 	"runtime"
 )
 
-// ConfigDir returns the giztoy configuration root directory.
+// ConfigDir returns the gizclaw configuration root directory.
 //
 // On Unix-like systems (Linux, macOS), it follows the XDG convention:
 //
-//	$XDG_CONFIG_HOME/giztoy  (if set)
-//	~/.config/giztoy          (fallback)
+//	$XDG_CONFIG_HOME/gizclaw  (if set)
+//	~/.config/gizclaw          (fallback)
 //
 // On Windows, it uses the standard app-data location:
 //
-//	%AppData%\giztoy          (via os.UserConfigDir)
+//	%AppData%\gizclaw          (via os.UserConfigDir)
 func ConfigDir() (string, error) {
 	if runtime.GOOS != "windows" {
 		if xdg := os.Getenv("XDG_CONFIG_HOME"); xdg != "" {
-			return filepath.Join(xdg, "giztoy"), nil
+			return filepath.Join(xdg, "gizclaw"), nil
 		}
 		home, err := os.UserHomeDir()
 		if err != nil {
 			return "", err
 		}
-		return filepath.Join(home, ".config", "giztoy"), nil
+		return filepath.Join(home, ".config", "gizclaw"), nil
 	}
 
 	dir, err := os.UserConfigDir()
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(dir, "giztoy"), nil
+	return filepath.Join(dir, "gizclaw"), nil
 }

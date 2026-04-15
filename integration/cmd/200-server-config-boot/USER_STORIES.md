@@ -2,7 +2,7 @@
 
 ## User Story
 
-As a developer, I want a server started by `giztoy serve` to honor the workspace
+As a developer, I want a server started by `gizclaw serve` to honor the workspace
 configuration for networking and storage.
 
 ## Covered Behaviors

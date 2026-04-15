@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/giztoy/giztoy-go/pkg/giznet"
+	"github.com/GizClaw/gizclaw-go/pkg/giznet"
 )
 
 // peerBenchMux is the minimal mux surface used by public benchmarks.

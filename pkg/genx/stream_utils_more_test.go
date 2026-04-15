@@ -5,7 +5,7 @@ import (
 	"io"
 	"testing"
 
-	"github.com/giztoy/giztoy-go/pkg/buffer"
+	"github.com/GizClaw/gizclaw-go/pkg/buffer"
 )
 
 type closeTrackStream struct {

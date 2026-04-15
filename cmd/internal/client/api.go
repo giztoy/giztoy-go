@@ -11,10 +11,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/giztoy/giztoy-go/pkg/gizclaw"
-	"github.com/giztoy/giztoy-go/pkg/gizclaw/api/adminservice"
-	"github.com/giztoy/giztoy-go/pkg/gizclaw/api/gearservice"
-	"github.com/giztoy/giztoy-go/pkg/gizclaw/api/serverpublic"
+	"github.com/GizClaw/gizclaw-go/pkg/gizclaw"
+	"github.com/GizClaw/gizclaw-go/pkg/gizclaw/api/adminservice"
+	"github.com/GizClaw/gizclaw-go/pkg/gizclaw/api/gearservice"
+	"github.com/GizClaw/gizclaw-go/pkg/gizclaw/api/serverpublic"
 )
 
 func ConnectFromContext(name string) (*gizclaw.Client, error) {

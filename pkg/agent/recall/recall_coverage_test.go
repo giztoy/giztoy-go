@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/giztoy/giztoy-go/pkg/store/graph"
-	"github.com/giztoy/giztoy-go/pkg/store/kv"
+	"github.com/GizClaw/gizclaw-go/pkg/store/graph"
+	"github.com/GizClaw/gizclaw-go/pkg/store/kv"
 )
 
 func TestBucketDurationAndBucketForSpan(t *testing.T) {

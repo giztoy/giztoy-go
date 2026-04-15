@@ -14,13 +14,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/giztoy/giztoy-go/pkg/audio/codec/mp3"
-	"github.com/giztoy/giztoy-go/pkg/audio/codec/ogg"
-	"github.com/giztoy/giztoy-go/pkg/audio/codec/opus"
-	"github.com/giztoy/giztoy-go/pkg/audio/pcm"
-	"github.com/giztoy/giztoy-go/pkg/audio/portaudio"
-	"github.com/giztoy/giztoy-go/pkg/audio/resampler"
-	"github.com/giztoy/giztoy-go/pkg/audio/songs"
+	"github.com/GizClaw/gizclaw-go/pkg/audio/codec/mp3"
+	"github.com/GizClaw/gizclaw-go/pkg/audio/codec/ogg"
+	"github.com/GizClaw/gizclaw-go/pkg/audio/codec/opus"
+	"github.com/GizClaw/gizclaw-go/pkg/audio/pcm"
+	"github.com/GizClaw/gizclaw-go/pkg/audio/portaudio"
+	"github.com/GizClaw/gizclaw-go/pkg/audio/resampler"
+	"github.com/GizClaw/gizclaw-go/pkg/audio/songs"
 )
 
 type mode string
@@ -442,7 +442,7 @@ func recordMicrophoneToOGG(cfg config) error {
 	if _, err := sw.WritePacket(opusHead, 0, false); err != nil {
 		return fmt.Errorf("write ogg opus head failed: %w", err)
 	}
-	if _, err := sw.WritePacket(buildOpusTagsPacket("giztoy-go/examples/songs"), 0, false); err != nil {
+	if _, err := sw.WritePacket(buildOpusTagsPacket("gizclaw-go/examples/songs"), 0, false); err != nil {
 		return fmt.Errorf("write ogg opus tags failed: %w", err)
 	}
 
@@ -975,13 +975,14 @@ func printUsage(w io.Writer) {
 	fmt.Fprintf(w, `examples/songs: integration helper for songs + mixer + portaudio + mp3/ogg (optional opus loopback)
 
 Usage:
-  go run ./examples/songs -mode list
-  CGO_ENABLED=1 go run ./examples/songs -mode play-song -song twinkle_star
-  CGO_ENABLED=1 go run ./examples/songs -mode play-song -songs twinkle_star,canon
-  CGO_ENABLED=1 go run ./examples/songs -mode record-mic -timeout 5s -output ./out/mic.mp3
-  CGO_ENABLED=1 go run ./examples/songs -mode play-mp3 -input ./out/mic.mp3
-  CGO_ENABLED=1 go run ./examples/songs -mode record-ogg -timeout 5s -output-ogg ./out/mic.ogg
-  CGO_ENABLED=1 go run ./examples/songs -mode play-ogg -input-ogg ./out/mic.ogg
+  cd examples/songs
+  go run . -mode list
+  CGO_ENABLED=1 go run . -mode play-song -song twinkle_star
+  CGO_ENABLED=1 go run . -mode play-song -songs twinkle_star,canon
+  CGO_ENABLED=1 go run . -mode record-mic -timeout 5s -output ./out/mic.mp3
+  CGO_ENABLED=1 go run . -mode play-mp3 -input ./out/mic.mp3
+  CGO_ENABLED=1 go run . -mode record-ogg -timeout 5s -output-ogg ./out/mic.ogg
+  CGO_ENABLED=1 go run . -mode play-ogg -input-ogg ./out/mic.ogg
 
 Notes:
   - OGG mode stores Opus packets in OGG container.

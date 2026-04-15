@@ -4,7 +4,7 @@ import (
 	"net"
 	"sync"
 
-	"github.com/giztoy/giztoy-go/pkg/giznet/internal/noise"
+	"github.com/GizClaw/gizclaw-go/pkg/giznet/internal/noise"
 )
 
 // Listener listens for incoming connections on a transport.

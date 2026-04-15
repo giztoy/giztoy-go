@@ -1,8 +1,8 @@
 package adapters
 
 import (
-	"github.com/giztoy/giztoy-go/pkg/giznet/internal/benchmark/internal/framework"
-	"github.com/giztoy/giztoy-go/pkg/giznet/internal/kcp"
+	"github.com/GizClaw/gizclaw-go/pkg/giznet/internal/benchmark/internal/framework"
+	"github.com/GizClaw/gizclaw-go/pkg/giznet/internal/kcp"
 )
 
 // KCPNoisePair is a KCP-over-Noise benchmark adapter over local UDP sockets.

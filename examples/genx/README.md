@@ -14,7 +14,8 @@ It probes each model and prints a summary table for:
 ## Run
 
 ```bash
-go run ./examples/genx
+cd examples/genx
+go run .
 ```
 
 ## Latest Run Output

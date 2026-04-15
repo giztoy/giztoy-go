@@ -7,11 +7,11 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/giztoy/giztoy-go/pkg/agent/embed"
-	"github.com/giztoy/giztoy-go/pkg/agent/recall"
-	"github.com/giztoy/giztoy-go/pkg/store/filesystem"
-	"github.com/giztoy/giztoy-go/pkg/store/kv"
-	"github.com/giztoy/giztoy-go/pkg/store/vecstore"
+	"github.com/GizClaw/gizclaw-go/pkg/agent/embed"
+	"github.com/GizClaw/gizclaw-go/pkg/agent/recall"
+	"github.com/GizClaw/gizclaw-go/pkg/store/filesystem"
+	"github.com/GizClaw/gizclaw-go/pkg/store/kv"
+	"github.com/GizClaw/gizclaw-go/pkg/store/vecstore"
 )
 
 // HostConfig configures a [Host].

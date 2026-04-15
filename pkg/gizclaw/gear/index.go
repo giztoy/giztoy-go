@@ -4,8 +4,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/giztoy/giztoy-go/pkg/gizclaw/api/gearservice"
-	"github.com/giztoy/giztoy-go/pkg/store/kv"
+	"github.com/GizClaw/gizclaw-go/pkg/gizclaw/api/gearservice"
+	"github.com/GizClaw/gizclaw-go/pkg/store/kv"
 )
 
 func firmwareChannel(cfg gearservice.Configuration) string {

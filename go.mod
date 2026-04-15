@@ -1,13 +1,13 @@
-module github.com/giztoy/giztoy-go
+module github.com/GizClaw/gizclaw-go
 
 go 1.26
 
 require (
 	github.com/dgraph-io/badger/v4 v4.9.1
 	github.com/getkin/kin-openapi v0.133.0
-	github.com/giztoy/dashscope-realtime-go v0.0.0-20260302041155-244aa1f231b4
-	github.com/giztoy/doubao-speech-go v0.0.0-20260401044340-ad4ba957efd7
-	github.com/giztoy/minimax-go v0.0.0-20260302043847-4eccf766026d
+	github.com/GizClaw/dashscope-realtime-go v0.0.0-20260302041155-244aa1f231b4
+	github.com/GizClaw/doubao-speech-go v0.0.0-20260401044340-ad4ba957efd7
+	github.com/GizClaw/minimax-go v0.0.0-20260302043847-4eccf766026d
 	github.com/goccy/go-yaml v1.19.2
 	github.com/gofiber/fiber/v2 v2.52.12
 	github.com/google/jsonschema-go v0.4.2

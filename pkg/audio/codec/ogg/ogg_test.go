@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/giztoy/giztoy-go/pkg/audio/codec/opus"
+	"github.com/GizClaw/gizclaw-go/pkg/audio/codec/opus"
 )
 
 func deterministicBytes(n int) []byte {

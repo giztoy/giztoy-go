@@ -3,7 +3,7 @@ package main
 import (
 	"os"
 
-	"github.com/giztoy/giztoy-go/cmd/internal/commands"
+	"github.com/GizClaw/gizclaw-go/cmd/internal/commands"
 )
 
 func main() {

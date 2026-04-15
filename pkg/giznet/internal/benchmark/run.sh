@@ -111,7 +111,7 @@ apply_macos_netem() {
 	*) PF_WAS_ENABLED=0 ;;
 	esac
 
-	TMP_PF_RULES="$(mktemp -t giztoy-bench-pf.XXXXXX)"
+	TMP_PF_RULES="$(mktemp -t gizclaw-bench-pf.XXXXXX)"
 	cat >"$TMP_PF_RULES" <<EOF
 dummynet in quick proto udp from any to any port {${BASE_PORT},$((BASE_PORT + 1))} pipe ${MAC_PIPE_ID}
 dummynet out quick proto udp from any to any port {${BASE_PORT},$((BASE_PORT + 1))} pipe ${MAC_PIPE_ID}

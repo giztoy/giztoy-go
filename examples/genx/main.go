@@ -16,7 +16,7 @@ import (
 	"text/tabwriter"
 	"time"
 
-	"github.com/giztoy/giztoy-go/pkg/genx"
+	"github.com/GizClaw/gizclaw-go/pkg/genx"
 	"github.com/openai/openai-go"
 	"github.com/openai/openai-go/option"
 )
@@ -371,7 +371,7 @@ func loadBazelRCUserActionEnv() (map[string]string, error) {
 			bazelEnvErr = err
 			return
 		}
-		path := envOr("GX_BAZELRC_USER", filepath.Join(home, "Vibing", "giztoy", "main", ".bazelrc.user"))
+		path := envOr("GX_BAZELRC_USER", filepath.Join(home, "Vibing", "gizclaw", "main", ".bazelrc.user"))
 		content, err := os.ReadFile(path)
 		if err != nil {
 			bazelEnvErr = err

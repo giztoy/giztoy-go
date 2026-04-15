@@ -3,7 +3,7 @@ package gear
 import (
 	"testing"
 
-	"github.com/giztoy/giztoy-go/pkg/gizclaw/api/gearservice"
+	"github.com/GizClaw/gizclaw-go/pkg/gizclaw/api/gearservice"
 )
 
 func TestValidateGear(t *testing.T) {

@@ -3,7 +3,7 @@ package modelloader
 import (
 	"fmt"
 
-	"github.com/giztoy/giztoy-go/pkg/genx/segmentors"
+	"github.com/GizClaw/gizclaw-go/pkg/genx/segmentors"
 )
 
 func registerSegmentorBySchema(cfg ConfigFile) ([]string, error) {

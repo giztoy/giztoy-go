@@ -3,7 +3,7 @@ package core
 import (
 	"bytes"
 
-	"github.com/giztoy/giztoy-go/pkg/giznet/internal/noise"
+	"github.com/GizClaw/gizclaw-go/pkg/giznet/internal/noise"
 )
 
 // isKCPClient determines if we are the KCP client for a peer.

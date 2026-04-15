@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/giztoy/giztoy-go/cmd/internal/clicontext"
+	"github.com/GizClaw/gizclaw-go/cmd/internal/clicontext"
 )
 
 func TestDialFromContextNoActiveContext(t *testing.T) {

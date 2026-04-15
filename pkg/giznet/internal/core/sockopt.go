@@ -3,7 +3,7 @@ package core
 import (
 	"net"
 
-	"github.com/giztoy/giztoy-go/pkg/giznet/internal/socketopt"
+	"github.com/GizClaw/gizclaw-go/pkg/giznet/internal/socketopt"
 )
 
 const (

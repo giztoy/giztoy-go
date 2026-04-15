@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	clitest "github.com/giztoy/giztoy-go/integration/cmd"
+	clitest "github.com/GizClaw/gizclaw-go/integration/cmd"
 )
 
 func TestClientPublicReadSequenceUserStory(t *testing.T) {

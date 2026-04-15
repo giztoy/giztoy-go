@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/giztoy/giztoy-go/pkg/giznet"
+	"github.com/GizClaw/gizclaw-go/pkg/giznet"
 )
 
 func TestRoundTrip(t *testing.T) {
@@ -58,7 +58,7 @@ func TestRoundTrip(t *testing.T) {
 		_ = srv.Serve()
 	}()
 
-	req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, "http://giztoy/echo", strings.NewReader("hello"))
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, "http://gizclaw/echo", strings.NewReader("hello"))
 	if err != nil {
 		t.Fatal(err)
 	}

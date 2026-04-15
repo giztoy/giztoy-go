@@ -3,7 +3,7 @@ package contextcmd
 import (
 	"fmt"
 
-	"github.com/giztoy/giztoy-go/cmd/internal/clicontext"
+	"github.com/GizClaw/gizclaw-go/cmd/internal/clicontext"
 	"github.com/spf13/cobra"
 )
 

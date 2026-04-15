@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/giztoy/giztoy-go/pkg/agent/memory"
+	"github.com/GizClaw/gizclaw-go/pkg/agent/memory"
 )
 
 // 场景 1：加载不同 size 数据文件，且对每一档都运行真实模型的

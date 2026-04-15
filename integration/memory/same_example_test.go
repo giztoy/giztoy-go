@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/giztoy/giztoy-go/pkg/agent/memory"
+	"github.com/GizClaw/gizclaw-go/pkg/agent/memory"
 )
 
 // 场景 2：同一个 example（同一源 case）按 small/medium/large 三档运行，

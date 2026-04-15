@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	clitest "github.com/giztoy/giztoy-go/integration/cmd"
+	clitest "github.com/GizClaw/gizclaw-go/integration/cmd"
 )
 
 func TestMissingContextUserStory(t *testing.T) {
@@ -20,7 +20,7 @@ func TestMissingContextUserStory(t *testing.T) {
 	if ping.Err == nil {
 		t.Fatalf("ping without a context should fail:\nstdout:\n%s\nstderr:\n%s", ping.Stdout, ping.Stderr)
 	}
-	if !strings.Contains(ping.Stderr, "no active context; run 'giztoy context create' first") {
+	if !strings.Contains(ping.Stderr, "no active context; run 'gizclaw context create' first") {
 		t.Fatalf("unexpected ping error output:\n%s", ping.Stderr)
 	}
 }

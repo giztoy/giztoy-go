@@ -4,7 +4,7 @@ import (
 	"sync"
 	"testing"
 
-	clitest "github.com/giztoy/giztoy-go/integration/cmd"
+	clitest "github.com/GizClaw/gizclaw-go/integration/cmd"
 )
 
 func TestMultiClientReconnectRaceUserStory(t *testing.T) {

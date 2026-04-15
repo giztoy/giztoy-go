@@ -5,9 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/giztoy/giztoy-go/cmd/internal/client"
-	"github.com/giztoy/giztoy-go/pkg/gizclaw"
-	"github.com/giztoy/giztoy-go/pkg/gizclaw/api/gearservice"
+	"github.com/GizClaw/gizclaw-go/cmd/internal/client"
+	"github.com/GizClaw/gizclaw-go/pkg/gizclaw"
+	"github.com/GizClaw/gizclaw-go/pkg/gizclaw/api/gearservice"
 	"github.com/spf13/cobra"
 )
 

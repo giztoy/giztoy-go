@@ -2,18 +2,21 @@ package gizclaw
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
+	"net/http/httputil"
+	"net/url"
 	"sync"
 
-	"github.com/giztoy/giztoy-go/pkg/gizclaw/api/adminservice"
-	"github.com/giztoy/giztoy-go/pkg/gizclaw/api/gearservice"
-	"github.com/giztoy/giztoy-go/pkg/gizclaw/api/peerpublic"
-	"github.com/giztoy/giztoy-go/pkg/gizclaw/api/rpc"
-	"github.com/giztoy/giztoy-go/pkg/gizclaw/api/serverpublic"
-	"github.com/giztoy/giztoy-go/pkg/giznet"
-	"github.com/giztoy/giztoy-go/pkg/giznet/gizhttp"
+	"github.com/GizClaw/gizclaw-go/pkg/gizclaw/api/adminservice"
+	"github.com/GizClaw/gizclaw-go/pkg/gizclaw/api/gearservice"
+	"github.com/GizClaw/gizclaw-go/pkg/gizclaw/api/peerpublic"
+	"github.com/GizClaw/gizclaw-go/pkg/gizclaw/api/rpc"
+	"github.com/GizClaw/gizclaw-go/pkg/gizclaw/api/serverpublic"
+	"github.com/GizClaw/gizclaw-go/pkg/giznet"
+	"github.com/GizClaw/gizclaw-go/pkg/giznet/gizhttp"
 	"github.com/gofiber/fiber/v2"
 )
 
@@ -216,6 +219,93 @@ func (c *Client) servePeerPublic() error {
 
 	server := gizhttp.NewServer(c.conn, ServicePeerPublic, fiberHTTPHandler(app))
 	return server.Serve()
+}
+
+// ListenAndProxy serves local HTTP endpoints that transparently proxy to remote
+// server services over the active giznet connection.
+func (c *Client) ListenAndProxy(addr string) error {
+	if c == nil {
+		return fmt.Errorf("gizclaw: nil client")
+	}
+	if addr == "" {
+		return fmt.Errorf("gizclaw: empty proxy addr")
+	}
+	if c.PeerConn() == nil {
+		return fmt.Errorf("gizclaw: client is not connected")
+	}
+	listener, err := net.Listen("tcp", addr)
+	if err != nil {
+		return fmt.Errorf("gizclaw: listen proxy: %w", err)
+	}
+	return c.serveProxyListener(listener)
+}
+
+func (c *Client) serveProxyListener(listener net.Listener) error {
+	if c == nil {
+		return fmt.Errorf("gizclaw: nil client")
+	}
+	if listener == nil {
+		return fmt.Errorf("gizclaw: nil proxy listener")
+	}
+	if c.PeerConn() == nil {
+		return fmt.Errorf("gizclaw: client is not connected")
+	}
+	server := &http.Server{
+		Handler: c.proxyMux(),
+		BaseContext: func(net.Listener) context.Context {
+			return context.Background()
+		},
+	}
+	err := server.Serve(listener)
+	if errors.Is(err, http.ErrServerClosed) || errors.Is(err, net.ErrClosed) {
+		return nil
+	}
+	return err
+}
+
+func (c *Client) proxyMux() http.Handler {
+	mux := http.NewServeMux()
+	mux.Handle("/admin/", http.StripPrefix("/admin", c.proxyService(ServiceAdmin)))
+	mux.Handle("/public/", http.StripPrefix("/public", c.proxyService(ServiceServerPublic)))
+	mux.Handle("/gear/", http.StripPrefix("/gear", c.proxyService(ServiceGear)))
+	mux.HandleFunc("/admin", redirectProxyPrefix("/admin/"))
+	mux.HandleFunc("/public", redirectProxyPrefix("/public/"))
+	mux.HandleFunc("/gear", redirectProxyPrefix("/gear/"))
+	return mux
+}
+
+func (c *Client) proxyService(service uint64) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if c == nil {
+			http.Error(w, http.StatusText(http.StatusServiceUnavailable), http.StatusServiceUnavailable)
+			return
+		}
+		conn := c.PeerConn()
+		if conn == nil {
+			http.Error(w, http.StatusText(http.StatusServiceUnavailable), http.StatusServiceUnavailable)
+			return
+		}
+		newServiceProxy(conn, service).ServeHTTP(w, r)
+	})
+}
+
+func newServiceProxy(conn *giznet.Conn, service uint64) *httputil.ReverseProxy {
+	target := &url.URL{
+		Scheme: "http",
+		Host:   "gizclaw",
+	}
+	proxy := httputil.NewSingleHostReverseProxy(target)
+	proxy.Transport = gizhttp.NewRoundTripper(conn, service)
+	proxy.ErrorHandler = func(w http.ResponseWriter, _ *http.Request, _ error) {
+		http.Error(w, http.StatusText(http.StatusBadGateway), http.StatusBadGateway)
+	}
+	return proxy
+}
+
+func redirectProxyPrefix(target string) func(http.ResponseWriter, *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, target, http.StatusTemporaryRedirect)
+	}
 }
 
 func gearDeviceToPeerRefreshInfo(in gearservice.DeviceInfo) peerpublic.RefreshInfo {

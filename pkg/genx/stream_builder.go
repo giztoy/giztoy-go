@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/giztoy/giztoy-go/pkg/buffer"
+	"github.com/GizClaw/gizclaw-go/pkg/buffer"
 )
 
 type Status int

@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/giztoy/giztoy-go/pkg/giznet/internal/benchmark/internal/adapters"
-	"github.com/giztoy/giztoy-go/pkg/giznet/internal/benchmark/internal/framework"
-	"github.com/giztoy/giztoy-go/pkg/giznet/internal/benchmark/internal/scenarios"
+	"github.com/GizClaw/gizclaw-go/pkg/giznet/internal/benchmark/internal/adapters"
+	"github.com/GizClaw/gizclaw-go/pkg/giznet/internal/benchmark/internal/framework"
+	"github.com/GizClaw/gizclaw-go/pkg/giznet/internal/benchmark/internal/scenarios"
 )
 
 // BenchmarkNet_KCP_Throughput benchmarks raw KCP throughput over UDP.

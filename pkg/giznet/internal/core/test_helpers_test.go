@@ -4,7 +4,7 @@ import (
 	"net"
 	"testing"
 
-	"github.com/giztoy/giztoy-go/pkg/giznet/internal/noise"
+	"github.com/GizClaw/gizclaw-go/pkg/giznet/internal/noise"
 )
 
 // Non-ProtocolKCP payload markers used across core tests (legacy EVENT/OPUS bytes).

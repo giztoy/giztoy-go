@@ -1,14 +1,14 @@
-# Giztoy server config example.
+# GizClaw server config example.
 #
 # 用法：
-#   giztoy serve <dir>
+#   gizclaw serve <dir>
 #
 # 进程会先切换到 <dir> 作为当前工作目录，
 # 然后默认读取：
 #   ./config.yaml
 #
 # 例如：
-#   giztoy serve ~/data
+#   gizclaw serve ~/data
 
 # UDP 监听地址。
 # 不写时默认值是 ":9820"。
@@ -38,7 +38,7 @@ stores:
   postgres:
     kind: sql
     backend: postgres
-    dsn: "postgres://giztoy:giztoy@localhost:5432/giztoy?sslmode=disable"
+    dsn: "postgres://gizclaw:gizclaw@localhost:5432/gizclaw?sslmode=disable"
 
   badger:
     kind: keyvalue

@@ -12,10 +12,10 @@ import (
 	"io"
 	"os"
 
-	"github.com/giztoy/giztoy-go/pkg/store/depotstore"
-	"github.com/giztoy/giztoy-go/pkg/store/graph"
-	"github.com/giztoy/giztoy-go/pkg/store/kv"
-	"github.com/giztoy/giztoy-go/pkg/store/vecstore"
+	"github.com/GizClaw/gizclaw-go/pkg/store/depotstore"
+	"github.com/GizClaw/gizclaw-go/pkg/store/graph"
+	"github.com/GizClaw/gizclaw-go/pkg/store/kv"
+	"github.com/GizClaw/gizclaw-go/pkg/store/vecstore"
 
 	_ "github.com/lib/pq"
 	_ "modernc.org/sqlite"

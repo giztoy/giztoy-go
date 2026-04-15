@@ -6,7 +6,7 @@
 
 Each story set should verify real user workflows by:
 
-- starting real `giztoy` subprocesses
+- starting real `gizclaw` subprocesses
 - using an isolated virtual `HOME`
 - using an isolated `XDG_CONFIG_HOME`
 - using a story-owned server workspace and config
@@ -62,7 +62,7 @@ Cases:
 - `000-ping`
   - start one server from CLI
   - create two client contexts
-  - run repeated `giztoy ping`
+  - run repeated `gizclaw ping`
   - run small concurrent ping across two clients
   - status: implemented
 - `001-ping-reconnect`
@@ -87,8 +87,8 @@ Purpose:
 Cases:
 - `100-context-create-use-list`
   - create multiple contexts against the same server
-  - switch current context with `giztoy context use`
-  - run `giztoy context list`
+  - switch current context with `gizclaw context use`
+  - run `gizclaw context list`
   - verify the active marker and output ordering
   - status: implemented
 - `101-context-current-default`
@@ -214,7 +214,7 @@ Cases:
   - verify no degradation in user-visible behavior
   - status: implemented
 - `601-repeat-context-use`
-  - run `giztoy context use <same>` repeatedly
+  - run `gizclaw context use <same>` repeatedly
   - verify stable output and no config corruption
   - status: implemented
 - `602-repeat-server-restart`
@@ -246,7 +246,7 @@ Cases:
   - verify commands fail with a clear connection error
   - status: implemented
 - `703-invalid-workspace-config`
-  - start `giztoy serve` with a bad or incomplete config fixture
+  - start `gizclaw serve` with a bad or incomplete config fixture
   - verify startup fails with actionable output
   - status: implemented
 - `704-recovery-after-restart`

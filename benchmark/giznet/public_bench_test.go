@@ -5,7 +5,7 @@ import (
 	"net"
 	"testing"
 
-	"github.com/giztoy/giztoy-go/pkg/giznet"
+	"github.com/GizClaw/gizclaw-go/pkg/giznet"
 )
 
 const benchProtoEvent byte = 0x03

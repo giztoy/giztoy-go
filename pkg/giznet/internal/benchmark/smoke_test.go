@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/giztoy/giztoy-go/pkg/giznet/internal/benchmark/internal/adapters"
+	"github.com/GizClaw/gizclaw-go/pkg/giznet/internal/benchmark/internal/adapters"
 )
 
 func TestSmoke_KCPPair_DataPath(t *testing.T) {

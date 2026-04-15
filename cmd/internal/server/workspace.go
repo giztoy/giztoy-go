@@ -8,9 +8,9 @@ import (
 	"path/filepath"
 	"syscall"
 
-	"github.com/giztoy/giztoy-go/cmd/internal/identity"
-	"github.com/giztoy/giztoy-go/cmd/internal/stores"
-	"github.com/giztoy/giztoy-go/pkg/giznet"
+	"github.com/GizClaw/gizclaw-go/cmd/internal/identity"
+	"github.com/GizClaw/gizclaw-go/cmd/internal/stores"
+	"github.com/GizClaw/gizclaw-go/pkg/giznet"
 )
 
 const workspaceConfigFile = "config.yaml"

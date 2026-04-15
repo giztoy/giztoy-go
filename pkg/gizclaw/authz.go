@@ -3,9 +3,9 @@ package gizclaw
 import (
 	"context"
 
-	"github.com/giztoy/giztoy-go/pkg/gizclaw/api/gearservice"
-	"github.com/giztoy/giztoy-go/pkg/gizclaw/gear"
-	"github.com/giztoy/giztoy-go/pkg/giznet"
+	"github.com/GizClaw/gizclaw-go/pkg/gizclaw/api/gearservice"
+	"github.com/GizClaw/gizclaw-go/pkg/gizclaw/gear"
+	"github.com/GizClaw/gizclaw-go/pkg/giznet"
 )
 
 type GearsSecurityPolicy struct {

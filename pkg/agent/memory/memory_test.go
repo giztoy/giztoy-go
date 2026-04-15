@@ -10,10 +10,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/giztoy/giztoy-go/pkg/agent/recall"
-	"github.com/giztoy/giztoy-go/pkg/store/filesystem"
-	"github.com/giztoy/giztoy-go/pkg/store/graph"
-	"github.com/giztoy/giztoy-go/pkg/store/kv"
+	"github.com/GizClaw/gizclaw-go/pkg/agent/recall"
+	"github.com/GizClaw/gizclaw-go/pkg/store/filesystem"
+	"github.com/GizClaw/gizclaw-go/pkg/store/graph"
+	"github.com/GizClaw/gizclaw-go/pkg/store/kv"
 )
 
 // ---------------------------------------------------------------------------

@@ -3,8 +3,8 @@ package gear
 import (
 	"encoding/json"
 
-	"github.com/giztoy/giztoy-go/pkg/gizclaw/api/gearservice"
-	"github.com/giztoy/giztoy-go/pkg/gizclaw/api/serverpublic"
+	"github.com/GizClaw/gizclaw-go/pkg/gizclaw/api/gearservice"
+	"github.com/GizClaw/gizclaw-go/pkg/gizclaw/api/serverpublic"
 )
 
 func toGearRegistrationList(items []gearservice.Gear) gearservice.RegistrationList {

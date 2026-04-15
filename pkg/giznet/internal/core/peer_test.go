@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/giztoy/giztoy-go/pkg/giznet/internal/noise"
+	"github.com/GizClaw/gizclaw-go/pkg/giznet/internal/noise"
 )
 
 func readExactWithTimeout(t *testing.T, r io.Reader, n int, timeout time.Duration) []byte {

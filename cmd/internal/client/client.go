@@ -3,9 +3,9 @@ package client
 import (
 	"fmt"
 
-	"github.com/giztoy/giztoy-go/cmd/internal/clicontext"
-	"github.com/giztoy/giztoy-go/pkg/gizclaw"
-	"github.com/giztoy/giztoy-go/pkg/giznet"
+	"github.com/GizClaw/gizclaw-go/cmd/internal/clicontext"
+	"github.com/GizClaw/gizclaw-go/pkg/gizclaw"
+	"github.com/GizClaw/gizclaw-go/pkg/giznet"
 )
 
 func DialFromContext(name string) (*gizclaw.Client, giznet.PublicKey, string, error) {
@@ -23,7 +23,7 @@ func DialFromContext(name string) (*gizclaw.Client, giznet.PublicKey, string, er
 		return nil, giznet.PublicKey{}, "", err
 	}
 	if cliCtx == nil {
-		return nil, giznet.PublicKey{}, "", fmt.Errorf("no active context; run 'giztoy context create' first")
+		return nil, giznet.PublicKey{}, "", fmt.Errorf("no active context; run 'gizclaw context create' first")
 	}
 	serverPK, err := cliCtx.ServerPublicKey()
 	if err != nil {

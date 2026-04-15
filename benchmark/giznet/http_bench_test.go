@@ -7,8 +7,8 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/giztoy/giztoy-go/pkg/giznet"
-	"github.com/giztoy/giztoy-go/pkg/giznet/gizhttp"
+	"github.com/GizClaw/gizclaw-go/pkg/giznet"
+	"github.com/GizClaw/gizclaw-go/pkg/giznet/gizhttp"
 )
 
 func BenchmarkPublicHTTPRoundTrip(b *testing.B) {
@@ -70,7 +70,7 @@ func BenchmarkPublicHTTPRoundTrip(b *testing.B) {
 			b.ReportAllocs()
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
-				req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, "http://giztoy/echo", bytes.NewReader(payload))
+				req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, "http://gizclaw/echo", bytes.NewReader(payload))
 				if err != nil {
 					b.Fatal(err)
 				}

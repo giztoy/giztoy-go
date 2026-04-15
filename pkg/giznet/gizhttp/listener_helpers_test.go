@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/giztoy/giztoy-go/pkg/giznet"
+	"github.com/GizClaw/gizclaw-go/pkg/giznet"
 )
 
 // newListenerNode creates a giznet.Listener for tests using only public APIs.

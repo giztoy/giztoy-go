@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/giztoy/giztoy-go/pkg/gizclaw"
+	"github.com/GizClaw/gizclaw-go/pkg/gizclaw"
 )
 
 func TestProbeServerPublicReadyNilClient(t *testing.T) {

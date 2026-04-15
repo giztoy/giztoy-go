@@ -5,8 +5,8 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/giztoy/giztoy-go/pkg/genx/profilers"
-	"github.com/giztoy/giztoy-go/pkg/genx/segmentors"
+	"github.com/GizClaw/gizclaw-go/pkg/genx/profilers"
+	"github.com/GizClaw/gizclaw-go/pkg/genx/segmentors"
 )
 
 // ---------------------------------------------------------------------------

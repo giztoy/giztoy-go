@@ -3,7 +3,7 @@ package giznet
 import (
 	"testing"
 
-	"github.com/giztoy/giztoy-go/pkg/giznet/internal/core"
+	"github.com/GizClaw/gizclaw-go/pkg/giznet/internal/core"
 )
 
 // TestIntegration_WriteValidationPrecedesPeerLookup verifies that Write

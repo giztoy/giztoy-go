@@ -14,7 +14,8 @@ This example is used to validate an end-to-end audio chain:
 Playback and recording require PortAudio native runtime support (cgo + supported OS/arch):
 
 ```bash
-CGO_ENABLED=1 go run ./examples/songs -mode list
+cd examples/songs
+CGO_ENABLED=1 go run . -mode list
 ```
 
 > OGG interoperability scope: `play-ogg` is currently guaranteed for OGG files
@@ -26,13 +27,15 @@ CGO_ENABLED=1 go run ./examples/songs -mode list
 ### 1) List built-in songs
 
 ```bash
-CGO_ENABLED=1 go run ./examples/songs -mode list
+cd examples/songs
+CGO_ENABLED=1 go run . -mode list
 ```
 
 ### 2) Play a single song
 
 ```bash
-CGO_ENABLED=1 go run ./examples/songs \
+cd examples/songs
+CGO_ENABLED=1 go run . \
   -mode play-song \
   -song twinkle_star
 ```
@@ -40,7 +43,8 @@ CGO_ENABLED=1 go run ./examples/songs \
 ### 3) Play multi-track mix (overlay multiple songs)
 
 ```bash
-CGO_ENABLED=1 go run ./examples/songs \
+cd examples/songs
+CGO_ENABLED=1 go run . \
   -mode play-song \
   -songs twinkle_star,canon
 ```
@@ -48,7 +52,8 @@ CGO_ENABLED=1 go run ./examples/songs \
 ### 4) Record microphone to MP3
 
 ```bash
-CGO_ENABLED=1 go run ./examples/songs \
+cd examples/songs
+CGO_ENABLED=1 go run . \
   -mode record-mic \
   -timeout 5s \
   -output ./out/mic.mp3
@@ -57,7 +62,8 @@ CGO_ENABLED=1 go run ./examples/songs \
 ### 5) Play an MP3 file
 
 ```bash
-CGO_ENABLED=1 go run ./examples/songs \
+cd examples/songs
+CGO_ENABLED=1 go run . \
   -mode play-mp3 \
   -input ./out/mic.mp3
 ```
@@ -65,7 +71,8 @@ CGO_ENABLED=1 go run ./examples/songs \
 ### 6) Enable Opus loopback (encode then decode before playback)
 
 ```bash
-CGO_ENABLED=1 go run ./examples/songs \
+cd examples/songs
+CGO_ENABLED=1 go run . \
   -mode play-song \
   -song twinkle_star \
   -opus-loopback
@@ -74,7 +81,8 @@ CGO_ENABLED=1 go run ./examples/songs \
 ### 7) Record microphone to OGG (Opus in OGG container)
 
 ```bash
-CGO_ENABLED=1 go run ./examples/songs \
+cd examples/songs
+CGO_ENABLED=1 go run . \
   -mode record-ogg \
   -timeout 5s \
   -output-ogg ./out/mic.ogg
@@ -83,7 +91,8 @@ CGO_ENABLED=1 go run ./examples/songs \
 ### 8) Play an OGG file
 
 ```bash
-CGO_ENABLED=1 go run ./examples/songs \
+cd examples/songs
+CGO_ENABLED=1 go run . \
   -mode play-ogg \
   -input-ogg ./out/mic.ogg
 ```

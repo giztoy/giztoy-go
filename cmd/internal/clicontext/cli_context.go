@@ -2,8 +2,8 @@ package clicontext
 
 import (
 	"fmt"
-	"github.com/giztoy/giztoy-go/cmd/internal/identity"
-	"github.com/giztoy/giztoy-go/pkg/giznet"
+	"github.com/GizClaw/gizclaw-go/cmd/internal/identity"
+	"github.com/GizClaw/gizclaw-go/pkg/giznet"
 	"github.com/goccy/go-yaml"
 	"os"
 	"path/filepath"

@@ -5,11 +5,11 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/giztoy/giztoy-go/pkg/gizclaw/api/gearservice"
-	"github.com/giztoy/giztoy-go/pkg/gizclaw/api/peerpublic"
-	"github.com/giztoy/giztoy-go/pkg/gizclaw/gear"
-	"github.com/giztoy/giztoy-go/pkg/giznet"
-	"github.com/giztoy/giztoy-go/pkg/store/kv"
+	"github.com/GizClaw/gizclaw-go/pkg/gizclaw/api/gearservice"
+	"github.com/GizClaw/gizclaw-go/pkg/gizclaw/api/peerpublic"
+	"github.com/GizClaw/gizclaw-go/pkg/gizclaw/gear"
+	"github.com/GizClaw/gizclaw-go/pkg/giznet"
+	"github.com/GizClaw/gizclaw-go/pkg/store/kv"
 )
 
 func TestManagerMarkPeerOfflineDeletesActivePeer(t *testing.T) {

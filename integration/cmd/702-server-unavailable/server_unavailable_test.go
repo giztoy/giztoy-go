@@ -3,7 +3,7 @@ package serverunavailable_test
 import (
 	"testing"
 
-	clitest "github.com/giztoy/giztoy-go/integration/cmd"
+	clitest "github.com/GizClaw/gizclaw-go/integration/cmd"
 )
 
 func TestServerUnavailableUserStory(t *testing.T) {

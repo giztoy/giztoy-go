@@ -7,10 +7,10 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/giztoy/giztoy-go/pkg/gizclaw/api/serverpublic"
-	"github.com/giztoy/giztoy-go/pkg/gizclaw/gear"
-	"github.com/giztoy/giztoy-go/pkg/giznet"
-	"github.com/giztoy/giztoy-go/pkg/giznet/gizhttp"
+	"github.com/GizClaw/gizclaw-go/pkg/gizclaw/api/serverpublic"
+	"github.com/GizClaw/gizclaw-go/pkg/gizclaw/gear"
+	"github.com/GizClaw/gizclaw-go/pkg/giznet"
+	"github.com/GizClaw/gizclaw-go/pkg/giznet/gizhttp"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/adaptor"
 )
@@ -112,7 +112,7 @@ func TestServicePublicRoundTrip(t *testing.T) {
 	}()
 
 	client := &http.Client{Transport: gizhttp.NewRoundTripper(conn, ServiceServerPublic)}
-	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, "http://giztoy/server-info", nil)
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, "http://gizclaw/server-info", nil)
 	if err != nil {
 		t.Fatalf("http.NewRequest error = %v", err)
 	}

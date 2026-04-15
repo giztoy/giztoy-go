@@ -1,18 +1,18 @@
 package commands
 
 import (
-	admincmd "github.com/giztoy/giztoy-go/cmd/internal/commands/admin"
-	contextcmd "github.com/giztoy/giztoy-go/cmd/internal/commands/context"
-	pingcmd "github.com/giztoy/giztoy-go/cmd/internal/commands/ping"
-	playcmd "github.com/giztoy/giztoy-go/cmd/internal/commands/play"
-	servecmd "github.com/giztoy/giztoy-go/cmd/internal/commands/serve"
+	admincmd "github.com/GizClaw/gizclaw-go/cmd/internal/commands/admin"
+	contextcmd "github.com/GizClaw/gizclaw-go/cmd/internal/commands/context"
+	pingcmd "github.com/GizClaw/gizclaw-go/cmd/internal/commands/ping"
+	playcmd "github.com/GizClaw/gizclaw-go/cmd/internal/commands/play"
+	servecmd "github.com/GizClaw/gizclaw-go/cmd/internal/commands/serve"
 	"github.com/spf13/cobra"
 )
 
 func New() *cobra.Command {
 	root := &cobra.Command{
-		Use:   "giztoy",
-		Short: "Giztoy - peer-to-peer toy network",
+		Use:   "gizclaw",
+		Short: "GizClaw - peer-to-peer toy network",
 	}
 
 	root.AddCommand(
