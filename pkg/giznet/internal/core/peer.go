@@ -24,7 +24,7 @@ func (u *UDP) createServiceMux(peer *peerState) *ServiceMux {
 		if protocol == ProtocolKCP {
 			return u.sendKCP(peer, service, data)
 		}
-		return u.sendDirect(peer, protocol, data)
+		return u.sendPayload(peer, protocol, data)
 	}
 	cfg.OnOutputError = func(_ noise.PublicKey, service uint64, err error) {
 		u.kcpOutputErrors.Add(1)
@@ -56,7 +56,6 @@ func (u *UDP) sendPayload(peer *peerState, protocol byte, payload []byte) error 
 	}
 
 	msg := noise.BuildTransportMessage(session.RemoteIndex(), counter, ciphertext)
-
 	n, err := u.socket.WriteToUDP(msg, endpoint)
 	if err != nil {
 		return err
@@ -66,7 +65,6 @@ func (u *UDP) sendPayload(peer *peerState, protocol byte, payload []byte) error 
 	peer.mu.Lock()
 	peer.txBytes += uint64(n)
 	peer.mu.Unlock()
-
 	return nil
 }
 
@@ -75,11 +73,6 @@ func (u *UDP) sendKCP(peer *peerState, service uint64, data []byte) error {
 	payload := AppendVarint(nil, service)
 	payload = append(payload, data...)
 	return u.sendPayload(peer, ProtocolKCP, payload)
-}
-
-// sendDirect sends non-KCP traffic directly to a peer.
-func (u *UDP) sendDirect(peer *peerState, protocol byte, data []byte) error {
-	return u.sendPayload(peer, protocol, data)
 }
 
 // GetServiceMux returns the ServiceMux for a peer.

@@ -2,6 +2,7 @@
 package core
 
 import (
+	"bytes"
 	"errors"
 	"iter"
 	"net"
@@ -605,7 +606,7 @@ func (u *UDP) WriteTo(pk noise.PublicKey, data []byte) error {
 		return ErrPeerNotFound
 	}
 
-	return u.sendDirect(peer, 0x01, data)
+	return u.sendPayload(peer, 0x01, data)
 }
 
 // ReadFrom reads the next decrypted message from any peer.
@@ -962,6 +963,10 @@ func (u *UDP) Close() error {
 		return nil // Already closed
 	}
 
+	// Best-effort remote close notice so the peer can promptly tear down
+	// blocked service Accept loops instead of waiting for idle detection.
+	closePeers := make([]*peerState, 0)
+
 	// Close all per-peer ServiceMux instances first so AcceptStream callers
 	// don't block forever on open accept queues.
 	//
@@ -975,13 +980,22 @@ func (u *UDP) Close() error {
 	u.mu.RLock()
 	for _, peer := range u.peers {
 		peer.mu.RLock()
+		session := peer.session
+		endpoint := peer.endpoint
 		smux := peer.serviceMux
 		peer.mu.RUnlock()
+		if session != nil && endpoint != nil {
+			closePeers = append(closePeers, peer)
+		}
 		if smux != nil {
 			refs = append(refs, peerMuxRef{peer: peer, smux: smux})
 		}
 	}
 	u.mu.RUnlock()
+
+	for _, peer := range closePeers {
+		_ = u.sendPayload(peer, ProtocolConnCtrl, closeCtrlPayload)
+	}
 
 	for _, ref := range refs {
 		_ = ref.smux.Close()
@@ -1231,22 +1245,9 @@ func (u *UDP) decryptTransport(pkt *packet, data []byte, from *net.UDPAddr) {
 		return
 	}
 
-	// Find peer by receiver index
-	u.mu.RLock()
-	peer, exists := u.byIndex[msg.ReceiverIndex]
-	u.mu.RUnlock()
-
-	if !exists {
-		pkt.err = ErrPeerNotFound
-		return
-	}
-
-	peer.mu.RLock()
-	session := peer.session
-	peer.mu.RUnlock()
-
-	if session == nil {
-		pkt.err = ErrNoSession
+	peer, session, err := u.transportPeerSession(msg.ReceiverIndex)
+	if err != nil {
+		pkt.err = err
 		return
 	}
 
@@ -1260,20 +1261,11 @@ func (u *UDP) decryptTransport(pkt *packet, data []byte, from *net.UDPAddr) {
 		afterDecryptTransportDecryptHook()
 	}
 
-	// Update peer state (roaming + stats) and get mux
-	peer.mu.Lock()
-	if peer.removed {
-		peer.mu.Unlock()
-		pkt.err = ErrPeerNotFound
+	smux, err := u.recordTransportActivity(peer, from, len(data))
+	if err != nil {
+		pkt.err = err
 		return
 	}
-	if peer.endpoint == nil || peer.endpoint.String() != from.String() {
-		peer.endpoint = from // Roaming
-	}
-	peer.rxBytes += uint64(len(data))
-	peer.lastSeen = time.Now()
-	smux := peer.serviceMux
-	peer.mu.Unlock()
 
 	pkt.pk = peer.pk
 
@@ -1285,6 +1277,16 @@ func (u *UDP) decryptTransport(pkt *packet, data []byte, from *net.UDPAddr) {
 	protocol, payload, err := DecodePayload(plaintext)
 	if err != nil {
 		pkt.err = err
+		return
+	}
+
+	if protocol == ProtocolConnCtrl {
+		if !bytes.Equal(payload, closeCtrlPayload) {
+			pkt.err = ErrNoData
+			return
+		}
+		go u.RemovePeer(peer.pk)
+		pkt.err = ErrNoData
 		return
 	}
 
@@ -1324,4 +1326,36 @@ func (u *UDP) decryptTransport(pkt *packet, data []byte, from *net.UDPAddr) {
 	if err := smux.InputPacket(protocol, pkt.payload); err != nil {
 		u.droppedInboundPackets.Add(1)
 	}
+}
+
+func (u *UDP) transportPeerSession(receiverIndex uint32) (*peerState, *noise.Session, error) {
+	u.mu.RLock()
+	peer, exists := u.byIndex[receiverIndex]
+	u.mu.RUnlock()
+	if !exists {
+		return nil, nil, ErrPeerNotFound
+	}
+
+	peer.mu.RLock()
+	session := peer.session
+	peer.mu.RUnlock()
+	if session == nil {
+		return nil, nil, ErrNoSession
+	}
+	return peer, session, nil
+}
+
+func (u *UDP) recordTransportActivity(peer *peerState, from *net.UDPAddr, packetLen int) (*ServiceMux, error) {
+	peer.mu.Lock()
+	defer peer.mu.Unlock()
+
+	if peer.removed {
+		return nil, ErrPeerNotFound
+	}
+	if peer.endpoint == nil || peer.endpoint.String() != from.String() {
+		peer.endpoint = from // Roaming
+	}
+	peer.rxBytes += uint64(packetLen)
+	peer.lastSeen = time.Now()
+	return peer.serviceMux, nil
 }

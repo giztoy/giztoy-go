@@ -6,6 +6,8 @@ import (
 	"net"
 	"sync"
 	"sync/atomic"
+
+	"github.com/GizClaw/gizclaw-go/pkg/giznet/internal/core"
 )
 
 type ServiceListener struct {
@@ -29,11 +31,14 @@ func (l *ServiceListener) Accept() (net.Conn, error) {
 	}
 	smux, err := l.conn.serviceMux()
 	if err != nil {
+		if errors.Is(err, ErrConnClosed) || errors.Is(err, ErrClosed) || errors.Is(err, ErrPeerNotFound) {
+			return nil, net.ErrClosed
+		}
 		return nil, err
 	}
 	stream, err := smux.AcceptStream(l.service)
 	if err != nil {
-		if l.closed.Load() || errors.Is(err, ErrAcceptQueueClosed) {
+		if l.closed.Load() || errors.Is(err, ErrAcceptQueueClosed) || errors.Is(err, core.ErrServiceMuxClosed) {
 			return nil, net.ErrClosed
 		}
 		return nil, err

@@ -66,6 +66,9 @@ func (s *Service) ServeConn(conn *giznet.Conn) error {
 	if conn == nil {
 		return errors.New("gizclaw: nil conn")
 	}
+	defer func() {
+		_ = conn.Close()
+	}()
 	if err := s.validateServices(); err != nil {
 		return err
 	}

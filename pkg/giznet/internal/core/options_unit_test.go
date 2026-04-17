@@ -115,8 +115,8 @@ func TestGetServiceMuxAndSendDirectWrapper(t *testing.T) {
 		t.Fatal("peer not found in client map")
 	}
 
-	if err := client.sendDirect(peer, testDirectProtoA, []byte("wrapper-path")); err != nil {
-		t.Fatalf("sendDirect wrapper failed: %v", err)
+	if err := client.sendPayload(peer, testDirectProtoA, []byte("wrapper-path")); err != nil {
+		t.Fatalf("sendPayload failed: %v", err)
 	}
 
 	proto, payload := readPeerWithTimeout(t, server, clientKey.Public, 3*time.Second)

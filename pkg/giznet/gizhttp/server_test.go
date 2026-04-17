@@ -123,3 +123,51 @@ func TestListenerCloseUnblocksAccept(t *testing.T) {
 		t.Fatal("Accept did not unblock after Close")
 	}
 }
+
+func TestPeerCloseUnblocksAccept(t *testing.T) {
+	serverKey, err := giznet.GenerateKeyPair()
+	if err != nil {
+		t.Fatal(err)
+	}
+	clientKey, err := giznet.GenerateKeyPair()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	serverListener := newListenerNode(t, serverKey)
+	defer serverListener.Close()
+	clientListener := newListenerNode(t, clientKey)
+	defer clientListener.Close()
+	connectListenerNodes(t, clientListener, clientKey, serverListener, serverKey)
+
+	serverConn, err := serverListener.Peer(clientKey.Public)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer serverConn.Close()
+
+	l := NewListener(serverConn, 11)
+	done := make(chan error, 1)
+	go func() {
+		_, err := l.Accept()
+		done <- err
+	}()
+	time.Sleep(100 * time.Millisecond)
+
+	if err := clientListener.Close(); err != nil {
+		t.Fatalf("client listener close error: %v", err)
+	}
+
+	select {
+	case err := <-done:
+		if !IsClosed(err) && !errors.Is(err, net.ErrClosed) {
+			t.Fatalf("Accept err = %v", err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("Accept did not unblock after peer close")
+	}
+
+	if _, err := l.Accept(); !IsClosed(err) && !errors.Is(err, net.ErrClosed) {
+		t.Fatalf("Accept after peer close err = %v", err)
+	}
+}
