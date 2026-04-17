@@ -2,7 +2,6 @@ package gizclaw
 
 import (
 	"io"
-	"net"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -55,30 +54,36 @@ func TestClientDialAndServeValidation(t *testing.T) {
 	})
 }
 
-func TestClientListenAndProxyValidation(t *testing.T) {
+func TestClientProxyHandlerValidation(t *testing.T) {
 	t.Run("nil client", func(t *testing.T) {
 		var client *Client
-		if err := client.ListenAndProxy("127.0.0.1:0"); err == nil || !strings.Contains(err.Error(), "nil client") {
-			t.Fatalf("ListenAndProxy(nil) err = %v", err)
-		}
-	})
+		server := httptest.NewServer(client.ProxyHandler())
+		defer server.Close()
 
-	t.Run("empty proxy addr", func(t *testing.T) {
-		client := &Client{}
-		if err := client.ListenAndProxy(""); err == nil || !strings.Contains(err.Error(), "empty proxy addr") {
-			t.Fatalf("ListenAndProxy(empty addr) err = %v", err)
+		resp, err := http.Get(server.URL + "/api/admin/firmwares")
+		if err != nil {
+			t.Fatalf("GET /api/admin/firmwares error = %v", err)
+		}
+		body, _ := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		if resp.StatusCode != http.StatusServiceUnavailable {
+			t.Fatalf("GET /api/admin/firmwares status = %d body=%s", resp.StatusCode, string(body))
 		}
 	})
 
 	t.Run("disconnected client", func(t *testing.T) {
 		client := &Client{}
-		listener, err := net.Listen("tcp", "127.0.0.1:0")
+		server := httptest.NewServer(client.ProxyHandler())
+		defer server.Close()
+
+		resp, err := http.Get(server.URL + "/api/public/server-info")
 		if err != nil {
-			t.Fatalf("net.Listen error = %v", err)
+			t.Fatalf("GET /api/public/server-info error = %v", err)
 		}
-		defer listener.Close()
-		if err := client.serveProxyListener(listener); err == nil || !strings.Contains(err.Error(), "not connected") {
-			t.Fatalf("serveProxyListener(disconnected) err = %v", err)
+		body, _ := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		if resp.StatusCode != http.StatusServiceUnavailable {
+			t.Fatalf("GET /api/public/server-info status = %d body=%s", resp.StatusCode, string(body))
 		}
 	})
 }
@@ -128,25 +133,25 @@ func TestClientProxyMuxRoutesRemoteServices(t *testing.T) {
 	go func() { _ = service.serveGear(serverConn) }()
 	go func() { _ = service.servePublic(serverConn) }()
 
-	proxy := httptest.NewServer(client.proxyMux())
+	proxy := httptest.NewServer(client.ProxyHandler())
 	defer proxy.Close()
 
-	resp, body := mustProxyGET(t, proxy.URL+"/admin/firmwares")
+	resp, body := mustProxyGET(t, proxy.URL+"/api/admin/firmwares")
 	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("GET /admin/firmwares status = %d body=%s", resp.StatusCode, string(body))
+		t.Fatalf("GET /api/admin/firmwares status = %d body=%s", resp.StatusCode, string(body))
 	}
 
-	resp, body = mustProxyGET(t, proxy.URL+"/public/server-info")
+	resp, body = mustProxyGET(t, proxy.URL+"/api/public/server-info")
 	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("GET /public/server-info status = %d body=%s", resp.StatusCode, string(body))
+		t.Fatalf("GET /api/public/server-info status = %d body=%s", resp.StatusCode, string(body))
 	}
 	if !strings.Contains(string(body), "server-pk") {
-		t.Fatalf("GET /public/server-info body = %s", string(body))
+		t.Fatalf("GET /api/public/server-info body = %s", string(body))
 	}
 
-	resp, body = mustProxyGET(t, proxy.URL+"/gear/gears")
+	resp, body = mustProxyGET(t, proxy.URL+"/api/gear/gears")
 	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("GET /gear/gears status = %d body=%s", resp.StatusCode, string(body))
+		t.Fatalf("GET /api/gear/gears status = %d body=%s", resp.StatusCode, string(body))
 	}
 
 	noRedirect := &http.Client{
@@ -154,16 +159,28 @@ func TestClientProxyMuxRoutesRemoteServices(t *testing.T) {
 			return http.ErrUseLastResponse
 		},
 	}
-	resp, err := noRedirect.Get(proxy.URL + "/admin")
+	resp, err := noRedirect.Get(proxy.URL + "/api/admin")
 	if err != nil {
-		t.Fatalf("GET /admin error = %v", err)
+		t.Fatalf("GET /api/admin error = %v", err)
 	}
 	resp.Body.Close()
 	if resp.StatusCode != http.StatusTemporaryRedirect {
-		t.Fatalf("GET /admin status = %d", resp.StatusCode)
+		t.Fatalf("GET /api/admin status = %d", resp.StatusCode)
 	}
-	if location := resp.Header.Get("Location"); location != "/admin/" {
-		t.Fatalf("GET /admin location = %q", location)
+	if location := resp.Header.Get("Location"); location != "/api/admin/" {
+		t.Fatalf("GET /api/admin location = %q", location)
+	}
+
+	resp, err = noRedirect.Get(proxy.URL + "/api")
+	if err != nil {
+		t.Fatalf("GET /api error = %v", err)
+	}
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusTemporaryRedirect {
+		t.Fatalf("GET /api status = %d", resp.StatusCode)
+	}
+	if location := resp.Header.Get("Location"); location != "/api/" {
+		t.Fatalf("GET /api location = %q", location)
 	}
 }
 

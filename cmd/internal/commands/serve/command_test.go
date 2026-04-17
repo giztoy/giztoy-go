@@ -1,6 +1,10 @@
 package servecmd
 
-import "testing"
+import (
+	"bytes"
+	"strings"
+	"testing"
+)
 
 func TestServeCommandRequiresSingleWorkspaceArg(t *testing.T) {
 	cmd := NewCmd()
@@ -12,5 +16,24 @@ func TestServeCommandRequiresSingleWorkspaceArg(t *testing.T) {
 	}
 	if err := cmd.Args(cmd, []string{"a", "b"}); err == nil {
 		t.Fatal("Args(two args) should fail")
+	}
+}
+
+func TestServeCommandHelpIncludesBackgroundFlags(t *testing.T) {
+	cmd := NewCmd()
+	var buf bytes.Buffer
+	cmd.SetOut(&buf)
+	cmd.SetArgs([]string{"--help"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatal(err)
+	}
+	out := buf.String()
+	for _, want := range []string{"--force", "-f"} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("help missing %q: %s", want, out)
+		}
+	}
+	if strings.Contains(out, "--bg") {
+		t.Fatalf("help should not mention --bg: %s", out)
 	}
 }

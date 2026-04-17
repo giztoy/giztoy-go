@@ -165,7 +165,16 @@ func (s *Service) serveRPC(conn *giznet.Conn) error {
 
 		go func(stream net.Conn) {
 			defer stream.Close()
-			_ = s.rpc.Serve(stream)
+			for {
+				err := s.rpc.Serve(stream)
+				if err == nil {
+					continue
+				}
+				if errors.Is(err, io.EOF) || errors.Is(err, net.ErrClosed) {
+					return
+				}
+				return
+			}
 		}(stream)
 	}
 }

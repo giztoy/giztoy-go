@@ -6,23 +6,41 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strconv"
+	"strings"
 	"syscall"
+	"time"
 
 	"github.com/GizClaw/gizclaw-go/cmd/internal/identity"
+	"github.com/GizClaw/gizclaw-go/cmd/internal/service"
 	"github.com/GizClaw/gizclaw-go/cmd/internal/stores"
 	"github.com/GizClaw/gizclaw-go/pkg/giznet"
 )
 
 const workspaceConfigFile = "config.yaml"
 const workspaceIdentityFile = "identity.key"
+const workspacePIDFile = "serve.pid"
 
-func prepareWorkspaceConfig(workspace string) (Config, error) {
+type ServeOptions struct {
+	Force          bool
+	ServiceManaged bool
+}
+
+func resolveWorkspaceRoot(workspace string) (string, error) {
 	root, err := filepath.Abs(workspace)
 	if err != nil {
-		return Config{}, fmt.Errorf("server: resolve workspace %q: %w", workspace, err)
+		return "", fmt.Errorf("server: resolve workspace %q: %w", workspace, err)
 	}
 	if err := os.MkdirAll(root, 0o755); err != nil {
-		return Config{}, fmt.Errorf("server: create workspace %q: %w", root, err)
+		return "", fmt.Errorf("server: create workspace %q: %w", root, err)
+	}
+	return root, nil
+}
+
+func prepareWorkspaceConfig(workspace string) (Config, error) {
+	root, err := resolveWorkspaceRoot(workspace)
+	if err != nil {
+		return Config{}, err
 	}
 	fileCfg, err := LoadConfig(filepath.Join(root, workspaceConfigFile))
 	if err != nil {
@@ -56,6 +74,23 @@ func resolveWorkspaceStoreConfigs(root string, cfgs map[string]stores.Config) ma
 }
 
 func Serve(workspace string) error {
+	return ServeWithOptions(workspace, ServeOptions{})
+}
+
+func ServeContext(ctx context.Context, workspace string, opts ServeOptions) error {
+	root, err := resolveWorkspaceRoot(workspace)
+	if err != nil {
+		return err
+	}
+	if !opts.ServiceManaged {
+		managed, err := service.WorkspaceManaged(root)
+		if err != nil {
+			return err
+		}
+		if managed {
+			return fmt.Errorf("server: workspace is managed by gizclaw service; use 'gizclaw service start|stop|uninstall' instead")
+		}
+	}
 	cfg, err := prepareWorkspaceConfig(workspace)
 	if err != nil {
 		return err
@@ -64,9 +99,11 @@ func Serve(workspace string) error {
 	if err != nil {
 		return err
 	}
-
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	defer stop()
+	releasePID, err := acquireWorkspacePID(root, opts.Force)
+	if err != nil {
+		return err
+	}
+	defer releasePID()
 
 	errCh := make(chan error, 1)
 	go func() {
@@ -82,4 +119,120 @@ func Serve(workspace string) error {
 		}
 		return <-errCh
 	}
+}
+
+func ServeWithOptions(workspace string, opts ServeOptions) error {
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	return ServeContext(ctx, workspace, opts)
+}
+
+func acquireWorkspacePID(root string, force bool) (func(), error) {
+	pidPath := filepath.Join(root, workspacePIDFile)
+	if err := handleExistingWorkspacePID(pidPath, force); err != nil {
+		return nil, err
+	}
+	pid := os.Getpid()
+	file, err := os.OpenFile(pidPath, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
+	if err != nil {
+		if os.IsExist(err) {
+			return nil, fmt.Errorf("server: %s already exists", pidPath)
+		}
+		return nil, fmt.Errorf("server: create %s: %w", pidPath, err)
+	}
+	if _, err := fmt.Fprintf(file, "%d\n", pid); err != nil {
+		file.Close()
+		_ = os.Remove(pidPath)
+		return nil, fmt.Errorf("server: write %s: %w", pidPath, err)
+	}
+	if err := file.Close(); err != nil {
+		_ = os.Remove(pidPath)
+		return nil, fmt.Errorf("server: close %s: %w", pidPath, err)
+	}
+
+	return func() {
+		currentPID, err := readWorkspacePID(pidPath)
+		if err == nil && currentPID == pid {
+			_ = os.Remove(pidPath)
+		}
+	}, nil
+}
+
+func handleExistingWorkspacePID(pidPath string, force bool) error {
+	pid, err := readWorkspacePID(pidPath)
+	if err == nil {
+		if processRunning(pid) {
+			if !force {
+				return fmt.Errorf("server: already running with pid %d (use -f to restart)", pid)
+			}
+			if err := terminateProcess(pid); err != nil {
+				return err
+			}
+			if err := waitForProcessExit(pid, 5*time.Second); err != nil {
+				return err
+			}
+		} else if !force {
+			return fmt.Errorf("server: stale pid file %s exists (use -f to replace)", pidPath)
+		}
+		if err := os.Remove(pidPath); err != nil && !os.IsNotExist(err) {
+			return fmt.Errorf("server: remove %s: %w", pidPath, err)
+		}
+		return nil
+	}
+	if os.IsNotExist(err) {
+		return nil
+	}
+	if !force {
+		return fmt.Errorf("server: read %s: %w", pidPath, err)
+	}
+	if removeErr := os.Remove(pidPath); removeErr != nil && !os.IsNotExist(removeErr) {
+		return fmt.Errorf("server: remove %s: %w", pidPath, removeErr)
+	}
+	return nil
+}
+
+func readWorkspacePID(pidPath string) (int, error) {
+	data, err := os.ReadFile(pidPath)
+	if err != nil {
+		return 0, err
+	}
+	pid, err := strconv.Atoi(strings.TrimSpace(string(data)))
+	if err != nil || pid <= 0 {
+		return 0, fmt.Errorf("invalid pid in %s", pidPath)
+	}
+	return pid, nil
+}
+
+func processRunning(pid int) bool {
+	if pid <= 0 {
+		return false
+	}
+	proc, err := os.FindProcess(pid)
+	if err != nil {
+		return false
+	}
+	err = proc.Signal(syscall.Signal(0))
+	return err == nil || strings.Contains(err.Error(), "operation not permitted")
+}
+
+func terminateProcess(pid int) error {
+	proc, err := os.FindProcess(pid)
+	if err != nil {
+		return fmt.Errorf("server: find pid %d: %w", pid, err)
+	}
+	if err := proc.Signal(syscall.SIGTERM); err != nil && !strings.Contains(err.Error(), "process already finished") {
+		return fmt.Errorf("server: terminate pid %d: %w", pid, err)
+	}
+	return nil
+}
+
+func waitForProcessExit(pid int, timeout time.Duration) error {
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		if !processRunning(pid) {
+			return nil
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+	return fmt.Errorf("server: pid %d did not exit after %s", pid, timeout)
 }

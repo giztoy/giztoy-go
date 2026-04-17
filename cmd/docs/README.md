@@ -12,6 +12,13 @@
 ```text
 gizclaw
 ├── serve
+├── service
+│   ├── install
+│   ├── status
+│   ├── start
+│   ├── stop
+│   ├── restart
+│   └── uninstall
 ├── context
 ├── ping
 ├── admin

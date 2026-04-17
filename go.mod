@@ -14,6 +14,7 @@ require (
 	github.com/googleapis/gax-go/v2 v2.16.0
 	github.com/hajimehoshi/go-mp3 v0.3.4
 	github.com/kaptinlin/jsonrepair v0.2.6
+	github.com/kardianos/service v1.2.4
 	github.com/lib/pq v1.12.0
 	github.com/oapi-codegen/oapi-codegen/v2 v2.6.0
 	github.com/oapi-codegen/runtime v1.3.1

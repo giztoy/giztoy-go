@@ -11,11 +11,6 @@ import (
 	"github.com/GizClaw/gizclaw-go/pkg/giznet"
 )
 
-const (
-	testProtocolEvent byte = 0x03
-	testProtocolOpus  byte = 0x10
-)
-
 // TestIntegration_ConnectionPoolCapacity verifies the server can handle
 // 64 concurrent peer connections simultaneously.
 func TestIntegration_ConnectionPoolCapacity(t *testing.T) {
@@ -755,7 +750,6 @@ func TestIntegration_UnknownPeerOperations(t *testing.T) {
 	if _, err := u.GetServiceMux(unknownKey.Public); err != giznet.ErrPeerNotFound {
 		t.Fatalf("GetServiceMux(unknown peer) err=%v, want %v", err, giznet.ErrPeerNotFound)
 	}
-
 }
 
 // TestIntegration_StreamBeforeSession verifies that GetServiceMux returns
@@ -782,7 +776,6 @@ func TestIntegration_StreamBeforeSession(t *testing.T) {
 	if _, err := client.GetServiceMux(serverKey.Public); err != giznet.ErrNoSession {
 		t.Fatalf("GetServiceMux(before session) err=%v, want %v", err, giznet.ErrNoSession)
 	}
-
 }
 
 // TestIntegration_ClosedNodeOperations verifies that GetServiceMux returns

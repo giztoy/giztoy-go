@@ -2,7 +2,6 @@ package gizclaw
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -221,56 +220,16 @@ func (c *Client) servePeerPublic() error {
 	return server.Serve()
 }
 
-// ListenAndProxy serves local HTTP endpoints that transparently proxy to remote
-// server services over the active giznet connection.
-func (c *Client) ListenAndProxy(addr string) error {
-	if c == nil {
-		return fmt.Errorf("gizclaw: nil client")
-	}
-	if addr == "" {
-		return fmt.Errorf("gizclaw: empty proxy addr")
-	}
-	if c.PeerConn() == nil {
-		return fmt.Errorf("gizclaw: client is not connected")
-	}
-	listener, err := net.Listen("tcp", addr)
-	if err != nil {
-		return fmt.Errorf("gizclaw: listen proxy: %w", err)
-	}
-	return c.serveProxyListener(listener)
-}
-
-func (c *Client) serveProxyListener(listener net.Listener) error {
-	if c == nil {
-		return fmt.Errorf("gizclaw: nil client")
-	}
-	if listener == nil {
-		return fmt.Errorf("gizclaw: nil proxy listener")
-	}
-	if c.PeerConn() == nil {
-		return fmt.Errorf("gizclaw: client is not connected")
-	}
-	server := &http.Server{
-		Handler: c.proxyMux(),
-		BaseContext: func(net.Listener) context.Context {
-			return context.Background()
-		},
-	}
-	err := server.Serve(listener)
-	if errors.Is(err, http.ErrServerClosed) || errors.Is(err, net.ErrClosed) {
-		return nil
-	}
-	return err
-}
-
-func (c *Client) proxyMux() http.Handler {
+// ProxyHandler exposes the local reverse-proxy routes for remote server APIs.
+func (c *Client) ProxyHandler() http.Handler {
 	mux := http.NewServeMux()
-	mux.Handle("/admin/", http.StripPrefix("/admin", c.proxyService(ServiceAdmin)))
-	mux.Handle("/public/", http.StripPrefix("/public", c.proxyService(ServiceServerPublic)))
-	mux.Handle("/gear/", http.StripPrefix("/gear", c.proxyService(ServiceGear)))
-	mux.HandleFunc("/admin", redirectProxyPrefix("/admin/"))
-	mux.HandleFunc("/public", redirectProxyPrefix("/public/"))
-	mux.HandleFunc("/gear", redirectProxyPrefix("/gear/"))
+	mux.Handle("/api/admin/", http.StripPrefix("/api/admin", c.proxyService(ServiceAdmin)))
+	mux.Handle("/api/public/", http.StripPrefix("/api/public", c.proxyService(ServiceServerPublic)))
+	mux.Handle("/api/gear/", http.StripPrefix("/api/gear", c.proxyService(ServiceGear)))
+	mux.HandleFunc("/api/admin", redirectProxyPrefix("/api/admin/"))
+	mux.HandleFunc("/api/public", redirectProxyPrefix("/api/public/"))
+	mux.HandleFunc("/api/gear", redirectProxyPrefix("/api/gear/"))
+	mux.HandleFunc("/api", redirectProxyPrefix("/api/"))
 	return mux
 }
 

@@ -22,6 +22,13 @@ func (c *Conn) Dial(service uint64) (net.Conn, error) {
 	return smux.OpenStream(service)
 }
 
+func (c *Conn) ListenService(service uint64) *ServiceListener {
+	return &ServiceListener{
+		conn:    c,
+		service: service,
+	}
+}
+
 func (c *Conn) CloseService(service uint64) error {
 	smux, err := c.serviceMux()
 	if err != nil {

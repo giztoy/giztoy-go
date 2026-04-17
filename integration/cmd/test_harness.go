@@ -17,6 +17,7 @@ import (
 	"github.com/GizClaw/gizclaw-go/pkg/gizclaw"
 	"github.com/GizClaw/gizclaw-go/pkg/gizclaw/api/serverpublic"
 	"github.com/GizClaw/gizclaw-go/pkg/giznet"
+	"github.com/goccy/go-yaml"
 )
 
 const (
@@ -59,6 +60,13 @@ type Result struct {
 	Stdout string
 	Stderr string
 	Err    error
+}
+
+type cliContextConfig struct {
+	Server struct {
+		Address   string `yaml:"address"`
+		PublicKey string `yaml:"public-key"`
+	} `yaml:"server"`
 }
 
 func (r Result) MustSucceed(t testing.TB) {
@@ -218,6 +226,16 @@ func (h *Harness) ContextPublicKey(name string) string {
 	return keyPair.Public.String()
 }
 
+func (h *Harness) ConnectClientFromContext(name string) *gizclaw.Client {
+	h.t.Helper()
+
+	client, err := h.connectClientFromContext(name)
+	if err != nil {
+		h.t.Fatalf("connect client from context %q: %v", name, err)
+	}
+	return client
+}
+
 func (h *Harness) RunCLI(args ...string) Result {
 	h.t.Helper()
 
@@ -237,6 +255,61 @@ func (h *Harness) RunCLI(args ...string) Result {
 		Stderr: stderr.String(),
 		Err:    err,
 	}
+}
+
+func (h *Harness) connectClientFromContext(name string) (*gizclaw.Client, error) {
+	contextDir := filepath.Join(h.contextRoot(), name)
+	data, err := os.ReadFile(filepath.Join(contextDir, "config.yaml"))
+	if err != nil {
+		return nil, fmt.Errorf("read context config: %w", err)
+	}
+
+	var cfg cliContextConfig
+	if err := yaml.Unmarshal(data, &cfg); err != nil {
+		return nil, fmt.Errorf("parse context config: %w", err)
+	}
+
+	keyPair, err := loadIdentity(filepath.Join(contextDir, "identity.key"))
+	if err != nil {
+		return nil, fmt.Errorf("load context identity: %w", err)
+	}
+
+	serverPublicKey, err := giznet.KeyFromHex(cfg.Server.PublicKey)
+	if err != nil {
+		return nil, fmt.Errorf("parse server public key: %w", err)
+	}
+
+	client := &gizclaw.Client{KeyPair: keyPair}
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- client.DialAndServe(serverPublicKey, cfg.Server.Address)
+	}()
+
+	deadline := time.Now().Add(itest.ReadyTimeout)
+	for time.Now().Before(deadline) {
+		select {
+		case err := <-errCh:
+			if err != nil {
+				_ = client.Close()
+				return nil, err
+			}
+			_ = client.Close()
+			return nil, fmt.Errorf("client stopped before ready")
+		default:
+		}
+
+		ctx, cancel := context.WithTimeout(context.Background(), itest.ProbeTimeout)
+		err := probeServerPublicReady(ctx, client)
+		cancel()
+		if err == nil {
+			return client, nil
+		}
+
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	_ = client.Close()
+	return nil, fmt.Errorf("timeout waiting for client readiness")
 }
 
 func (h *Harness) RunCLIUntilSuccess(args ...string) (Result, error) {

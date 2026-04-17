@@ -78,6 +78,13 @@ Cases:
   - run several rounds of sequential then concurrent `ping`
   - verify the server remains healthy across repeated rounds
   - status: implemented
+- `003-ping-rpc-client-reuse`
+  - start one server
+  - create one client context
+  - connect one long-lived client session from the created context
+  - issue repeated RPC `Ping` requests over the same live connection
+  - verify repeated requests do not fail with premature EOF
+  - status: implemented
 
 ### `100-*` Context Lifecycle
 

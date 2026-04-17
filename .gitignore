@@ -1,28 +1,28 @@
-# Binaries for programs and plugins
-*.exe
-*.exe~
-*.dll
-*.so
-*.dylib
+# OS files
+.DS_Store
 
-# Test binaries
-*.test
-
-# Output of the go coverage tool
-*.out
-coverage.out
+# Dependencies
+node_modules/
 
 # Go workspace
 go.work
 go.work.sum
 
-# macOS
-.DS_Store
+# Build artifacts
+*.dll
+*.dylib
+*.exe
+*.exe~
+*.so
 
-# local build scratch
+# Test and coverage output
+*.out
+*.test
+coverage.out
+
+# Local build scratch
 .tmp/
 
-# local review workspace files
-openteam/
-
+# Local workspace metadata
 .cursor/
+openteam/

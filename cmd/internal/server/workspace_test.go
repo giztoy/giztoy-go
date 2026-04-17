@@ -3,8 +3,10 @@ package server
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
+	"github.com/GizClaw/gizclaw-go/cmd/internal/service"
 	"github.com/GizClaw/gizclaw-go/cmd/internal/stores"
 )
 
@@ -160,5 +162,68 @@ depots:
 	err := Serve(workspace)
 	if err == nil {
 		t.Fatal("Serve should fail when New cannot build stores")
+	}
+}
+
+func TestServeRejectsServiceManagedWorkspace(t *testing.T) {
+	workspace := t.TempDir()
+	if err := service.WriteMarker(workspace); err != nil {
+		t.Fatalf("WriteMarker error = %v", err)
+	}
+
+	err := Serve(workspace)
+	if err == nil || !strings.Contains(err.Error(), "managed by gizclaw service") {
+		t.Fatalf("Serve(service-managed) err = %v", err)
+	}
+}
+
+func TestHandleExistingWorkspacePIDRejectsStaleWithoutForce(t *testing.T) {
+	workspace := t.TempDir()
+	pidPath := filepath.Join(workspace, workspacePIDFile)
+	if err := os.WriteFile(pidPath, []byte("999999\n"), 0o644); err != nil {
+		t.Fatalf("WriteFile error = %v", err)
+	}
+
+	err := handleExistingWorkspacePID(pidPath, false)
+	if err == nil || !strings.Contains(err.Error(), "stale pid file") {
+		t.Fatalf("handleExistingWorkspacePID() err = %v", err)
+	}
+}
+
+func TestHandleExistingWorkspacePIDForceRemovesStale(t *testing.T) {
+	workspace := t.TempDir()
+	pidPath := filepath.Join(workspace, workspacePIDFile)
+	if err := os.WriteFile(pidPath, []byte("999999\n"), 0o644); err != nil {
+		t.Fatalf("WriteFile error = %v", err)
+	}
+
+	if err := handleExistingWorkspacePID(pidPath, true); err != nil {
+		t.Fatalf("handleExistingWorkspacePID(force) error = %v", err)
+	}
+	if _, err := os.Stat(pidPath); !os.IsNotExist(err) {
+		t.Fatalf("pid file should be removed, stat err = %v", err)
+	}
+}
+
+func TestAcquireWorkspacePIDWritesAndRemovesCurrentPID(t *testing.T) {
+	workspace := t.TempDir()
+
+	release, err := acquireWorkspacePID(workspace, false)
+	if err != nil {
+		t.Fatalf("acquireWorkspacePID error = %v", err)
+	}
+
+	pidPath := filepath.Join(workspace, workspacePIDFile)
+	pid, err := readWorkspacePID(pidPath)
+	if err != nil {
+		t.Fatalf("readWorkspacePID error = %v", err)
+	}
+	if pid != os.Getpid() {
+		t.Fatalf("pid = %d, want %d", pid, os.Getpid())
+	}
+
+	release()
+	if _, err := os.Stat(pidPath); !os.IsNotExist(err) {
+		t.Fatalf("pid file should be removed, stat err = %v", err)
 	}
 }

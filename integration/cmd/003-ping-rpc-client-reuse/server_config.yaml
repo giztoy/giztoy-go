@@ -1,0 +1,13 @@
+listen: "__LISTEN_ADDR__"
+stores:
+  memory:
+    kind: keyvalue
+    backend: memory
+  firmware:
+    kind: filestore
+    backend: filesystem
+    dir: firmware
+gears:
+  store: memory
+depots:
+  store: firmware

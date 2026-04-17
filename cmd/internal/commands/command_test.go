@@ -2,9 +2,18 @@ package commands
 
 import (
 	"bytes"
+	"reflect"
 	"strings"
 	"testing"
 )
+
+func TestNormalizeLegacyLongFlags(t *testing.T) {
+	got := normalizeLegacyLongFlags([]string{"admin", "-listen=8080", "-context", "demo", "--help", "-h"})
+	want := []string{"admin", "--listen=8080", "--context", "demo", "--help", "-h"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("normalizeLegacyLongFlags() = %#v, want %#v", got, want)
+	}
+}
 
 func TestRootHelp(t *testing.T) {
 	root := New()
@@ -17,6 +26,9 @@ func TestRootHelp(t *testing.T) {
 	out := buf.String()
 	if !strings.Contains(out, "serve") {
 		t.Fatalf("help missing 'serve': %s", out)
+	}
+	if !strings.Contains(out, "service") {
+		t.Fatalf("help missing 'service': %s", out)
 	}
 	if !strings.Contains(out, "context") {
 		t.Fatalf("help missing 'context': %s", out)
@@ -46,6 +58,30 @@ func TestServeHelp(t *testing.T) {
 	}
 	if strings.Contains(out, "--data-dir") || strings.Contains(out, "--listen") || strings.Contains(out, "--config") {
 		t.Fatalf("serve help should not mention removed flags: %s", out)
+	}
+	for _, want := range []string{"--force"} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("serve help missing %q: %s", want, out)
+		}
+	}
+	if strings.Contains(out, "--bg") {
+		t.Fatalf("serve help should not mention '--bg': %s", out)
+	}
+}
+
+func TestServiceHelp(t *testing.T) {
+	root := New()
+	var buf bytes.Buffer
+	root.SetOut(&buf)
+	root.SetArgs([]string{"service", "--help"})
+	if err := root.Execute(); err != nil {
+		t.Fatal(err)
+	}
+	out := buf.String()
+	for _, want := range []string{"install", "start", "stop", "uninstall"} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("service help missing %q: %s", want, out)
+		}
 	}
 }
 
@@ -95,6 +131,9 @@ func TestAdminHelp(t *testing.T) {
 	if !strings.Contains(out, "gears") || !strings.Contains(out, "firmware") {
 		t.Fatalf("admin help missing subcommands: %s", out)
 	}
+	if !strings.Contains(out, "--listen") {
+		t.Fatalf("admin help missing '--listen': %s", out)
+	}
 }
 
 func TestPlayHelp(t *testing.T) {
@@ -108,6 +147,9 @@ func TestPlayHelp(t *testing.T) {
 	out := buf.String()
 	if !strings.Contains(out, "serve") || !strings.Contains(out, "register") {
 		t.Fatalf("play help missing subcommands: %s", out)
+	}
+	if !strings.Contains(out, "--listen") {
+		t.Fatalf("play help missing '--listen': %s", out)
 	}
 }
 

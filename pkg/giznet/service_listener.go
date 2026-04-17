@@ -20,13 +20,6 @@ type serviceListenerAddr struct {
 	service uint64
 }
 
-func (c *Conn) ListenService(service uint64) *ServiceListener {
-	return &ServiceListener{
-		conn:    c,
-		service: service,
-	}
-}
-
 func (l *ServiceListener) Accept() (net.Conn, error) {
 	if l == nil || l.conn == nil {
 		return nil, ErrNilConn

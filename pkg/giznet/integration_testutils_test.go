@@ -17,6 +17,8 @@ import (
 const (
 	testServiceRPC   uint64 = 4
 	testEventVersion int    = 1
+	testProtocolEvent byte  = 0x03
+	testProtocolOpus  byte  = 0x10
 )
 
 var (
