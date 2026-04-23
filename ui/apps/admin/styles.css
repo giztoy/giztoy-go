@@ -1,8 +1,7 @@
 @import "tailwindcss";
 
-@source "./app.tsx";
-@source "./components/**/*.{ts,tsx}";
-@source "./lib/**/*.{ts,tsx}";
+@source "./**/*.{ts,tsx}";
+@source "../../packages/components/**/*.{ts,tsx}";
 
 :root {
   --background: 0 0% 100%;

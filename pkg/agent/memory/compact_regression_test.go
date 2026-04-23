@@ -52,7 +52,7 @@ func (singleOutputCompressor) CompactSegments(_ context.Context, _ []string) (*C
 
 func TestCompactBucketMultiOutputKeepsUniqueSegments(t *testing.T) {
 	ctx := context.Background()
-	store := kv.NewMemory(&kv.Options{Separator: testSep})
+	store := mustBadgerInMemory(t, &kv.Options{Separator: testSep})
 	host, err := NewHost(ctx, HostConfig{
 		Store:          store,
 		Embedder:       newMockEmbedder(),
@@ -147,7 +147,7 @@ func TestCompactBucketMultiOutputKeepsUniqueSegments(t *testing.T) {
 
 func TestCompactBucketPreservesHistoricalLastTimestamp(t *testing.T) {
 	ctx := context.Background()
-	store := kv.NewMemory(&kv.Options{Separator: testSep})
+	store := mustBadgerInMemory(t, &kv.Options{Separator: testSep})
 	host, err := NewHost(ctx, HostConfig{
 		Store:          store,
 		Embedder:       newMockEmbedder(),

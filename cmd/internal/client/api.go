@@ -216,10 +216,10 @@ func ListFirmwares(ctx context.Context, c *gizclaw.Client) ([]adminservice.Depot
 	if err != nil {
 		return nil, err
 	}
-	if resp.JSON200 != nil {
-		return resp.JSON200.Items, nil
+	if resp.JSON200 == nil {
+		return nil, responseError(resp.StatusCode(), resp.Body, resp.JSON500)
 	}
-	return nil, responseError(resp.StatusCode(), resp.Body, resp.JSON500)
+	return resp.JSON200.Items, nil
 }
 
 func GetFirmwareDepot(ctx context.Context, c *gizclaw.Client, depot string) (adminservice.Depot, error) {
@@ -330,19 +330,54 @@ func RollbackFirmware(ctx context.Context, c *gizclaw.Client, depot string) (adm
 	return adminservice.Depot{}, responseError(resp.StatusCode, body)
 }
 
+type pagedItems[T any] struct {
+	HasNext    bool
+	Items      []T
+	NextCursor *string
+}
+
+func collectAllPages[T any](
+	fetchPage func(cursor *adminservice.Cursor, limit *adminservice.Limit) (pagedItems[T], error),
+) ([]T, error) {
+	limit := adminservice.Limit(200)
+	var cursor *adminservice.Cursor
+	items := make([]T, 0)
+	for {
+		page, err := fetchPage(cursor, &limit)
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, page.Items...)
+		if !page.HasNext || page.NextCursor == nil || *page.NextCursor == "" {
+			return items, nil
+		}
+		next := adminservice.Cursor(*page.NextCursor)
+		cursor = &next
+	}
+}
+
 func ListGears(ctx context.Context, c *gizclaw.Client) ([]apitypes.Registration, error) {
 	api, err := c.ServerAdminClient()
 	if err != nil {
 		return nil, err
 	}
-	resp, err := api.ListGearsWithResponse(ctx)
-	if err != nil {
-		return nil, err
-	}
-	if resp.JSON200 != nil {
-		return resp.JSON200.Items, nil
-	}
-	return nil, responseError(resp.StatusCode(), resp.Body, resp.JSON500)
+	return collectAllPages(func(cursor *adminservice.Cursor, limit *adminservice.Limit) (pagedItems[apitypes.Registration], error) {
+		resp, err := api.ListGearsWithResponse(ctx, &adminservice.ListGearsParams{
+			Cursor: cursor,
+			Limit:  limit,
+		})
+		if err != nil {
+			return pagedItems[apitypes.Registration]{}, err
+		}
+		if resp.JSON200 == nil {
+			return pagedItems[apitypes.Registration]{}, responseError(resp.StatusCode(), resp.Body, resp.JSON500)
+		}
+		return pagedItems[apitypes.Registration]{
+			HasNext:    resp.JSON200.HasNext,
+			Items:      resp.JSON200.Items,
+			NextCursor: resp.JSON200.NextCursor,
+		}, nil
+	})
 }
 
 func GetGear(ctx context.Context, c *gizclaw.Client, publicKey string) (apitypes.Registration, error) {
@@ -500,14 +535,23 @@ func ListGearsByLabel(ctx context.Context, c *gizclaw.Client, key, value string)
 	if err != nil {
 		return nil, err
 	}
-	resp, err := api.ListByLabelWithResponse(ctx, key, value)
-	if err != nil {
-		return nil, err
-	}
-	if resp.JSON200 != nil {
-		return resp.JSON200.Items, nil
-	}
-	return nil, responseError(resp.StatusCode(), resp.Body, resp.JSON500)
+	return collectAllPages(func(cursor *adminservice.Cursor, limit *adminservice.Limit) (pagedItems[apitypes.Registration], error) {
+		resp, err := api.ListByLabelWithResponse(ctx, key, value, &adminservice.ListByLabelParams{
+			Cursor: cursor,
+			Limit:  limit,
+		})
+		if err != nil {
+			return pagedItems[apitypes.Registration]{}, err
+		}
+		if resp.JSON200 == nil {
+			return pagedItems[apitypes.Registration]{}, responseError(resp.StatusCode(), resp.Body, resp.JSON500)
+		}
+		return pagedItems[apitypes.Registration]{
+			HasNext:    resp.JSON200.HasNext,
+			Items:      resp.JSON200.Items,
+			NextCursor: resp.JSON200.NextCursor,
+		}, nil
+	})
 }
 
 func ListGearsByCertification(ctx context.Context, c *gizclaw.Client, pType apitypes.GearCertificationType, authority apitypes.GearCertificationAuthority, id string) ([]apitypes.Registration, error) {
@@ -515,14 +559,23 @@ func ListGearsByCertification(ctx context.Context, c *gizclaw.Client, pType apit
 	if err != nil {
 		return nil, err
 	}
-	resp, err := api.ListByCertificationWithResponse(ctx, pType, authority, id)
-	if err != nil {
-		return nil, err
-	}
-	if resp.JSON200 != nil {
-		return resp.JSON200.Items, nil
-	}
-	return nil, responseError(resp.StatusCode(), resp.Body, resp.JSON500)
+	return collectAllPages(func(cursor *adminservice.Cursor, limit *adminservice.Limit) (pagedItems[apitypes.Registration], error) {
+		resp, err := api.ListByCertificationWithResponse(ctx, pType, authority, id, &adminservice.ListByCertificationParams{
+			Cursor: cursor,
+			Limit:  limit,
+		})
+		if err != nil {
+			return pagedItems[apitypes.Registration]{}, err
+		}
+		if resp.JSON200 == nil {
+			return pagedItems[apitypes.Registration]{}, responseError(resp.StatusCode(), resp.Body, resp.JSON500)
+		}
+		return pagedItems[apitypes.Registration]{
+			HasNext:    resp.JSON200.HasNext,
+			Items:      resp.JSON200.Items,
+			NextCursor: resp.JSON200.NextCursor,
+		}, nil
+	})
 }
 
 func ListGearsByFirmware(ctx context.Context, c *gizclaw.Client, depot string, channel apitypes.GearFirmwareChannel) ([]apitypes.Registration, error) {
@@ -530,14 +583,23 @@ func ListGearsByFirmware(ctx context.Context, c *gizclaw.Client, depot string, c
 	if err != nil {
 		return nil, err
 	}
-	resp, err := api.ListByFirmwareWithResponse(ctx, depot, channel)
-	if err != nil {
-		return nil, err
-	}
-	if resp.JSON200 != nil {
-		return resp.JSON200.Items, nil
-	}
-	return nil, responseError(resp.StatusCode(), resp.Body, resp.JSON500)
+	return collectAllPages(func(cursor *adminservice.Cursor, limit *adminservice.Limit) (pagedItems[apitypes.Registration], error) {
+		resp, err := api.ListByFirmwareWithResponse(ctx, depot, channel, &adminservice.ListByFirmwareParams{
+			Cursor: cursor,
+			Limit:  limit,
+		})
+		if err != nil {
+			return pagedItems[apitypes.Registration]{}, err
+		}
+		if resp.JSON200 == nil {
+			return pagedItems[apitypes.Registration]{}, responseError(resp.StatusCode(), resp.Body, resp.JSON500)
+		}
+		return pagedItems[apitypes.Registration]{
+			HasNext:    resp.JSON200.HasNext,
+			Items:      resp.JSON200.Items,
+			NextCursor: resp.JSON200.NextCursor,
+		}, nil
+	})
 }
 
 func DeleteGear(ctx context.Context, c *gizclaw.Client, publicKey string) (apitypes.Registration, error) {

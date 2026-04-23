@@ -21,6 +21,11 @@ var (
 	ErrGearAlreadyExists = errors.New("gear: gear already exists")
 )
 
+const (
+	defaultListLimit = 50
+	maxListLimit     = 200
+)
+
 type PeerManager interface {
 	PeerRuntime(context.Context, string) apitypes.Runtime
 	RefreshGear(context.Context, string) (adminservice.RefreshResult, bool, error)
@@ -72,12 +77,13 @@ var _ GearsGearService = (*Server)(nil)
 var _ GearsServerPublic = (*Server)(nil)
 
 // ListGears implements `adminservice.StrictServerInterface.ListGears`.
-func (s *Server) ListGears(ctx context.Context, _ adminservice.ListGearsRequestObject) (adminservice.ListGearsResponseObject, error) {
-	items, err := s.list(ctx)
+func (s *Server) ListGears(ctx context.Context, request adminservice.ListGearsRequestObject) (adminservice.ListGearsResponseObject, error) {
+	cursor, limit := normalizeListParams(request.Params.Cursor, request.Params.Limit)
+	items, hasNext, nextCursor, err := s.listPage(ctx, cursor, limit)
 	if err != nil {
 		return adminservice.ListGears500JSONResponse(adminError("INTERNAL_ERROR", err.Error())), nil
 	}
-	return adminservice.ListGears200JSONResponse(toAdminRegistrationList(items)), nil
+	return adminservice.ListGears200JSONResponse(toAdminRegistrationList(items, hasNext, nextCursor)), nil
 }
 
 // ListByCertification implements `adminservice.StrictServerInterface.ListByCertification`.
@@ -86,11 +92,12 @@ func (s *Server) ListByCertification(ctx context.Context, request adminservice.L
 	if err != nil {
 		return nil, fmt.Errorf("invalid params: %w", err)
 	}
-	items, err := s.listByCertification(ctx, apitypes.GearCertificationType(request.Type), apitypes.GearCertificationAuthority(request.Authority), id)
+	cursor, limit := normalizeListParams(request.Params.Cursor, request.Params.Limit)
+	items, hasNext, nextCursor, err := s.listByCertification(ctx, apitypes.GearCertificationType(request.Type), apitypes.GearCertificationAuthority(request.Authority), id, cursor, limit)
 	if err != nil {
 		return adminservice.ListByCertification500JSONResponse(adminError("INTERNAL_ERROR", err.Error())), nil
 	}
-	return adminservice.ListByCertification200JSONResponse(toAdminRegistrationList(items)), nil
+	return adminservice.ListByCertification200JSONResponse(toAdminRegistrationList(items, hasNext, nextCursor)), nil
 }
 
 // ListByFirmware implements `adminservice.StrictServerInterface.ListByFirmware`.
@@ -99,11 +106,12 @@ func (s *Server) ListByFirmware(ctx context.Context, request adminservice.ListBy
 	if err != nil {
 		return nil, fmt.Errorf("invalid params: %w", err)
 	}
-	items, err := s.listByFirmware(ctx, depot, apitypes.GearFirmwareChannel(request.Channel))
+	cursor, limit := normalizeListParams(request.Params.Cursor, request.Params.Limit)
+	items, hasNext, nextCursor, err := s.listByFirmware(ctx, depot, apitypes.GearFirmwareChannel(request.Channel), cursor, limit)
 	if err != nil {
 		return adminservice.ListByFirmware500JSONResponse(adminError("INTERNAL_ERROR", err.Error())), nil
 	}
-	return adminservice.ListByFirmware200JSONResponse(toAdminRegistrationList(items)), nil
+	return adminservice.ListByFirmware200JSONResponse(toAdminRegistrationList(items, hasNext, nextCursor)), nil
 }
 
 // ResolveByIMEI implements `adminservice.StrictServerInterface.ResolveByIMEI`.
@@ -133,11 +141,12 @@ func (s *Server) ListByLabel(ctx context.Context, request adminservice.ListByLab
 	if err != nil {
 		return nil, fmt.Errorf("invalid params: %w", err)
 	}
-	items, err := s.listByLabel(ctx, key, value)
+	cursor, limit := normalizeListParams(request.Params.Cursor, request.Params.Limit)
+	items, hasNext, nextCursor, err := s.listByLabel(ctx, key, value, cursor, limit)
 	if err != nil {
 		return adminservice.ListByLabel500JSONResponse(adminError("INTERNAL_ERROR", err.Error())), nil
 	}
-	return adminservice.ListByLabel200JSONResponse(toAdminRegistrationList(items)), nil
+	return adminservice.ListByLabel200JSONResponse(toAdminRegistrationList(items, hasNext, nextCursor)), nil
 }
 
 // ResolveBySN implements `adminservice.StrictServerInterface.ResolveBySN`.
@@ -377,4 +386,22 @@ func (s *Server) GetServerInfo(_ context.Context, _ serverpublic.GetServerInfoRe
 
 func pathUnescape(value string) (string, error) {
 	return url.PathUnescape(value)
+}
+
+func normalizeListParams(cursor *adminservice.Cursor, limit *adminservice.Limit) (string, int) {
+	nextCursor := ""
+	if cursor != nil {
+		nextCursor = string(*cursor)
+	}
+	nextLimit := defaultListLimit
+	if limit != nil {
+		nextLimit = int(*limit)
+	}
+	if nextLimit <= 0 {
+		nextLimit = defaultListLimit
+	}
+	if nextLimit > maxListLimit {
+		nextLimit = maxListLimit
+	}
+	return nextCursor, nextLimit
 }

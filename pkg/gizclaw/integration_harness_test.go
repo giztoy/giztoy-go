@@ -23,7 +23,6 @@ import (
 	"github.com/GizClaw/gizclaw-go/pkg/gizclaw/api/serverpublic"
 	"github.com/GizClaw/gizclaw-go/pkg/giznet"
 	"github.com/GizClaw/gizclaw-go/pkg/store/depotstore"
-	"github.com/GizClaw/gizclaw-go/pkg/store/kv"
 )
 
 type testServer struct {
@@ -48,7 +47,7 @@ func startTestServer(t *testing.T) *testServer {
 
 	srv := &gizclaw.Server{
 		KeyPair:   keyPair,
-		GearStore: kv.NewMemory(nil),
+		GearStore: mustBadgerInMemory(t, nil),
 		RegistrationTokens: map[string]apitypes.GearRole{
 			"admin_default":  apitypes.GearRoleAdmin,
 			"device_default": apitypes.GearRoleDevice,
@@ -321,10 +320,10 @@ func listFirmwares(ctx context.Context, c *gizclaw.Client) ([]adminservice.Depot
 	if err != nil {
 		return nil, err
 	}
-	if resp.JSON200 != nil {
-		return resp.JSON200.Items, nil
+	if resp.JSON200 == nil {
+		return nil, responseError(resp.StatusCode(), resp.Body, resp.JSON500)
 	}
-	return nil, responseError(resp.StatusCode(), resp.Body, resp.JSON500)
+	return resp.JSON200.Items, nil
 }
 
 func getFirmwareDepot(ctx context.Context, c *gizclaw.Client, depot string) (adminservice.Depot, error) {
@@ -440,14 +439,27 @@ func listGears(ctx context.Context, c *gizclaw.Client) ([]apitypes.Registration,
 	if err != nil {
 		return nil, err
 	}
-	resp, err := api.ListGearsWithResponse(ctx)
-	if err != nil {
-		return nil, err
+	limit := adminservice.Limit(200)
+	var cursor *adminservice.Cursor
+	items := make([]apitypes.Registration, 0)
+	for {
+		resp, err := api.ListGearsWithResponse(ctx, &adminservice.ListGearsParams{
+			Cursor: cursor,
+			Limit:  &limit,
+		})
+		if err != nil {
+			return nil, err
+		}
+		if resp.JSON200 == nil {
+			return nil, responseError(resp.StatusCode(), resp.Body, resp.JSON500)
+		}
+		items = append(items, resp.JSON200.Items...)
+		if !resp.JSON200.HasNext || resp.JSON200.NextCursor == nil || *resp.JSON200.NextCursor == "" {
+			return items, nil
+		}
+		next := adminservice.Cursor(*resp.JSON200.NextCursor)
+		cursor = &next
 	}
-	if resp.JSON200 != nil {
-		return resp.JSON200.Items, nil
-	}
-	return nil, responseError(resp.StatusCode(), resp.Body, resp.JSON500)
 }
 
 func getGear(ctx context.Context, c *gizclaw.Client, publicKey string) (apitypes.Registration, error) {
@@ -590,14 +602,27 @@ func listGearsByLabel(ctx context.Context, c *gizclaw.Client, key, value string)
 	if err != nil {
 		return nil, err
 	}
-	resp, err := api.ListByLabelWithResponse(ctx, key, value)
-	if err != nil {
-		return nil, err
+	limit := adminservice.Limit(200)
+	var cursor *adminservice.Cursor
+	items := make([]apitypes.Registration, 0)
+	for {
+		resp, err := api.ListByLabelWithResponse(ctx, key, value, &adminservice.ListByLabelParams{
+			Cursor: cursor,
+			Limit:  &limit,
+		})
+		if err != nil {
+			return nil, err
+		}
+		if resp.JSON200 == nil {
+			return nil, responseError(resp.StatusCode(), resp.Body, resp.JSON500)
+		}
+		items = append(items, resp.JSON200.Items...)
+		if !resp.JSON200.HasNext || resp.JSON200.NextCursor == nil || *resp.JSON200.NextCursor == "" {
+			return items, nil
+		}
+		next := adminservice.Cursor(*resp.JSON200.NextCursor)
+		cursor = &next
 	}
-	if resp.JSON200 != nil {
-		return resp.JSON200.Items, nil
-	}
-	return nil, responseError(resp.StatusCode(), resp.Body, resp.JSON500)
 }
 
 func listGearsByCertification(ctx context.Context, c *gizclaw.Client, pType apitypes.GearCertificationType, authority apitypes.GearCertificationAuthority, id string) ([]apitypes.Registration, error) {
@@ -605,14 +630,27 @@ func listGearsByCertification(ctx context.Context, c *gizclaw.Client, pType apit
 	if err != nil {
 		return nil, err
 	}
-	resp, err := api.ListByCertificationWithResponse(ctx, pType, authority, id)
-	if err != nil {
-		return nil, err
+	limit := adminservice.Limit(200)
+	var cursor *adminservice.Cursor
+	items := make([]apitypes.Registration, 0)
+	for {
+		resp, err := api.ListByCertificationWithResponse(ctx, pType, authority, id, &adminservice.ListByCertificationParams{
+			Cursor: cursor,
+			Limit:  &limit,
+		})
+		if err != nil {
+			return nil, err
+		}
+		if resp.JSON200 == nil {
+			return nil, responseError(resp.StatusCode(), resp.Body, resp.JSON500)
+		}
+		items = append(items, resp.JSON200.Items...)
+		if !resp.JSON200.HasNext || resp.JSON200.NextCursor == nil || *resp.JSON200.NextCursor == "" {
+			return items, nil
+		}
+		next := adminservice.Cursor(*resp.JSON200.NextCursor)
+		cursor = &next
 	}
-	if resp.JSON200 != nil {
-		return resp.JSON200.Items, nil
-	}
-	return nil, responseError(resp.StatusCode(), resp.Body, resp.JSON500)
 }
 
 func listGearsByFirmware(ctx context.Context, c *gizclaw.Client, depot string, channel apitypes.GearFirmwareChannel) ([]apitypes.Registration, error) {
@@ -620,14 +658,27 @@ func listGearsByFirmware(ctx context.Context, c *gizclaw.Client, depot string, c
 	if err != nil {
 		return nil, err
 	}
-	resp, err := api.ListByFirmwareWithResponse(ctx, depot, channel)
-	if err != nil {
-		return nil, err
+	limit := adminservice.Limit(200)
+	var cursor *adminservice.Cursor
+	items := make([]apitypes.Registration, 0)
+	for {
+		resp, err := api.ListByFirmwareWithResponse(ctx, depot, channel, &adminservice.ListByFirmwareParams{
+			Cursor: cursor,
+			Limit:  &limit,
+		})
+		if err != nil {
+			return nil, err
+		}
+		if resp.JSON200 == nil {
+			return nil, responseError(resp.StatusCode(), resp.Body, resp.JSON500)
+		}
+		items = append(items, resp.JSON200.Items...)
+		if !resp.JSON200.HasNext || resp.JSON200.NextCursor == nil || *resp.JSON200.NextCursor == "" {
+			return items, nil
+		}
+		next := adminservice.Cursor(*resp.JSON200.NextCursor)
+		cursor = &next
 	}
-	if resp.JSON200 != nil {
-		return resp.JSON200.Items, nil
-	}
-	return nil, responseError(resp.StatusCode(), resp.Body, resp.JSON500)
 }
 
 func deleteGear(ctx context.Context, c *gizclaw.Client, publicKey string) (apitypes.Registration, error) {

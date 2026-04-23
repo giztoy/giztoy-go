@@ -59,7 +59,7 @@ func (m *mockEmbedder) Model() string  { return "mock-embed" }
 // helper to create a test index with all components.
 func newTestIndex(t *testing.T) (*Index, *mockEmbedder) {
 	t.Helper()
-	store := kv.NewMemory(nil)
+	store := mustBadgerInMemory(t, nil)
 	emb := newMockEmbedder()
 	vec := vecstore.NewMemory()
 
@@ -75,7 +75,7 @@ func newTestIndex(t *testing.T) (*Index, *mockEmbedder) {
 // helper to create an index without vector search.
 func newTestIndexNoVec(t *testing.T) *Index {
 	t.Helper()
-	store := kv.NewMemory(nil)
+	store := mustBadgerInMemory(t, nil)
 	return NewIndex(IndexConfig{
 		Store:  store,
 		Prefix: kv.Key{"test"},
@@ -706,7 +706,7 @@ func TestLabelScoreEmpty(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func BenchmarkStoreSegment(b *testing.B) {
-	store := kv.NewMemory(nil)
+	store := mustBadgerInMemory(b, nil)
 	emb := newMockEmbedder()
 	vec := vecstore.NewMemory()
 	idx := NewIndex(IndexConfig{
@@ -730,7 +730,7 @@ func BenchmarkStoreSegment(b *testing.B) {
 }
 
 func BenchmarkSearchSegments(b *testing.B) {
-	store := kv.NewMemory(nil)
+	store := mustBadgerInMemory(b, nil)
 	emb := newMockEmbedder()
 	vec := vecstore.NewMemory()
 	idx := NewIndex(IndexConfig{
@@ -767,7 +767,7 @@ func BenchmarkSearchSegments(b *testing.B) {
 }
 
 func BenchmarkSearchCombined(b *testing.B) {
-	store := kv.NewMemory(nil)
+	store := mustBadgerInMemory(b, nil)
 	emb := newMockEmbedder()
 	vec := vecstore.NewMemory()
 	idx := NewIndex(IndexConfig{

@@ -8,8 +8,6 @@ import (
 
 	apitypes "github.com/GizClaw/gizclaw-go/pkg/gizclaw/api/apitypes"
 	"github.com/GizClaw/gizclaw-go/pkg/gizclaw/api/serverpublic"
-
-	"github.com/GizClaw/gizclaw-go/pkg/store/kv"
 )
 
 func TestStoreOpsHelpers(t *testing.T) {
@@ -30,7 +28,7 @@ func TestStoreOpsHelpers(t *testing.T) {
 
 func TestStoreOpsRegisterValidation(t *testing.T) {
 	server := &Server{
-		Store:              kv.NewMemory(nil),
+		Store:              mustBadgerInMemory(t, nil),
 		RegistrationTokens: map[string]apitypes.GearRole{},
 	}
 
@@ -50,7 +48,7 @@ func TestStoreOpsRegisterValidation(t *testing.T) {
 }
 
 func TestStoreOpsLoadAndSaveGear(t *testing.T) {
-	server := &Server{Store: kv.NewMemory(nil)}
+	server := &Server{Store: mustBadgerInMemory(t, nil)}
 	want := apitypes.Gear{
 		PublicKey: "peer",
 		Role:      apitypes.GearRoleDevice,
@@ -85,7 +83,7 @@ func TestStoreOpsLoadAndSaveGear(t *testing.T) {
 }
 
 func TestStoreOpsLoadGearMissing(t *testing.T) {
-	server := &Server{Store: kv.NewMemory(nil)}
+	server := &Server{Store: mustBadgerInMemory(t, nil)}
 
 	_, err := server.LoadGear(context.Background(), "missing")
 	if !errors.Is(err, ErrGearNotFound) {
@@ -94,7 +92,7 @@ func TestStoreOpsLoadGearMissing(t *testing.T) {
 }
 
 func TestStoreOpsSaveGearRejectsInvalidGear(t *testing.T) {
-	server := &Server{Store: kv.NewMemory(nil)}
+	server := &Server{Store: mustBadgerInMemory(t, nil)}
 
 	_, err := server.SaveGear(context.Background(), apitypes.Gear{})
 	if err == nil || !strings.Contains(err.Error(), "empty public key") {
@@ -103,7 +101,7 @@ func TestStoreOpsSaveGearRejectsInvalidGear(t *testing.T) {
 }
 
 func TestStoreOpsExists(t *testing.T) {
-	server := &Server{Store: kv.NewMemory(nil)}
+	server := &Server{Store: mustBadgerInMemory(t, nil)}
 
 	if exists, err := server.exists(context.Background(), "missing"); err != nil || exists {
 		t.Fatalf("exists(missing) = %v, %v", exists, err)

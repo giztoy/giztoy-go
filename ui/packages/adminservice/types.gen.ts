@@ -34,6 +34,8 @@ export type DepotRelease = {
 };
 
 export type RegistrationList = {
+    has_next: boolean;
+    next_cursor?: string | null;
     items: Array<Registration>;
 };
 
@@ -156,6 +158,16 @@ export type Runtime = {
     last_seen_at: string;
     last_addr?: string;
 };
+
+/**
+ * Opaque cursor returned by the previous list response
+ */
+export type Cursor = string;
+
+/**
+ * Maximum number of items to return
+ */
+export type Limit = number;
 
 /**
  * Firmware depot name
@@ -412,7 +424,16 @@ export type PutChannelResponse = PutChannelResponses[keyof PutChannelResponses];
 export type ListGearsData = {
     body?: never;
     path?: never;
-    query?: never;
+    query?: {
+        /**
+         * Opaque cursor returned by the previous list response
+         */
+        cursor?: string;
+        /**
+         * Maximum number of items to return
+         */
+        limit?: number;
+    };
     url: '/gears';
 };
 
@@ -495,7 +516,16 @@ export type ListByLabelData = {
         key: string;
         value: string;
     };
-    query?: never;
+    query?: {
+        /**
+         * Opaque cursor returned by the previous list response
+         */
+        cursor?: string;
+        /**
+         * Maximum number of items to return
+         */
+        limit?: number;
+    };
     url: '/gears/label/{key}/{value}';
 };
 
@@ -524,7 +554,16 @@ export type ListByCertificationData = {
         authority: GearCertificationAuthority;
         id: string;
     };
-    query?: never;
+    query?: {
+        /**
+         * Opaque cursor returned by the previous list response
+         */
+        cursor?: string;
+        /**
+         * Maximum number of items to return
+         */
+        limit?: number;
+    };
     url: '/gears/certification/{type}/{authority}/{id}';
 };
 
@@ -552,7 +591,16 @@ export type ListByFirmwareData = {
         depot: string;
         channel: GearFirmwareChannel;
     };
-    query?: never;
+    query?: {
+        /**
+         * Opaque cursor returned by the previous list response
+         */
+        cursor?: string;
+        /**
+         * Maximum number of items to return
+         */
+        limit?: number;
+    };
     url: '/gears/firmware/{depot}/{channel}';
 };
 

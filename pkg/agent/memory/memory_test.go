@@ -186,7 +186,7 @@ const testSep byte = 0x1F
 // Uses null byte separator so labels can contain ':'.
 func newTestHost(t *testing.T) *Host {
 	t.Helper()
-	store := kv.NewMemory(&kv.Options{Separator: testSep})
+	store := mustBadgerInMemory(t, &kv.Options{Separator: testSep})
 	emb := newMockEmbedder()
 
 	h, err := NewHost(context.Background(), HostConfig{
@@ -255,7 +255,7 @@ func TestHostNilStoreReturnsError(t *testing.T) {
 
 func TestHostEmbedModelPersistence(t *testing.T) {
 	ctx := context.Background()
-	store := kv.NewMemory(&kv.Options{Separator: testSep})
+	store := mustBadgerInMemory(t, &kv.Options{Separator: testSep})
 	fs := &testDirFS{root: t.TempDir()}
 
 	// First NewHost: should persist mock-embed model metadata.
@@ -291,7 +291,7 @@ func TestHostEmbedModelPersistence(t *testing.T) {
 
 func TestHostEmbedDimensionMismatch(t *testing.T) {
 	ctx := context.Background()
-	store := kv.NewMemory(&kv.Options{Separator: testSep})
+	store := mustBadgerInMemory(t, &kv.Options{Separator: testSep})
 	fs := &testDirFS{root: t.TempDir()}
 
 	// First NewHost with dim=8.
@@ -317,7 +317,7 @@ func TestHostEmbedDimensionMismatch(t *testing.T) {
 
 func TestNewHostRejectsNilFields(t *testing.T) {
 	ctx := context.Background()
-	store := kv.NewMemory(&kv.Options{Separator: testSep})
+	store := mustBadgerInMemory(t, &kv.Options{Separator: testSep})
 	emb := newMockEmbedder()
 	fs := &testDirFS{root: t.TempDir()}
 
@@ -334,7 +334,7 @@ func TestNewHostRejectsNilFields(t *testing.T) {
 
 func TestHostOpenRejectsIDContainingSeparator(t *testing.T) {
 	ctx := context.Background()
-	store := kv.NewMemory(nil) // default separator ':'
+	store := mustBadgerInMemory(t, nil) // default separator ':'
 	h, err := NewHost(ctx, HostConfig{
 		Store: store, Embedder: newMockEmbedder(), FS: &testDirFS{root: t.TempDir()},
 	})
@@ -671,7 +671,7 @@ func TestEnsureCoarser(t *testing.T) {
 // custom CompressPolicy. Useful for testing compaction behavior.
 func newTestHostWithCompactor(t *testing.T, policy CompressPolicy) *Host {
 	t.Helper()
-	store := kv.NewMemory(&kv.Options{Separator: testSep})
+	store := mustBadgerInMemory(t, &kv.Options{Separator: testSep})
 	emb := newMockEmbedder()
 
 	h, err := NewHost(context.Background(), HostConfig{
@@ -882,7 +882,7 @@ func TestCompactLtNeverCompacted(t *testing.T) {
 }
 
 func TestZeroCompressPolicyDisablesAutoCompression(t *testing.T) {
-	store := kv.NewMemory(&kv.Options{Separator: testSep})
+	store := mustBadgerInMemory(t, &kv.Options{Separator: testSep})
 	h, err := NewHost(context.Background(), HostConfig{
 		Store:          store,
 		Embedder:       newMockEmbedder(),
@@ -2018,7 +2018,7 @@ func (fc *familyCompressor) CompactSegments(_ context.Context, summaries []strin
 // ---------------------------------------------------------------------------
 
 func BenchmarkConversationAppend(b *testing.B) {
-	store := kv.NewMemory(&kv.Options{Separator: testSep})
+	store := mustBadgerInMemory(b, &kv.Options{Separator: testSep})
 	h, err := NewHost(context.Background(), HostConfig{Store: store, Separator: testSep})
 	if err != nil {
 		b.Fatal(err)
@@ -2097,7 +2097,7 @@ func (d *testDirFS) RemoveAll(name string) error {
 
 func TestVecFSPerPersonaFiles(t *testing.T) {
 	dir := t.TempDir()
-	store := kv.NewMemory(&kv.Options{Separator: testSep})
+	store := mustBadgerInMemory(t, &kv.Options{Separator: testSep})
 	emb := newMockEmbedder()
 
 	h, err := NewHost(context.Background(), HostConfig{
@@ -2150,7 +2150,7 @@ func TestVecFSPerPersonaFiles(t *testing.T) {
 }
 
 func BenchmarkConversationRecent(b *testing.B) {
-	store := kv.NewMemory(&kv.Options{Separator: testSep})
+	store := mustBadgerInMemory(b, &kv.Options{Separator: testSep})
 	h, err := NewHost(context.Background(), HostConfig{
 		Store: store, Embedder: newMockEmbedder(), FS: &testDirFS{root: b.TempDir()}, Separator: testSep,
 	})
@@ -2177,7 +2177,7 @@ func BenchmarkConversationRecent(b *testing.B) {
 }
 
 func BenchmarkStoreSegment(b *testing.B) {
-	store := kv.NewMemory(&kv.Options{Separator: testSep})
+	store := mustBadgerInMemory(b, &kv.Options{Separator: testSep})
 	emb := newMockEmbedder()
 	h, err := NewHost(context.Background(), HostConfig{
 		Store: store, Embedder: emb, FS: &testDirFS{root: b.TempDir()}, Separator: testSep,
@@ -2199,7 +2199,7 @@ func BenchmarkStoreSegment(b *testing.B) {
 }
 
 func BenchmarkRecall(b *testing.B) {
-	store := kv.NewMemory(&kv.Options{Separator: testSep})
+	store := mustBadgerInMemory(b, &kv.Options{Separator: testSep})
 	emb := newMockEmbedder()
 	h, err := NewHost(context.Background(), HostConfig{
 		Store: store, Embedder: emb, FS: &testDirFS{root: b.TempDir()}, Separator: testSep,

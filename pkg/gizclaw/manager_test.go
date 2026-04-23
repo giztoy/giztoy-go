@@ -10,7 +10,6 @@ import (
 	"github.com/GizClaw/gizclaw-go/pkg/gizclaw/api/peerpublic"
 	"github.com/GizClaw/gizclaw-go/pkg/gizclaw/gear"
 	"github.com/GizClaw/gizclaw-go/pkg/giznet"
-	"github.com/GizClaw/gizclaw-go/pkg/store/kv"
 )
 
 func TestManagerMarkPeerOfflineDeletesActivePeer(t *testing.T) {
@@ -50,7 +49,7 @@ func TestManagerMarkPeerOfflineKeepsNewerConnection(t *testing.T) {
 }
 
 func TestManagerRefreshDeviceErrors(t *testing.T) {
-	service := &gear.Server{Store: kv.NewMemory(nil)}
+	service := &gear.Server{Store: mustBadgerInMemory(t, nil)}
 	manager := NewManager(service)
 	ctx := context.Background()
 

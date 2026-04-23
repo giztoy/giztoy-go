@@ -148,7 +148,7 @@ func TestNewIndexSeparatorAffectsGraphLabelValidation(t *testing.T) {
 	ctx := context.Background()
 
 	// Default separator ':' should reject labels containing ':'.
-	idxDefault := NewIndex(IndexConfig{Store: kv.NewMemory(nil), Prefix: kv.Key{"default"}})
+	idxDefault := NewIndex(IndexConfig{Store: mustBadgerInMemory(t, nil), Prefix: kv.Key{"default"}})
 	if err := idxDefault.Graph().SetEntity(ctx, graph.Entity{Label: "person:alice"}); err == nil {
 		t.Fatal("expected default separator graph to reject label containing ':'")
 	}
@@ -156,7 +156,7 @@ func TestNewIndexSeparatorAffectsGraphLabelValidation(t *testing.T) {
 	// Custom separator should allow colon-namespaced labels.
 	const sep byte = 0x1F
 	idxCustom := NewIndex(IndexConfig{
-		Store:     kv.NewMemory(&kv.Options{Separator: sep}),
+		Store:     mustBadgerInMemory(t, &kv.Options{Separator: sep}),
 		Prefix:    kv.Key{"custom"},
 		Separator: sep,
 	})

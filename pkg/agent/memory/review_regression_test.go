@@ -43,7 +43,7 @@ func (starvationEmbedder) Model() string { return "starvation-embed-v1" }
 
 func TestRecallPerPersonaVecIsolation(t *testing.T) {
 	ctx := context.Background()
-	store := kv.NewMemory(&kv.Options{Separator: testSep})
+	store := mustBadgerInMemory(t, &kv.Options{Separator: testSep})
 
 	host, err := NewHost(ctx, HostConfig{
 		Store:     store,
@@ -87,7 +87,7 @@ func TestRecallPerPersonaVecIsolation(t *testing.T) {
 
 func TestHostDeleteClearsPersonaData(t *testing.T) {
 	ctx := context.Background()
-	store := kv.NewMemory(&kv.Options{Separator: testSep})
+	store := mustBadgerInMemory(t, &kv.Options{Separator: testSep})
 
 	host, err := NewHost(ctx, HostConfig{
 		Store:     store,

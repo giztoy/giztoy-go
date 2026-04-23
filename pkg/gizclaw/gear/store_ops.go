@@ -234,6 +234,36 @@ func (s *Server) list(ctx context.Context) ([]apitypes.Gear, error) {
 	return items, nil
 }
 
+func (s *Server) listPage(ctx context.Context, cursor string, limit int) ([]apitypes.Gear, bool, *string, error) {
+	items, err := s.list(ctx)
+	if err != nil {
+		return nil, false, nil, err
+	}
+	start := 0
+	if cursor != "" {
+		start = len(items)
+		for index, gear := range items {
+			if gear.PublicKey == cursor {
+				start = index + 1
+				break
+			}
+		}
+	}
+	if start >= len(items) {
+		return nil, false, nil, nil
+	}
+	end := start + limit
+	if end > len(items) {
+		end = len(items)
+	}
+	page := items[start:end]
+	if end >= len(items) {
+		return page, false, nil, nil
+	}
+	nextCursor := page[len(page)-1].PublicKey
+	return page, true, &nextCursor, nil
+}
+
 func (s *Server) resolveBySN(ctx context.Context, sn string) (string, error) {
 	return s.resolveSingle(ctx, snKey(sn), ErrGearNotFound)
 }
@@ -242,16 +272,16 @@ func (s *Server) resolveByIMEI(ctx context.Context, tac, serial string) (string,
 	return s.resolveSingle(ctx, imeiKey(tac, serial), ErrGearNotFound)
 }
 
-func (s *Server) listByLabel(ctx context.Context, key, value string) ([]apitypes.Gear, error) {
-	return s.listByReferencePrefix(ctx, labelPrefix(key, value))
+func (s *Server) listByLabel(ctx context.Context, key, value, cursor string, limit int) ([]apitypes.Gear, bool, *string, error) {
+	return s.listByReferencePrefixPage(ctx, labelPrefix(key, value), cursor, limit)
 }
 
-func (s *Server) listByCertification(ctx context.Context, certType apitypes.GearCertificationType, authority apitypes.GearCertificationAuthority, id string) ([]apitypes.Gear, error) {
-	return s.listByReferencePrefix(ctx, certificationPrefix(certType, authority, id))
+func (s *Server) listByCertification(ctx context.Context, certType apitypes.GearCertificationType, authority apitypes.GearCertificationAuthority, id, cursor string, limit int) ([]apitypes.Gear, bool, *string, error) {
+	return s.listByReferencePrefixPage(ctx, certificationPrefix(certType, authority, id), cursor, limit)
 }
 
-func (s *Server) listByFirmware(ctx context.Context, depot string, channel apitypes.GearFirmwareChannel) ([]apitypes.Gear, error) {
-	return s.listByReferencePrefix(ctx, firmwarePrefix(depot, channel))
+func (s *Server) listByFirmware(ctx context.Context, depot string, channel apitypes.GearFirmwareChannel, cursor string, limit int) ([]apitypes.Gear, bool, *string, error) {
+	return s.listByReferencePrefixPage(ctx, firmwarePrefix(depot, channel), cursor, limit)
 }
 
 func (s *Server) writeGearLocked(ctx context.Context, gear apitypes.Gear, previous *apitypes.Gear) error {
@@ -298,40 +328,60 @@ func (s *Server) resolveSingle(ctx context.Context, key kv.Key, notFound error) 
 	return string(data), nil
 }
 
-func (s *Server) listByReferencePrefix(ctx context.Context, prefix kv.Key) ([]apitypes.Gear, error) {
+func (s *Server) listByReferencePrefixPage(ctx context.Context, prefix kv.Key, cursor string, limit int) ([]apitypes.Gear, bool, *string, error) {
 	store, err := s.store()
 	if err != nil {
-		return nil, err
+		return nil, false, nil, err
 	}
-	publicKeys := make([]string, 0)
-	for entry, err := range store.List(ctx, prefix) {
-		if err != nil {
-			return nil, err
-		}
+	entries, err := kv.ListAfter(ctx, store, prefix, cursorAfterKey(prefix, cursor), limit+1)
+	if err != nil {
+		return nil, false, nil, err
+	}
+	pageEntries, hasNext, nextCursor := paginateEntries(entries, limit)
+
+	items := make([]apitypes.Gear, 0, len(pageEntries))
+	for _, entry := range pageEntries {
 		if len(entry.Key) == 0 {
 			continue
 		}
-		publicKeys = append(publicKeys, entry.Key[len(entry.Key)-1])
-	}
-	sort.Strings(publicKeys)
-
-	items := make([]apitypes.Gear, 0, len(publicKeys))
-	seen := make(map[string]struct{}, len(publicKeys))
-	for _, publicKey := range publicKeys {
-		if _, ok := seen[publicKey]; ok {
-			continue
-		}
-		seen[publicKey] = struct{}{}
+		publicKey := entry.Key[len(entry.Key)-1]
 		gear, err := s.get(ctx, publicKey)
 		if err != nil {
 			if errors.Is(err, ErrGearNotFound) {
 				continue
 			}
-			return nil, err
+			return nil, false, nil, err
 		}
 		items = append(items, gear)
 	}
-	return items, nil
+	return items, hasNext, nextCursor, nil
+}
+
+func cursorAfterKey(prefix kv.Key, cursor string) kv.Key {
+	if cursor == "" {
+		return nil
+	}
+	after := append(kv.Key{}, prefix...)
+	return append(after, cursor)
+}
+
+func paginateEntries(entries []kv.Entry, limit int) ([]kv.Entry, bool, *string) {
+	if len(entries) == 0 {
+		return nil, false, nil
+	}
+
+	hasNext := len(entries) > limit
+	if !hasNext {
+		return entries, false, nil
+	}
+
+	page := entries[:limit]
+	if len(page) == 0 || len(page[len(page)-1].Key) == 0 {
+		return page, true, nil
+	}
+
+	nextCursor := page[len(page)-1].Key[len(page[len(page)-1].Key)-1]
+	return page, true, &nextCursor
 }
 
 func (s *Server) store() (kv.Store, error) {
