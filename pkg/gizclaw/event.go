@@ -5,7 +5,7 @@ import (
 	"strings"
 )
 
-//go:generate go run github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen -config=event_codegen_config.yaml -o event_generated.go ../../api/event_types.json
+//go:generate go tool oapi-codegen -config=event_codegen_config.yaml -o event_generated.go ../../api/event_types.json
 
 const EventVersion = 1
 

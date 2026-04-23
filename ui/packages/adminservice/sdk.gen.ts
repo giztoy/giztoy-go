@@ -21,18 +21,18 @@ export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends 
 /**
  * List all firmware depots
  */
-export const listDepots = <ThrowOnError extends boolean = false>(options?: Options<ListDepotsData, ThrowOnError>) => (options?.client ?? client).get<ListDepotsResponses, ListDepotsErrors, ThrowOnError>({ url: '/firmwares', ...options });
+export const listDepots = <ThrowOnError extends boolean = false>(options?: Options<ListDepotsData, ThrowOnError>) => (options?.client ?? client).get<ListDepotsResponses, ListDepotsErrors, ThrowOnError>({ url: '/depots', ...options });
 
 /**
  * Get a firmware depot snapshot
  */
-export const getDepot = <ThrowOnError extends boolean = false>(options: Options<GetDepotData, ThrowOnError>) => (options.client ?? client).get<GetDepotResponses, GetDepotErrors, ThrowOnError>({ url: '/firmwares/{depot}', ...options });
+export const getDepot = <ThrowOnError extends boolean = false>(options: Options<GetDepotData, ThrowOnError>) => (options.client ?? client).get<GetDepotResponses, GetDepotErrors, ThrowOnError>({ url: '/depots/{depot}', ...options });
 
 /**
  * Create or update depot info (file manifest)
  */
 export const putDepotInfo = <ThrowOnError extends boolean = false>(options: Options<PutDepotInfoData, ThrowOnError>) => (options.client ?? client).put<PutDepotInfoResponses, PutDepotInfoErrors, ThrowOnError>({
-    url: '/firmwares/{depot}',
+    url: '/depots/{depot}',
     ...options,
     headers: {
         'Content-Type': 'application/json',
@@ -43,24 +43,24 @@ export const putDepotInfo = <ThrowOnError extends boolean = false>(options: Opti
 /**
  * Promote testing channel to stable
  */
-export const releaseDepot = <ThrowOnError extends boolean = false>(options: Options<ReleaseDepotData, ThrowOnError>) => (options.client ?? client).put<ReleaseDepotResponses, ReleaseDepotErrors, ThrowOnError>({ url: '/firmwares/{depot}/@release', ...options });
+export const releaseDepot = <ThrowOnError extends boolean = false>(options: Options<ReleaseDepotData, ThrowOnError>) => (options.client ?? client).put<ReleaseDepotResponses, ReleaseDepotErrors, ThrowOnError>({ url: '/depots/{depot}/@release', ...options });
 
 /**
  * Roll back stable channel to the rollback snapshot
  */
-export const rollbackDepot = <ThrowOnError extends boolean = false>(options: Options<RollbackDepotData, ThrowOnError>) => (options.client ?? client).put<RollbackDepotResponses, RollbackDepotErrors, ThrowOnError>({ url: '/firmwares/{depot}/@rollback', ...options });
+export const rollbackDepot = <ThrowOnError extends boolean = false>(options: Options<RollbackDepotData, ThrowOnError>) => (options.client ?? client).put<RollbackDepotResponses, RollbackDepotErrors, ThrowOnError>({ url: '/depots/{depot}/@rollback', ...options });
 
 /**
  * Get a specific channel release
  */
-export const getChannel = <ThrowOnError extends boolean = false>(options: Options<GetChannelData, ThrowOnError>) => (options.client ?? client).get<GetChannelResponses, GetChannelErrors, ThrowOnError>({ url: '/firmwares/{depot}/{channel}', ...options });
+export const getChannel = <ThrowOnError extends boolean = false>(options: Options<GetChannelData, ThrowOnError>) => (options.client ?? client).get<GetChannelResponses, GetChannelErrors, ThrowOnError>({ url: '/depots/{depot}/channels/{channel}', ...options });
 
 /**
  * Upload a firmware release tarball for a channel
  */
 export const putChannel = <ThrowOnError extends boolean = false>(options: Options<PutChannelData, ThrowOnError>) => (options.client ?? client).put<PutChannelResponses, PutChannelErrors, ThrowOnError>({
     bodySerializer: null,
-    url: '/firmwares/{depot}/{channel}',
+    url: '/depots/{depot}/channels/{channel}',
     ...options,
     headers: {
         'Content-Type': 'application/octet-stream',

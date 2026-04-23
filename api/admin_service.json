@@ -29,7 +29,7 @@
     }
   ],
   "paths": {
-    "/firmwares": {
+    "/depots": {
       "get": {
         "operationId": "listDepots",
         "summary": "List all firmware depots",
@@ -60,7 +60,7 @@
         }
       }
     },
-    "/firmwares/{depot}": {
+    "/depots/{depot}": {
       "get": {
         "operationId": "getDepot",
         "summary": "Get a firmware depot snapshot",
@@ -160,7 +160,7 @@
         }
       }
     },
-    "/firmwares/{depot}/@release": {
+    "/depots/{depot}/@release": {
       "put": {
         "operationId": "releaseDepot",
         "summary": "Promote testing channel to stable",
@@ -216,7 +216,7 @@
         }
       }
     },
-    "/firmwares/{depot}/@rollback": {
+    "/depots/{depot}/@rollback": {
       "put": {
         "operationId": "rollbackDepot",
         "summary": "Roll back stable channel to the rollback snapshot",
@@ -272,7 +272,7 @@
         }
       }
     },
-    "/firmwares/{depot}/{channel}": {
+    "/depots/{depot}/channels/{channel}": {
       "get": {
         "operationId": "getChannel",
         "summary": "Get a specific channel release",

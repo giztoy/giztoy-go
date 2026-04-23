@@ -387,7 +387,7 @@ func uploadFirmware(ctx context.Context, c *gizclaw.Client, depot string, channe
 }
 
 func releaseFirmware(ctx context.Context, c *gizclaw.Client, depot string) (adminservice.Depot, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodPut, "http://gizclaw/firmwares/"+url.PathEscape(depot)+"/@release", nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPut, "http://gizclaw/depots/"+url.PathEscape(depot)+"/@release", nil)
 	if err != nil {
 		return adminservice.Depot{}, err
 	}
@@ -411,7 +411,7 @@ func releaseFirmware(ctx context.Context, c *gizclaw.Client, depot string) (admi
 }
 
 func rollbackFirmware(ctx context.Context, c *gizclaw.Client, depot string) (adminservice.Depot, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodPut, "http://gizclaw/firmwares/"+url.PathEscape(depot)+"/@rollback", nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPut, "http://gizclaw/depots/"+url.PathEscape(depot)+"/@rollback", nil)
 	if err != nil {
 		return adminservice.Depot{}, err
 	}

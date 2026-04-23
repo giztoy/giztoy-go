@@ -188,7 +188,7 @@ export type ListDepotsData = {
     body?: never;
     path?: never;
     query?: never;
-    url: '/firmwares';
+    url: '/depots';
 };
 
 export type ListDepotsErrors = {
@@ -218,7 +218,7 @@ export type GetDepotData = {
         depot: string;
     };
     query?: never;
-    url: '/firmwares/{depot}';
+    url: '/depots/{depot}';
 };
 
 export type GetDepotErrors = {
@@ -248,7 +248,7 @@ export type PutDepotInfoData = {
         depot: string;
     };
     query?: never;
-    url: '/firmwares/{depot}';
+    url: '/depots/{depot}';
 };
 
 export type PutDepotInfoErrors = {
@@ -286,7 +286,7 @@ export type ReleaseDepotData = {
         depot: string;
     };
     query?: never;
-    url: '/firmwares/{depot}/@release';
+    url: '/depots/{depot}/@release';
 };
 
 export type ReleaseDepotErrors = {
@@ -324,7 +324,7 @@ export type RollbackDepotData = {
         depot: string;
     };
     query?: never;
-    url: '/firmwares/{depot}/@rollback';
+    url: '/depots/{depot}/@rollback';
 };
 
 export type RollbackDepotErrors = {
@@ -366,7 +366,7 @@ export type GetChannelData = {
         channel: Channel;
     };
     query?: never;
-    url: '/firmwares/{depot}/{channel}';
+    url: '/depots/{depot}/channels/{channel}';
 };
 
 export type GetChannelErrors = {
@@ -400,7 +400,7 @@ export type PutChannelData = {
         channel: Channel;
     };
     query?: never;
-    url: '/firmwares/{depot}/{channel}';
+    url: '/depots/{depot}/channels/{channel}';
 };
 
 export type PutChannelErrors = {
