@@ -59,6 +59,7 @@ func TestListDepotsHandler(t *testing.T) {
 			t.Fatalf("ListDepots() response = %#v", resp)
 		}
 	})
+
 }
 
 func TestAdminHandlers(t *testing.T) {

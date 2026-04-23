@@ -2,8 +2,7 @@
 // keys. Keys are represented as string slices (e.g., ["user", "profile", "123"])
 // and encoded internally using a configurable separator (default ':').
 //
-// The package includes a BadgerDB-backed implementation for production use and
-// an in-memory implementation for testing.
+// The package uses BadgerDB for both persistent storage and in-memory testing.
 package kv
 
 import (
@@ -66,6 +65,10 @@ type Store interface {
 	Close() error
 }
 
+type listAfterStore interface {
+	ListAfter(ctx context.Context, prefix, after Key, limit int) ([]Entry, error)
+}
+
 // DefaultSeparator is the default separator byte used to encode key segments.
 const DefaultSeparator byte = ':'
 
@@ -124,4 +127,35 @@ func (o *Options) decode(b []byte) Key {
 		k[i] = string(p)
 	}
 	return k
+}
+
+// ListAfter returns up to limit entries under the prefix subtree, strictly
+// after the provided key. Pass nil for after to start from the beginning of
+// the prefix. Stores with a native paging implementation are used directly;
+// older Store implementations fall back to in-process filtering over List.
+func ListAfter(ctx context.Context, store Store, prefix, after Key, limit int) ([]Entry, error) {
+	if limit <= 0 {
+		return nil, nil
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	if pager, ok := store.(listAfterStore); ok {
+		return pager.ListAfter(ctx, prefix, after, limit)
+	}
+
+	entries := make([]Entry, 0, limit)
+	for entry, err := range store.List(ctx, prefix) {
+		if err != nil {
+			return nil, err
+		}
+		if len(after) > 0 && strings.Compare(entry.Key.String(), after.String()) <= 0 {
+			continue
+		}
+		entries = append(entries, entry)
+		if len(entries) >= limit {
+			break
+		}
+	}
+	return entries, nil
 }

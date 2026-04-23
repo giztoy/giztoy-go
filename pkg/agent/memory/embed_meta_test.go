@@ -9,7 +9,7 @@ import (
 
 func TestEmbedMetaModelMismatch(t *testing.T) {
 	ctx := context.Background()
-	store := kv.NewMemory(&kv.Options{Separator: testSep})
+	store := mustBadgerInMemory(t, &kv.Options{Separator: testSep})
 	fs := &testDirFS{root: t.TempDir()}
 
 	baseEmb := newMockEmbedder()
@@ -26,7 +26,7 @@ func TestEmbedMetaModelMismatch(t *testing.T) {
 
 func TestEmbedMetaDimensionMismatch(t *testing.T) {
 	ctx := context.Background()
-	store := kv.NewMemory(&kv.Options{Separator: testSep})
+	store := mustBadgerInMemory(t, &kv.Options{Separator: testSep})
 	fs := &testDirFS{root: t.TempDir()}
 
 	baseEmb := newMockEmbedder()
@@ -43,7 +43,7 @@ func TestEmbedMetaDimensionMismatch(t *testing.T) {
 
 func TestOpenWithEmbedderModelMismatchAgainstHost(t *testing.T) {
 	ctx := context.Background()
-	store := kv.NewMemory(&kv.Options{Separator: testSep})
+	store := mustBadgerInMemory(t, &kv.Options{Separator: testSep})
 
 	hostEmb := newMockEmbedder()
 	host, err := NewHost(ctx, HostConfig{Store: store, Embedder: hostEmb, FS: &testDirFS{root: t.TempDir()}, Separator: testSep})

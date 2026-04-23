@@ -8,7 +8,6 @@ import (
 
 	"github.com/GizClaw/gizclaw-go/pkg/gizclaw/gear"
 	"github.com/GizClaw/gizclaw-go/pkg/giznet"
-	"github.com/GizClaw/gizclaw-go/pkg/store/kv"
 )
 
 func TestGearsSecurityPolicyAllowsAdminServicesForActiveAdmin(t *testing.T) {
@@ -17,7 +16,7 @@ func TestGearsSecurityPolicyAllowsAdminServicesForActiveAdmin(t *testing.T) {
 		t.Fatalf("GenerateKeyPair error = %v", err)
 	}
 
-	service := &gear.Server{Store: kv.NewMemory(nil)}
+	service := &gear.Server{Store: mustBadgerInMemory(t, nil)}
 	if _, err := service.SaveGear(context.Background(), apitypes.Gear{
 		PublicKey:     keyPair.Public.String(),
 		Role:          apitypes.GearRoleAdmin,
@@ -62,7 +61,7 @@ func TestGearsSecurityPolicyDeniesAdminServicesForBlockedAdmin(t *testing.T) {
 		t.Fatalf("GenerateKeyPair error = %v", err)
 	}
 
-	service := &gear.Server{Store: kv.NewMemory(nil)}
+	service := &gear.Server{Store: mustBadgerInMemory(t, nil)}
 	ctx := context.Background()
 	if _, err := service.SaveGear(ctx, apitypes.Gear{
 		PublicKey:     keyPair.Public.String(),

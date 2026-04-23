@@ -11,7 +11,6 @@ import (
 	"github.com/GizClaw/gizclaw-go/pkg/gizclaw/gear"
 	"github.com/GizClaw/gizclaw-go/pkg/giznet"
 	"github.com/GizClaw/gizclaw-go/pkg/store/depotstore"
-	"github.com/GizClaw/gizclaw-go/pkg/store/kv"
 )
 
 func TestServerListenAndServeRequiresGearStore(t *testing.T) {
@@ -33,7 +32,7 @@ func TestServerListenAndServeRequiresDepotStore(t *testing.T) {
 		t.Fatalf("GenerateKeyPair error = %v", err)
 	}
 
-	server := &Server{KeyPair: keyPair, GearStore: kv.NewMemory(nil)}
+	server := &Server{KeyPair: keyPair, GearStore: mustBadgerInMemory(t, nil)}
 	err = server.ListenAndServe(nil)
 	if !errors.Is(err, ErrNilDepotStore) {
 		t.Fatalf("ListenAndServe error = %v, want %v", err, ErrNilDepotStore)
@@ -118,7 +117,7 @@ func TestServerAllowPeerServiceDefaults(t *testing.T) {
 
 func TestResolveGearTarget(t *testing.T) {
 	ctx := context.Background()
-	store := kv.NewMemory(nil)
+	store := mustBadgerInMemory(t, nil)
 	gearsServer := &gear.Server{Store: store}
 
 	saveGear := func(t *testing.T, publicKey string, device apitypes.DeviceInfo, config apitypes.Configuration) {

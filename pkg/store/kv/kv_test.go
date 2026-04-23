@@ -10,12 +10,13 @@ import (
 	"github.com/GizClaw/gizclaw-go/pkg/store/kv"
 )
 
-// storeFactory creates a new Store for testing. Tests in this file use the
-// Memory implementation, but the same test logic can be reused for other
-// backends by changing the factory.
+// storeFactory creates a new Store for testing.
 func newTestStore(t *testing.T, opts *kv.Options) kv.Store {
 	t.Helper()
-	s := kv.NewMemory(opts)
+	s, err := kv.NewBadgerInMemory(opts)
+	if err != nil {
+		t.Fatalf("NewBadgerInMemory: %v", err)
+	}
 	t.Cleanup(func() { s.Close() })
 	return s
 }
@@ -154,6 +155,45 @@ func TestListPrefixBoundary(t *testing.T) {
 	want := []string{"ab:1", "ab:3"}
 	if !slices.Equal(got, want) {
 		t.Fatalf("List ab = %v, want %v", got, want)
+	}
+}
+
+func TestListAfter(t *testing.T) {
+	ctx := context.Background()
+	s := newTestStore(t, nil)
+
+	entries := []kv.Entry{
+		{Key: kv.Key{"m1", "g", "e", "Alice"}, Value: []byte("a")},
+		{Key: kv.Key{"m1", "g", "e", "Bob"}, Value: []byte("b")},
+		{Key: kv.Key{"m1", "g", "e", "Carol"}, Value: []byte("c")},
+		{Key: kv.Key{"m1", "g", "r", "Alice", "knows", "Bob"}, Value: []byte("r1")},
+	}
+	if err := s.BatchSet(ctx, entries); err != nil {
+		t.Fatalf("BatchSet: %v", err)
+	}
+
+	got, err := kv.ListAfter(ctx, s, kv.Key{"m1", "g", "e"}, nil, 2)
+	if err != nil {
+		t.Fatalf("ListAfter first page: %v", err)
+	}
+	if len(got) != 2 || got[0].Key.String() != "m1:g:e:Alice" || got[1].Key.String() != "m1:g:e:Bob" {
+		t.Fatalf("ListAfter first page = %+v", got)
+	}
+
+	got, err = kv.ListAfter(ctx, s, kv.Key{"m1", "g", "e"}, got[len(got)-1].Key, 2)
+	if err != nil {
+		t.Fatalf("ListAfter second page: %v", err)
+	}
+	if len(got) != 1 || got[0].Key.String() != "m1:g:e:Carol" {
+		t.Fatalf("ListAfter second page = %+v", got)
+	}
+
+	got, err = kv.ListAfter(ctx, s, kv.Key{"m1", "g", "e"}, kv.Key{"m1", "g", "e", "Zed"}, 2)
+	if err != nil {
+		t.Fatalf("ListAfter after end: %v", err)
+	}
+	if len(got) != 0 {
+		t.Fatalf("ListAfter after end = %+v, want empty", got)
 	}
 }
 

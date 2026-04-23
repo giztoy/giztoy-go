@@ -1,0 +1,17 @@
+package gizclaw_test
+
+import (
+	"testing"
+
+	"github.com/GizClaw/gizclaw-go/pkg/store/kv"
+)
+
+func mustBadgerInMemory(t testing.TB, opts *kv.Options) kv.Store {
+	t.Helper()
+	store, err := kv.NewBadgerInMemory(opts)
+	if err != nil {
+		t.Fatalf("NewBadgerInMemory: %v", err)
+	}
+	t.Cleanup(func() { _ = store.Close() })
+	return store
+}

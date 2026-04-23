@@ -10,7 +10,6 @@ import (
 	"github.com/GizClaw/gizclaw-go/pkg/gizclaw/api/adminservice"
 	"github.com/GizClaw/gizclaw-go/pkg/gizclaw/api/gearservice"
 	"github.com/GizClaw/gizclaw-go/pkg/gizclaw/api/serverpublic"
-	"github.com/GizClaw/gizclaw-go/pkg/store/kv"
 )
 
 type stubPeerManager struct {
@@ -30,7 +29,7 @@ func (m stubPeerManager) RefreshGear(context.Context, string) (adminservice.Refr
 
 func TestServerGearserviceHandlers(t *testing.T) {
 	server := &Server{
-		Store: kv.NewMemory(nil),
+		Store: mustBadgerInMemory(t, nil),
 	}
 
 	ctx := serverpublic.WithCallerPublicKey(context.Background(), "peer-gear")
@@ -246,11 +245,199 @@ func TestServerGearserviceHandlers(t *testing.T) {
 	}
 }
 
+func TestServerListGearsPagination(t *testing.T) {
+	server := &Server{
+		Store: mustBadgerInMemory(t, nil),
+	}
+
+	registerGear := func(publicKey, labelValue string) {
+		ctx := serverpublic.WithCallerPublicKey(context.Background(), publicKey)
+		_, err := server.RegisterGear(ctx, serverpublic.RegisterGearRequestObject{
+			Body: &serverpublic.RegisterGearJSONRequestBody{
+				Device: apitypes.DeviceInfo{
+					Hardware: &apitypes.HardwareInfo{
+						Labels: &[]apitypes.GearLabel{{Key: "region", Value: labelValue}},
+					},
+				},
+			},
+		})
+		if err != nil {
+			t.Fatalf("RegisterGear(%q) error: %v", publicKey, err)
+		}
+	}
+
+	registerGear("gear-a", "cn")
+	registerGear("gear-b", "cn")
+	registerGear("gear-c", "us")
+
+	limit := adminservice.Limit(1)
+	resp, err := server.ListGears(context.Background(), adminservice.ListGearsRequestObject{
+		Params: adminservice.ListGearsParams{
+			Limit: &limit,
+		},
+	})
+	if err != nil {
+		t.Fatalf("ListGears pagination error: %v", err)
+	}
+	listed, ok := resp.(adminservice.ListGears200JSONResponse)
+	if !ok {
+		t.Fatalf("ListGears response type = %T", resp)
+	}
+	if !listed.HasNext || listed.NextCursor == nil || *listed.NextCursor != "gear-a" {
+		t.Fatalf("ListGears pagination metadata = %+v", listed)
+	}
+	if len(listed.Items) != 1 || listed.Items[0].PublicKey != "gear-a" {
+		t.Fatalf("ListGears paged items = %+v", listed.Items)
+	}
+
+	firstFilteredResp, err := server.ListByLabel(context.Background(), adminservice.ListByLabelRequestObject{
+		Key:   "region",
+		Value: "cn",
+		Params: adminservice.ListByLabelParams{
+			Limit: &limit,
+		},
+	})
+	if err != nil {
+		t.Fatalf("ListByLabel pagination error: %v", err)
+	}
+	firstFiltered, ok := firstFilteredResp.(adminservice.ListByLabel200JSONResponse)
+	if !ok {
+		t.Fatalf("ListByLabel response type = %T", firstFilteredResp)
+	}
+	if !firstFiltered.HasNext || firstFiltered.NextCursor == nil || *firstFiltered.NextCursor != "gear-a" {
+		t.Fatalf("ListByLabel first page metadata = %+v", firstFiltered)
+	}
+
+	filteredResp, err := server.ListByLabel(context.Background(), adminservice.ListByLabelRequestObject{
+		Key:   "region",
+		Value: "cn",
+		Params: adminservice.ListByLabelParams{
+			Cursor: firstFiltered.NextCursor,
+			Limit:  &limit,
+		},
+	})
+	if err != nil {
+		t.Fatalf("ListByLabel second page error: %v", err)
+	}
+	filtered, ok := filteredResp.(adminservice.ListByLabel200JSONResponse)
+	if !ok {
+		t.Fatalf("ListByLabel second response type = %T", filteredResp)
+	}
+	if filtered.HasNext || filtered.NextCursor != nil {
+		t.Fatalf("ListByLabel pagination metadata = %+v", filtered)
+	}
+	if len(filtered.Items) != 1 || filtered.Items[0].PublicKey != "gear-b" {
+		t.Fatalf("ListByLabel paged items = %+v", filtered.Items)
+	}
+}
+
+func TestServerListGearsPaginationPreservesCreationOrder(t *testing.T) {
+	server := &Server{
+		Store: mustBadgerInMemory(t, nil),
+	}
+
+	registerGear := func(publicKey string) {
+		ctx := serverpublic.WithCallerPublicKey(context.Background(), publicKey)
+		_, err := server.RegisterGear(ctx, serverpublic.RegisterGearRequestObject{
+			Body: &serverpublic.RegisterGearJSONRequestBody{
+				Device: apitypes.DeviceInfo{},
+			},
+		})
+		if err != nil {
+			t.Fatalf("RegisterGear(%q) error: %v", publicKey, err)
+		}
+	}
+
+	registerGear("gear-b")
+	registerGear("gear-a")
+	registerGear("gear-c")
+
+	limit := adminservice.Limit(2)
+	resp, err := server.ListGears(context.Background(), adminservice.ListGearsRequestObject{
+		Params: adminservice.ListGearsParams{Limit: &limit},
+	})
+	if err != nil {
+		t.Fatalf("ListGears first page error: %v", err)
+	}
+	firstPage, ok := resp.(adminservice.ListGears200JSONResponse)
+	if !ok {
+		t.Fatalf("ListGears first response type = %T", resp)
+	}
+	if len(firstPage.Items) != 2 || firstPage.Items[0].PublicKey != "gear-b" || firstPage.Items[1].PublicKey != "gear-a" {
+		t.Fatalf("ListGears first page = %+v", firstPage.Items)
+	}
+	if !firstPage.HasNext || firstPage.NextCursor == nil || *firstPage.NextCursor != "gear-a" {
+		t.Fatalf("ListGears first page metadata = %+v", firstPage)
+	}
+
+	resp, err = server.ListGears(context.Background(), adminservice.ListGearsRequestObject{
+		Params: adminservice.ListGearsParams{
+			Cursor: firstPage.NextCursor,
+			Limit:  &limit,
+		},
+	})
+	if err != nil {
+		t.Fatalf("ListGears second page error: %v", err)
+	}
+	secondPage, ok := resp.(adminservice.ListGears200JSONResponse)
+	if !ok {
+		t.Fatalf("ListGears second response type = %T", resp)
+	}
+	if len(secondPage.Items) != 1 || secondPage.Items[0].PublicKey != "gear-c" {
+		t.Fatalf("ListGears second page = %+v", secondPage.Items)
+	}
+}
+
+func TestServerListGearsLimitClampsToConfiguredBounds(t *testing.T) {
+	server := &Server{
+		Store: mustBadgerInMemory(t, nil),
+	}
+	for _, publicKey := range []string{"gear-a", "gear-b", "gear-c"} {
+		ctx := serverpublic.WithCallerPublicKey(context.Background(), publicKey)
+		_, err := server.RegisterGear(ctx, serverpublic.RegisterGearRequestObject{
+			Body: &serverpublic.RegisterGearJSONRequestBody{Device: apitypes.DeviceInfo{}},
+		})
+		if err != nil {
+			t.Fatalf("RegisterGear(%q) error: %v", publicKey, err)
+		}
+	}
+
+	zero := adminservice.Limit(0)
+	resp, err := server.ListGears(context.Background(), adminservice.ListGearsRequestObject{
+		Params: adminservice.ListGearsParams{Limit: &zero},
+	})
+	if err != nil {
+		t.Fatalf("ListGears zero limit error: %v", err)
+	}
+	defaultPage, ok := resp.(adminservice.ListGears200JSONResponse)
+	if !ok {
+		t.Fatalf("ListGears zero limit response type = %T", resp)
+	}
+	if len(defaultPage.Items) != 3 || defaultPage.HasNext {
+		t.Fatalf("ListGears zero limit = %+v", defaultPage)
+	}
+
+	tooLarge := adminservice.Limit(999)
+	resp, err = server.ListGears(context.Background(), adminservice.ListGearsRequestObject{
+		Params: adminservice.ListGearsParams{Limit: &tooLarge},
+	})
+	if err != nil {
+		t.Fatalf("ListGears large limit error: %v", err)
+	}
+	clampedPage, ok := resp.(adminservice.ListGears200JSONResponse)
+	if !ok {
+		t.Fatalf("ListGears large limit response type = %T", resp)
+	}
+	if len(clampedPage.Items) != 3 || clampedPage.HasNext {
+		t.Fatalf("ListGears large limit = %+v", clampedPage)
+	}
+}
+
 func TestServerRuntimeHandlers(t *testing.T) {
 	now := time.Unix(1_700_200_000, 0).UTC()
 	runtimeAddr := "10.0.0.1:1234"
 	server := &Server{
-		Store: kv.NewMemory(nil),
+		Store: mustBadgerInMemory(t, nil),
 		PeerManager: stubPeerManager{
 			runtime: apitypes.Runtime{
 				LastAddr:   &runtimeAddr,
@@ -322,7 +509,7 @@ func TestServerRuntimeHandlers(t *testing.T) {
 func TestServerPublicHandlers(t *testing.T) {
 	before := time.Now()
 	server := &Server{
-		Store:              kv.NewMemory(nil),
+		Store:              mustBadgerInMemory(t, nil),
 		RegistrationTokens: map[string]apitypes.GearRole{"admin": apitypes.GearRoleAdmin},
 		BuildCommit:        "deadbeef",
 		ServerPublicKey:    "server-pk",
@@ -415,7 +602,7 @@ func TestServerPublicHandlersPutInfoConfigAndRuntime(t *testing.T) {
 	now := time.Unix(1_700_500_000, 0).UTC()
 	runtimeAddr := "10.0.0.1:8888"
 	server := &Server{
-		Store: kv.NewMemory(nil),
+		Store: mustBadgerInMemory(t, nil),
 		PeerManager: stubPeerManager{
 			runtime: apitypes.Runtime{
 				LastAddr:   &runtimeAddr,

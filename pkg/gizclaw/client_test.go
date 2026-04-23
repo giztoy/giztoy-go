@@ -17,7 +17,6 @@ import (
 	"github.com/GizClaw/gizclaw-go/pkg/gizclaw/gear"
 	"github.com/GizClaw/gizclaw-go/pkg/giznet"
 	"github.com/GizClaw/gizclaw-go/pkg/store/depotstore"
-	"github.com/GizClaw/gizclaw-go/pkg/store/kv"
 )
 
 func TestClientDialAndServeValidation(t *testing.T) {
@@ -97,7 +96,7 @@ func TestClientProxyMuxRoutesRemoteServices(t *testing.T) {
 	defer cleanup()
 
 	gearServer := &gear.Server{
-		Store:           kv.NewMemory(nil),
+		Store:           mustBadgerInMemory(t, nil),
 		BuildCommit:     "test-build",
 		ServerPublicKey: "server-pk",
 	}

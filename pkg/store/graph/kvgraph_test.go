@@ -13,7 +13,7 @@ import (
 
 func newTestGraph(t *testing.T) graph.Graph {
 	t.Helper()
-	store := kv.NewMemory(nil)
+	store := mustBadgerInMemory(t, nil)
 	t.Cleanup(func() { store.Close() })
 	return graph.NewKVGraph(store, kv.Key{"test", "g"})
 }
@@ -616,7 +616,7 @@ func TestExpand_MultipleSeeds(t *testing.T) {
 
 func setupBenchGraph(b *testing.B, nEntities, nRelations int) graph.Graph {
 	b.Helper()
-	store := kv.NewMemory(nil)
+	store := mustBadgerInMemory(b, nil)
 	g := graph.NewKVGraph(store, kv.Key{"bench", "g"})
 	ctx := context.Background()
 
@@ -646,7 +646,7 @@ func setupBenchGraph(b *testing.B, nEntities, nRelations int) graph.Graph {
 }
 
 func BenchmarkSetEntity(b *testing.B) {
-	store := kv.NewMemory(nil)
+	store := mustBadgerInMemory(b, nil)
 	g := graph.NewKVGraph(store, kv.Key{"bench", "g"})
 	ctx := context.Background()
 
@@ -684,7 +684,7 @@ func BenchmarkMergeAttrs(b *testing.B) {
 }
 
 func BenchmarkAddRelation(b *testing.B) {
-	store := kv.NewMemory(nil)
+	store := mustBadgerInMemory(b, nil)
 	g := graph.NewKVGraph(store, kv.Key{"bench", "g"})
 	ctx := context.Background()
 
@@ -700,7 +700,7 @@ func BenchmarkAddRelation(b *testing.B) {
 
 func BenchmarkRelations(b *testing.B) {
 	// Create a hub entity with many relations.
-	store := kv.NewMemory(nil)
+	store := mustBadgerInMemory(b, nil)
 	g := graph.NewKVGraph(store, kv.Key{"bench", "g"})
 	ctx := context.Background()
 

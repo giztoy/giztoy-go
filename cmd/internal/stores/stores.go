@@ -192,7 +192,7 @@ func (r *Stores) Close() error {
 func (r *Stores) newKV(name string, cfg Config) (kv.Store, error) {
 	switch cfg.Backend {
 	case "memory":
-		return kv.NewMemory(nil), nil
+		return kv.NewBadgerInMemory(nil)
 	case "badger":
 		if cfg.Dir == "" {
 			return nil, fmt.Errorf("stores: keyvalue %q (badger) requires dir", name)

@@ -25,7 +25,10 @@ func NewMemory(opts *Options) *Memory {
 	}
 }
 
-func (m *Memory) Get(_ context.Context, key Key) ([]byte, error) {
+func (m *Memory) Get(ctx context.Context, key Key) ([]byte, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	k := string(m.opts.encode(key))
 	m.mu.RLock()
 	v, ok := m.data[k]
@@ -33,13 +36,15 @@ func (m *Memory) Get(_ context.Context, key Key) ([]byte, error) {
 	if !ok {
 		return nil, ErrNotFound
 	}
-	// Return a copy to prevent mutation.
 	cp := make([]byte, len(v))
 	copy(cp, v)
 	return cp, nil
 }
 
-func (m *Memory) Set(_ context.Context, key Key, value []byte) error {
+func (m *Memory) Set(ctx context.Context, key Key, value []byte) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	k := string(m.opts.encode(key))
 	cp := make([]byte, len(value))
 	copy(cp, value)
@@ -49,7 +54,10 @@ func (m *Memory) Set(_ context.Context, key Key, value []byte) error {
 	return nil
 }
 
-func (m *Memory) Delete(_ context.Context, key Key) error {
+func (m *Memory) Delete(ctx context.Context, key Key) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	k := string(m.opts.encode(key))
 	m.mu.Lock()
 	delete(m.data, k)
@@ -57,41 +65,46 @@ func (m *Memory) Delete(_ context.Context, key Key) error {
 	return nil
 }
 
-func (m *Memory) List(_ context.Context, prefix Key) iter.Seq2[Entry, error] {
-	p := m.opts.encode(prefix)
-	// Append separator so "a:b" prefix doesn't match "a:bc".
-	// But if prefix is empty, scan everything.
-	var prefixBytes []byte
-	if len(p) > 0 {
-		prefixBytes = append(p, m.opts.sep())
-	}
-
-	// Snapshot matching keys under read lock.
-	m.mu.RLock()
-	type kv struct {
-		key string
-		val []byte
-	}
-	var matches []kv
-	for k, v := range m.data {
-		if len(prefixBytes) == 0 || bytes.HasPrefix([]byte(k), prefixBytes) {
-			cp := make([]byte, len(v))
-			copy(cp, v)
-			matches = append(matches, kv{k, cp})
-		}
-	}
-	m.mu.RUnlock()
-
-	// Sort for deterministic lexicographic order.
-	sort.Slice(matches, func(i, j int) bool {
-		return matches[i].key < matches[j].key
-	})
-
+func (m *Memory) List(ctx context.Context, prefix Key) iter.Seq2[Entry, error] {
 	return func(yield func(Entry, error) bool) {
-		for _, kv := range matches {
+		if err := ctx.Err(); err != nil {
+			yield(Entry{}, err)
+			return
+		}
+
+		p := m.opts.encode(prefix)
+		var prefixBytes []byte
+		if len(p) > 0 {
+			prefixBytes = append(p, m.opts.sep())
+		}
+
+		m.mu.RLock()
+		type pair struct {
+			key string
+			val []byte
+		}
+		var matches []pair
+		for k, v := range m.data {
+			if len(prefixBytes) == 0 || bytes.HasPrefix([]byte(k), prefixBytes) {
+				cp := make([]byte, len(v))
+				copy(cp, v)
+				matches = append(matches, pair{key: k, val: cp})
+			}
+		}
+		m.mu.RUnlock()
+
+		sort.Slice(matches, func(i, j int) bool {
+			return matches[i].key < matches[j].key
+		})
+
+		for _, match := range matches {
+			if err := ctx.Err(); err != nil {
+				yield(Entry{}, err)
+				return
+			}
 			entry := Entry{
-				Key:   m.opts.decode([]byte(kv.key)),
-				Value: kv.val,
+				Key:   m.opts.decode([]byte(match.key)),
+				Value: match.val,
 			}
 			if !yield(entry, nil) {
 				return
@@ -100,7 +113,36 @@ func (m *Memory) List(_ context.Context, prefix Key) iter.Seq2[Entry, error] {
 	}
 }
 
-func (m *Memory) BatchSet(_ context.Context, entries []Entry) error {
+// ListAfter returns up to limit entries under the prefix subtree, strictly
+// after the provided key.
+func (m *Memory) ListAfter(ctx context.Context, prefix, after Key, limit int) ([]Entry, error) {
+	if limit <= 0 {
+		return nil, nil
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
+	entries := make([]Entry, 0, limit)
+	for entry, err := range m.List(ctx, prefix) {
+		if err != nil {
+			return nil, err
+		}
+		if len(after) > 0 && entry.Key.String() <= after.String() {
+			continue
+		}
+		entries = append(entries, entry)
+		if len(entries) >= limit {
+			break
+		}
+	}
+	return entries, nil
+}
+
+func (m *Memory) BatchSet(ctx context.Context, entries []Entry) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	for _, e := range entries {
@@ -112,7 +154,10 @@ func (m *Memory) BatchSet(_ context.Context, entries []Entry) error {
 	return nil
 }
 
-func (m *Memory) BatchDelete(_ context.Context, keys []Key) error {
+func (m *Memory) BatchDelete(ctx context.Context, keys []Key) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	for _, key := range keys {
@@ -125,3 +170,5 @@ func (m *Memory) BatchDelete(_ context.Context, keys []Key) error {
 func (m *Memory) Close() error {
 	return nil
 }
+
+var _ Store = (*Memory)(nil)

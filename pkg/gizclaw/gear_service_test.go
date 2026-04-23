@@ -15,7 +15,6 @@ import (
 	"github.com/GizClaw/gizclaw-go/pkg/giznet"
 	"github.com/GizClaw/gizclaw-go/pkg/giznet/gizhttp"
 	"github.com/GizClaw/gizclaw-go/pkg/store/depotstore"
-	"github.com/GizClaw/gizclaw-go/pkg/store/kv"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/adaptor"
 )
@@ -220,7 +219,7 @@ func TestIntegrationGearServiceServeConnClientCloseUnblocksAndMarksPeerOffline(t
 
 	server := &Server{
 		KeyPair:         serverKey,
-		GearStore:       kv.NewMemory(nil),
+		GearStore:       mustBadgerInMemory(t, nil),
 		DepotStore:      depotstore.Dir(t.TempDir()),
 		BuildCommit:     "test-build",
 		ServerPublicKey: serverKey.Public.String(),

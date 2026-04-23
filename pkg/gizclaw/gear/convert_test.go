@@ -53,7 +53,7 @@ func TestConvertHelpers(t *testing.T) {
 		t.Fatalf("toPublicRegistrationResult = %+v", result)
 	}
 
-	adminRegistrations := toAdminRegistrationList([]apitypes.Gear{gear})
+	adminRegistrations := toAdminRegistrationList([]apitypes.Gear{gear}, false, nil)
 	if len(adminRegistrations.Items) != 1 || adminRegistrations.Items[0].PublicKey != gear.PublicKey {
 		t.Fatalf("toAdminRegistrationList = %+v", adminRegistrations)
 	}

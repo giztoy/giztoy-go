@@ -1,6 +1,7 @@
 package kv
 
 import (
+	"bytes"
 	"context"
 	"iter"
 
@@ -25,11 +26,20 @@ func NewBadger(dir string, opts *Options) (*Badger, error) {
 	return &Badger{db: db, opts: opts}, nil
 }
 
-func (b *Badger) Get(_ context.Context, key Key) ([]byte, error) {
+func (b *Badger) Get(ctx context.Context, key Key) ([]byte, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	var val []byte
 	err := b.db.View(func(txn *badger.Txn) error {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
 		item, err := txn.Get(b.opts.encode(key))
 		if err != nil {
+			return err
+		}
+		if err := ctx.Err(); err != nil {
 			return err
 		}
 		val, err = item.ValueCopy(nil)
@@ -41,14 +51,26 @@ func (b *Badger) Get(_ context.Context, key Key) ([]byte, error) {
 	return val, err
 }
 
-func (b *Badger) Set(_ context.Context, key Key, value []byte) error {
+func (b *Badger) Set(ctx context.Context, key Key, value []byte) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	return b.db.Update(func(txn *badger.Txn) error {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
 		return txn.Set(b.opts.encode(key), value)
 	})
 }
 
-func (b *Badger) Delete(_ context.Context, key Key) error {
+func (b *Badger) Delete(ctx context.Context, key Key) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	err := b.db.Update(func(txn *badger.Txn) error {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
 		return txn.Delete(b.opts.encode(key))
 	})
 	if err == badger.ErrKeyNotFound {
@@ -57,15 +79,25 @@ func (b *Badger) Delete(_ context.Context, key Key) error {
 	return err
 }
 
-func (b *Badger) List(_ context.Context, prefix Key) iter.Seq2[Entry, error] {
+func (b *Badger) List(ctx context.Context, prefix Key) iter.Seq2[Entry, error] {
 	return func(yield func(Entry, error) bool) {
+		if err := ctx.Err(); err != nil {
+			yield(Entry{}, err)
+			return
+		}
 		err := b.db.View(func(txn *badger.Txn) error {
+			if err := ctx.Err(); err != nil {
+				return err
+			}
 			iterOpts := badger.DefaultIteratorOptions
 			iterOpts.Prefix = b.listPrefix(prefix)
 			it := txn.NewIterator(iterOpts)
 			defer it.Close()
 
 			for it.Seek(iterOpts.Prefix); it.Valid(); it.Next() {
+				if err := ctx.Err(); err != nil {
+					return err
+				}
 				item := it.Item()
 				val, err := item.ValueCopy(nil)
 				if err != nil {
@@ -90,9 +122,85 @@ func (b *Badger) List(_ context.Context, prefix Key) iter.Seq2[Entry, error] {
 	}
 }
 
-func (b *Badger) BatchSet(_ context.Context, entries []Entry) error {
+func (b *Badger) ListAfter(ctx context.Context, prefix, after Key, limit int) ([]Entry, error) {
+	if limit <= 0 {
+		return nil, nil
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
+	entries := make([]Entry, 0, limit)
+	prefixBytes := b.listPrefix(prefix)
+
+	var afterBytes []byte
+	if len(after) > 0 {
+		afterBytes = b.opts.encode(after)
+	}
+
+	err := b.db.View(func(txn *badger.Txn) error {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		iterOpts := badger.DefaultIteratorOptions
+		iterOpts.Prefix = prefixBytes
+		it := txn.NewIterator(iterOpts)
+		defer it.Close()
+
+		switch {
+		case len(afterBytes) > 0 && len(prefixBytes) > 0 && bytes.Compare(afterBytes, prefixBytes) < 0:
+			it.Seek(prefixBytes)
+		case len(afterBytes) > 0:
+			it.Seek(afterBytes)
+		case len(prefixBytes) > 0:
+			it.Seek(prefixBytes)
+		default:
+			it.Rewind()
+		}
+
+		for ; it.Valid(); it.Next() {
+			if err := ctx.Err(); err != nil {
+				return err
+			}
+			if len(prefixBytes) > 0 && !it.ValidForPrefix(prefixBytes) {
+				break
+			}
+
+			item := it.Item()
+			key := item.KeyCopy(nil)
+			if len(afterBytes) > 0 && bytes.Equal(key, afterBytes) {
+				continue
+			}
+
+			val, err := item.ValueCopy(nil)
+			if err != nil {
+				return err
+			}
+			entries = append(entries, Entry{
+				Key:   b.opts.decode(key),
+				Value: val,
+			})
+			if len(entries) >= limit {
+				break
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return entries, nil
+}
+
+func (b *Badger) BatchSet(ctx context.Context, entries []Entry) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	return b.db.Update(func(txn *badger.Txn) error {
 		for _, e := range entries {
+			if err := ctx.Err(); err != nil {
+				return err
+			}
 			if err := txn.Set(b.opts.encode(e.Key), e.Value); err != nil {
 				return err
 			}
@@ -101,9 +209,15 @@ func (b *Badger) BatchSet(_ context.Context, entries []Entry) error {
 	})
 }
 
-func (b *Badger) BatchDelete(_ context.Context, keys []Key) error {
+func (b *Badger) BatchDelete(ctx context.Context, keys []Key) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	return b.db.Update(func(txn *badger.Txn) error {
 		for _, k := range keys {
+			if err := ctx.Err(); err != nil {
+				return err
+			}
 			if err := txn.Delete(b.opts.encode(k)); err != nil && err != badger.ErrKeyNotFound {
 				return err
 			}

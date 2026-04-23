@@ -20,12 +20,16 @@ func convertViaJSON[T any](in any) (T, error) {
 	return out, nil
 }
 
-func toAdminRegistrationList(items []apitypes.Gear) adminservice.RegistrationList {
+func toAdminRegistrationList(items []apitypes.Gear, hasNext bool, nextCursor *string) adminservice.RegistrationList {
 	out := make([]apitypes.Registration, 0, len(items))
 	for _, item := range items {
 		out = append(out, toAdminRegistration(item))
 	}
-	return adminservice.RegistrationList{Items: out}
+	return adminservice.RegistrationList{
+		HasNext:    hasNext,
+		Items:      out,
+		NextCursor: nextCursor,
+	}
 }
 
 func toAdminRegistration(gear apitypes.Gear) apitypes.Registration {

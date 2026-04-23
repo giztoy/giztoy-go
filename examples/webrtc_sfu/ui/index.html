@@ -1,0 +1,430 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>WebRTC SFU Example</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        font-family: Inter, system-ui, sans-serif;
+      }
+      body {
+        margin: 0;
+        background: #0f172a;
+        color: #e2e8f0;
+      }
+      .page {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 24px;
+      }
+      h1, h2 {
+        margin: 0 0 12px;
+      }
+      .row {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+      .card {
+        background: #111827;
+        border: 1px solid #334155;
+        border-radius: 12px;
+        padding: 16px;
+      }
+      .controls {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 12px;
+        margin-bottom: 16px;
+      }
+      label {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        font-size: 14px;
+      }
+      input, button {
+        border-radius: 10px;
+        border: 1px solid #475569;
+        background: #0f172a;
+        color: inherit;
+        padding: 10px 12px;
+        font: inherit;
+      }
+      button {
+        cursor: pointer;
+        background: #2563eb;
+        border-color: #2563eb;
+        font-weight: 600;
+      }
+      button.secondary {
+        background: #1e293b;
+        border-color: #475569;
+      }
+      video, audio {
+        width: 100%;
+        background: black;
+        border-radius: 10px;
+      }
+      .videos {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        gap: 16px;
+        margin-bottom: 16px;
+      }
+      .peer-list {
+        margin: 0;
+        padding-left: 20px;
+      }
+      .chat-log {
+        height: 220px;
+        overflow: auto;
+        background: #020617;
+        border: 1px solid #334155;
+        border-radius: 10px;
+        padding: 12px;
+        font-family: ui-monospace, monospace;
+        font-size: 13px;
+        white-space: pre-wrap;
+      }
+      .muted {
+        color: #94a3b8;
+      }
+      .footer {
+        margin-top: 8px;
+        font-size: 13px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <h1>WebRTC + Signaling + Simple SFU</h1>
+      <p class="muted">
+        One browser tab creates a WebRTC connection to the Go server. The server acts
+        as the signaling endpoint and a minimal SFU that forwards media tracks between peers.
+      </p>
+
+      <div class="card">
+        <div class="controls">
+          <label>
+            Room
+            <input id="room" value="demo" />
+          </label>
+          <label>
+            Name
+            <input id="name" value="guest" />
+          </label>
+          <label>
+            Status
+            <input id="status" value="idle" readonly />
+          </label>
+        </div>
+        <div class="row">
+          <button id="connect">Connect</button>
+          <button id="disconnect" class="secondary">Disconnect</button>
+        </div>
+        <div class="footer muted">
+          Open this page in two browser tabs to see SFU forwarding and data channel chat.
+        </div>
+      </div>
+
+      <div class="videos">
+        <div class="card">
+          <h2>Local</h2>
+          <video id="localVideo" autoplay playsinline muted></video>
+        </div>
+        <div class="card">
+          <h2>Remote Media</h2>
+          <div id="remoteMedia"></div>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="card" style="flex: 1 1 280px;">
+          <h2>Peers</h2>
+          <ul id="peers" class="peer-list"></ul>
+        </div>
+        <div class="card" style="flex: 2 1 420px;">
+          <h2>Data Channel Chat</h2>
+          <div id="chatLog" class="chat-log"></div>
+          <div class="row" style="margin-top: 12px;">
+            <input id="chatInput" style="flex: 1 1 auto;" placeholder="Type a message" />
+            <button id="sendChat">Send</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const state = {
+        pc: null,
+        ws: null,
+        localStream: null,
+        chatChannel: null,
+        remoteStreams: new Map(),
+        peerID: "",
+        pendingCandidates: [],
+      };
+
+      const $ = (id) => document.getElementById(id);
+
+      function setStatus(text) {
+        $("status").value = text;
+      }
+
+      function logChat(text) {
+        const el = $("chatLog");
+        el.textContent += `${text}\n`;
+        el.scrollTop = el.scrollHeight;
+      }
+
+      function renderPeers(peers) {
+        const el = $("peers");
+        el.innerHTML = "";
+        peers.forEach((peer) => {
+          const item = document.createElement("li");
+          item.textContent = `${peer.name} (${peer.id})`;
+          if (peer.id === state.peerID) {
+            item.textContent += " [you]";
+          }
+          el.appendChild(item);
+        });
+      }
+
+      function attachRemoteTrack(event) {
+        const stream = event.streams[0] || new MediaStream([event.track]);
+        const key = stream.id || `${event.track.kind}-${event.track.id}`;
+        let box = state.remoteStreams.get(key);
+        if (!box) {
+          box = document.createElement("div");
+          box.className = "card";
+          box.style.marginTop = "12px";
+          const title = document.createElement("div");
+          title.className = "muted";
+          title.textContent = key;
+          box.appendChild(title);
+          state.remoteStreams.set(key, box);
+          $("remoteMedia").appendChild(box);
+        }
+
+        let media = box.querySelector(event.track.kind);
+        if (!media) {
+          media = document.createElement(event.track.kind);
+          media.autoplay = true;
+          media.playsInline = true;
+          if (event.track.kind === "video") {
+            media.style.marginTop = "8px";
+          } else {
+            media.controls = true;
+            media.style.marginTop = "8px";
+          }
+          box.appendChild(media);
+        }
+        media.srcObject = stream;
+      }
+
+      function bindChatChannel(dc) {
+        state.chatChannel = dc;
+        dc.onopen = () => {
+          setStatus("chat open");
+          logChat("[system] data channel ready");
+        };
+        dc.onclose = () => {
+          logChat("[system] data channel closed");
+        };
+        dc.onmessage = (event) => {
+          try {
+            const msg = JSON.parse(event.data);
+            logChat(`[${msg.name}] ${msg.text}`);
+          } catch (err) {
+            logChat(`[raw] ${event.data}`);
+          }
+        };
+      }
+
+      async function setupPeerConnection() {
+        const pc = new RTCPeerConnection({
+          iceServers: [{ urls: ["stun:stun.l.google.com:19302"] }],
+        });
+        state.pc = pc;
+
+        pc.onicecandidate = (event) => {
+          if (event.candidate) {
+            sendSignal({ type: "candidate", candidate: event.candidate });
+          }
+        };
+        pc.ontrack = attachRemoteTrack;
+        pc.onconnectionstatechange = () => {
+          setStatus(`pc:${pc.connectionState}`);
+        };
+        pc.ondatachannel = (event) => {
+          if (event.channel.label === "chat") {
+            bindChatChannel(event.channel);
+          }
+        };
+
+        const chat = pc.createDataChannel("chat");
+        bindChatChannel(chat);
+
+        try {
+          state.localStream = await navigator.mediaDevices.getUserMedia({
+            audio: true,
+            video: true,
+          });
+          $("localVideo").srcObject = state.localStream;
+          state.localStream.getTracks().forEach((track) => {
+            pc.addTrack(track, state.localStream);
+          });
+        } catch (err) {
+          logChat(`[system] media unavailable, continuing data-only: ${err.message}`);
+        }
+      }
+
+      async function flushPendingCandidates() {
+        if (!state.pc || !state.pc.remoteDescription) {
+          return;
+        }
+        while (state.pendingCandidates.length > 0) {
+          const candidate = state.pendingCandidates.shift();
+          await state.pc.addIceCandidate(candidate);
+        }
+      }
+
+      async function handleIncomingOffer(description) {
+        if (!state.pc) {
+          await setupPeerConnection();
+        }
+        if (state.pc.signalingState !== "stable") {
+          await state.pc.setLocalDescription({ type: "rollback" });
+        }
+        await state.pc.setRemoteDescription(description);
+        await flushPendingCandidates();
+        const answer = await state.pc.createAnswer();
+        await state.pc.setLocalDescription(answer);
+        sendSignal({ type: "answer", description: state.pc.localDescription });
+      }
+
+      function resetState() {
+        state.remoteStreams.clear();
+        $("remoteMedia").innerHTML = "";
+        renderPeers([]);
+        state.peerID = "";
+        if (state.chatChannel) {
+          state.chatChannel.close();
+          state.chatChannel = null;
+        }
+        if (state.pc) {
+          state.pc.close();
+          state.pc = null;
+        }
+        if (state.localStream) {
+          state.localStream.getTracks().forEach((track) => track.stop());
+          state.localStream = null;
+        }
+        if (state.ws) {
+          state.ws.close();
+          state.ws = null;
+        }
+        $("localVideo").srcObject = null;
+        state.pendingCandidates = [];
+      }
+
+      function sendSignal(payload) {
+        if (!state.ws || state.ws.readyState !== WebSocket.OPEN) {
+          return;
+        }
+        state.ws.send(JSON.stringify(payload));
+      }
+
+      async function connect() {
+        resetState();
+        setStatus("connecting");
+        const room = encodeURIComponent($("room").value);
+        const name = encodeURIComponent($("name").value);
+        const scheme = location.protocol === "https:" ? "wss" : "ws";
+        const wsURL = `${scheme}://${location.host}/ws?room=${room}&name=${name}`;
+        const ws = new WebSocket(wsURL);
+        state.ws = ws;
+
+        ws.onclose = () => {
+          setStatus("disconnected");
+        };
+        ws.onerror = () => {
+          setStatus("ws error");
+        };
+        ws.onmessage = async (event) => {
+          const msg = JSON.parse(event.data);
+          switch (msg.type) {
+            case "welcome":
+              state.peerID = msg.id;
+              break;
+            case "peers":
+              renderPeers(msg.peers || []);
+              break;
+            case "offer":
+              await handleIncomingOffer(msg.description);
+              break;
+            case "answer":
+              await state.pc.setRemoteDescription(msg.description);
+              await flushPendingCandidates();
+              break;
+            case "candidate":
+              if (msg.candidate) {
+                if (!state.pc || !state.pc.remoteDescription) {
+                  state.pendingCandidates.push(msg.candidate);
+                } else {
+                  await state.pc.addIceCandidate(msg.candidate);
+                }
+              }
+              break;
+            case "error":
+              logChat(`[signal-error] ${msg.error}`);
+              break;
+            default:
+              logChat(`[signal] ${event.data}`);
+          }
+        };
+
+        ws.onopen = async () => {
+          await setupPeerConnection();
+          const offer = await state.pc.createOffer();
+          if (!state.pc || state.pc.signalingState !== "stable") {
+            return;
+          }
+          await state.pc.setLocalDescription(offer);
+          sendSignal({ type: "offer", description: state.pc.localDescription });
+          setStatus("connected");
+        };
+      }
+
+      $("connect").addEventListener("click", () => {
+        connect().catch((err) => {
+          setStatus("connect failed");
+          logChat(`[system] connect failed: ${err.message}`);
+        });
+      });
+
+      $("disconnect").addEventListener("click", () => {
+        resetState();
+        setStatus("idle");
+      });
+
+      $("sendChat").addEventListener("click", () => {
+        const text = $("chatInput").value.trim();
+        if (!text || !state.chatChannel || state.chatChannel.readyState !== "open") {
+          return;
+        }
+        state.chatChannel.send(text);
+        $("chatInput").value = "";
+      });
+
+      $("chatInput").addEventListener("keydown", (event) => {
+        if (event.key === "Enter") {
+          $("sendChat").click();
+        }
+      });
+    </script>
+  </body>
+</html>

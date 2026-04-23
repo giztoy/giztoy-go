@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path"
 	"strings"
 	"syscall"
 
@@ -42,7 +43,7 @@ func listenAndServeUI(ctxName, addr, title string, uiFS fs.FS, out io.Writer) er
 	mux := http.NewServeMux()
 	mux.Handle("/api/", c.ProxyHandler())
 	mux.Handle("/api", c.ProxyHandler())
-	mux.Handle("/", http.FileServer(http.FS(uiFS)))
+	mux.Handle("/", staticWithSPAFallback(uiFS))
 
 	server := &http.Server{
 		Handler: mux,
@@ -67,6 +68,27 @@ func listenAndServeUI(ctxName, addr, title string, uiFS fs.FS, out io.Writer) er
 		return nil
 	}
 	return err
+}
+
+// staticWithSPAFallback serves embedded UI assets and falls back to index.html
+// for client-side routes (e.g. /devices/...) so BrowserRouter deep links work.
+func staticWithSPAFallback(uiFS fs.FS) http.Handler {
+	fileServer := http.FileServer(http.FS(uiFS))
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		clean := strings.TrimPrefix(path.Clean(r.URL.Path), "/")
+		if clean != "" {
+			if _, err := fs.Stat(uiFS, clean); err == nil {
+				fileServer.ServeHTTP(w, r)
+				return
+			}
+		}
+		r2 := r.Clone(r.Context())
+		r2.URL = r.URL
+		u := *r.URL
+		u.Path = "/"
+		r2.URL = &u
+		fileServer.ServeHTTP(w, r2)
+	})
 }
 
 func normalizeListenAddr(addr string) string {

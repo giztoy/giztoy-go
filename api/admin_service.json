@@ -366,6 +366,14 @@
         "tags": [
           "Query"
         ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/cursor"
+          },
+          {
+            "$ref": "#/components/parameters/limit"
+          }
+        ],
         "responses": {
           "200": {
             "description": "Gear registration list",
@@ -489,6 +497,12 @@
         ],
         "parameters": [
           {
+            "$ref": "#/components/parameters/cursor"
+          },
+          {
+            "$ref": "#/components/parameters/limit"
+          },
+          {
             "name": "key",
             "in": "path",
             "required": true,
@@ -537,6 +551,12 @@
           "Query"
         ],
         "parameters": [
+          {
+            "$ref": "#/components/parameters/cursor"
+          },
+          {
+            "$ref": "#/components/parameters/limit"
+          },
           {
             "name": "type",
             "in": "path",
@@ -594,6 +614,12 @@
           "Query"
         ],
         "parameters": [
+          {
+            "$ref": "#/components/parameters/cursor"
+          },
+          {
+            "$ref": "#/components/parameters/limit"
+          },
           {
             "name": "depot",
             "in": "path",
@@ -1034,6 +1060,26 @@
   },
   "components": {
     "parameters": {
+      "cursor": {
+        "name": "cursor",
+        "in": "query",
+        "required": false,
+        "description": "Opaque cursor returned by the previous list response",
+        "schema": {
+          "type": "string"
+        }
+      },
+      "limit": {
+        "name": "limit",
+        "in": "query",
+        "required": false,
+        "description": "Maximum number of items to return. Omitted or non-positive values use the default page size; values above 200 are clamped.",
+        "schema": {
+          "type": "integer",
+          "format": "int32",
+          "default": 50
+        }
+      },
       "depotName": {
         "name": "depot",
         "in": "path",
@@ -1156,9 +1202,17 @@
       "RegistrationList": {
         "type": "object",
         "required": [
-          "items"
+          "items",
+          "has_next"
         ],
         "properties": {
+          "has_next": {
+            "type": "boolean"
+          },
+          "next_cursor": {
+            "type": "string",
+            "nullable": true
+          },
           "items": {
             "type": "array",
             "items": {

@@ -482,7 +482,7 @@ func chunkMessages(messages []memory.Message, chunkSize int) [][]memory.Message 
 func newIntegrationHost(t *testing.T, compressor memory.Compressor) *memory.Host {
 	t.Helper()
 
-	store := kv.NewMemory(&kv.Options{Separator: integrationSeparator})
+	store := mustBadgerInMemory(t, &kv.Options{Separator: integrationSeparator})
 	host, err := memory.NewHost(context.Background(), memory.HostConfig{
 		Store:          store,
 		Compressor:     compressor,
