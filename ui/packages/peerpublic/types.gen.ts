@@ -4,24 +4,6 @@ export type ClientOptions = {
     baseUrl: `${string}://${string}` | (string & {});
 };
 
-export type RefreshInfo = {
-    name?: string;
-    manufacturer?: string;
-    model?: string;
-    hardware_revision?: string;
-};
-
-export type RefreshIdentifiers = {
-    sn?: string;
-    imeis?: Array<GearImei>;
-    labels?: Array<GearLabel>;
-};
-
-export type RefreshVersion = {
-    depot?: string;
-    firmware_semver?: string;
-};
-
 export type GearImei = {
     name?: string;
     tac: string;
@@ -31,6 +13,24 @@ export type GearImei = {
 export type GearLabel = {
     key: string;
     value: string;
+};
+
+export type RefreshIdentifiers = {
+    sn?: string;
+    imeis?: Array<GearImei>;
+    labels?: Array<GearLabel>;
+};
+
+export type RefreshInfo = {
+    name?: string;
+    manufacturer?: string;
+    model?: string;
+    hardware_revision?: string;
+};
+
+export type RefreshVersion = {
+    depot?: string;
+    firmware_semver?: string;
 };
 
 export type GetInfoData = {

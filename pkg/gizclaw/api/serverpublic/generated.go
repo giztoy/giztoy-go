@@ -30,13 +30,6 @@ type RegistrationResult struct {
 	Registration apitypes.Registration `json:"registration"`
 }
 
-// ServerInfo defines model for ServerInfo.
-type ServerInfo struct {
-	BuildCommit string `json:"build_commit"`
-	PublicKey   string `json:"public_key"`
-	ServerTime  int64  `json:"server_time"`
-}
-
 // RegisterGearJSONRequestBody defines body for RegisterGear for application/json ContentType.
 type RegisterGearJSONRequestBody = RegistrationRequest
 
@@ -304,7 +297,7 @@ func (r RegisterGearResponse) StatusCode() int {
 type GetServerInfoResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
-	JSON200      *ServerInfo
+	JSON200      *apitypes.ServerInfo
 	JSON400      *apitypes.ErrorResponse
 }
 
@@ -405,7 +398,7 @@ func ParseGetServerInfoResponse(rsp *http.Response) (*GetServerInfoResponse, err
 
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest ServerInfo
+		var dest apitypes.ServerInfo
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -521,7 +514,7 @@ type GetServerInfoResponseObject interface {
 	VisitGetServerInfoResponse(ctx *fiber.Ctx) error
 }
 
-type GetServerInfo200JSONResponse ServerInfo
+type GetServerInfo200JSONResponse apitypes.ServerInfo
 
 func (response GetServerInfo200JSONResponse) VisitGetServerInfoResponse(ctx *fiber.Ctx) error {
 	ctx.Response().Header.Set("Content-Type", "application/json")

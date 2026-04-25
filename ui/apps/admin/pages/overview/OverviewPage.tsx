@@ -1,5 +1,5 @@
 import type { ComponentType } from "react";
-import { Boxes, ChevronRight, HardDrive, MemoryStick, Server, ShieldCheck } from "lucide-react";
+import { AudioLines, Boxes, ChevronRight, FolderKanban, HardDrive, KeyRound, Mic2, Server, ShieldCheck, Workflow } from "lucide-react";
 import { Link } from "react-router-dom";
 
 import { Button } from "../../../../packages/components/button";
@@ -198,9 +198,33 @@ export function OverviewPage(): JSX.Element {
             </Link>
           </Button>
           <Button asChild variant="outline">
-            <Link to="/memory">
-              <MemoryStick className="size-4" />
-              Memory
+            <Link to="/providers/credentials">
+              <KeyRound className="size-4" />
+              Credentials
+            </Link>
+          </Button>
+          <Button asChild variant="outline">
+            <Link to="/providers/minimax-tenants">
+              <AudioLines className="size-4" />
+              MiniMax Tenants
+            </Link>
+          </Button>
+          <Button asChild variant="outline">
+            <Link to="/ai/voices">
+              <Mic2 className="size-4" />
+              Voices
+            </Link>
+          </Button>
+          <Button asChild variant="outline">
+            <Link to="/ai/workspace-templates">
+              <Workflow className="size-4" />
+              Workspace Templates
+            </Link>
+          </Button>
+          <Button asChild variant="outline">
+            <Link to="/ai/workspaces">
+              <FolderKanban className="size-4" />
+              Workspaces
             </Link>
           </Button>
         </CardContent>

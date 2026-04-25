@@ -20,6 +20,26 @@
       "description": "Firmware channel operations"
     },
     {
+      "name": "Credentials",
+      "description": "Provider credential operations"
+    },
+    {
+      "name": "MiniMaxTenants",
+      "description": "MiniMax tenant operations"
+    },
+    {
+      "name": "Voices",
+      "description": "Global voice catalog operations"
+    },
+    {
+      "name": "WorkspaceTemplates",
+      "description": "Workspace template document operations"
+    },
+    {
+      "name": "Workspaces",
+      "description": "Workspace instance operations"
+    },
+    {
       "name": "Query",
       "description": "List and resolve gears"
     },
@@ -78,7 +98,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Depot"
+                  "$ref": "./types.json#/components/schemas/Depot"
                 }
               }
             }
@@ -111,7 +131,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/DepotInfo"
+                "$ref": "./types.json#/components/schemas/DepotInfo"
               }
             }
           }
@@ -122,7 +142,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Depot"
+                  "$ref": "./types.json#/components/schemas/Depot"
                 }
               }
             }
@@ -178,7 +198,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Depot"
+                  "$ref": "./types.json#/components/schemas/Depot"
                 }
               }
             }
@@ -234,7 +254,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Depot"
+                  "$ref": "./types.json#/components/schemas/Depot"
                 }
               }
             }
@@ -293,7 +313,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/DepotRelease"
+                  "$ref": "./types.json#/components/schemas/DepotRelease"
                 }
               }
             }
@@ -341,13 +361,1311 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/DepotRelease"
+                  "$ref": "./types.json#/components/schemas/DepotRelease"
                 }
               }
             }
           },
           "409": {
             "description": "Invalid manifest in tarball",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./types.json#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/workspace-templates": {
+      "get": {
+        "operationId": "listWorkspaceTemplates",
+        "summary": "List all workspace templates",
+        "tags": [
+          "WorkspaceTemplates"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/cursor"
+          },
+          {
+            "$ref": "#/components/parameters/limit"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Workspace template list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkspaceTemplateList"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./types.json#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "createWorkspaceTemplate",
+        "summary": "Create a workspace template",
+        "tags": [
+          "WorkspaceTemplates"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "./types.json#/components/schemas/WorkflowTemplateDocument"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Created workspace template",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./types.json#/components/schemas/WorkflowTemplateDocument"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid template payload",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./types.json#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Template already exists",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./types.json#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./types.json#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/credentials": {
+      "get": {
+        "operationId": "listCredentials",
+        "summary": "List stored credentials",
+        "tags": [
+          "Credentials"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/credentialProvider"
+          },
+          {
+            "$ref": "#/components/parameters/cursor"
+          },
+          {
+            "$ref": "#/components/parameters/limit"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Credential list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CredentialList"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./types.json#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "createCredential",
+        "summary": "Create a credential",
+        "tags": [
+          "Credentials"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CredentialUpsert"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Created credential",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./types.json#/components/schemas/Credential"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid credential payload",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./types.json#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Credential already exists",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./types.json#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./types.json#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/credentials/{name}": {
+      "get": {
+        "operationId": "getCredential",
+        "summary": "Get a credential",
+        "tags": [
+          "Credentials"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/credentialName"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Credential metadata",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./types.json#/components/schemas/Credential"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Credential not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./types.json#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./types.json#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "operationId": "putCredential",
+        "summary": "Create or update a credential",
+        "tags": [
+          "Credentials"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/credentialName"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CredentialUpsert"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Stored credential",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./types.json#/components/schemas/Credential"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid credential payload",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./types.json#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./types.json#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteCredential",
+        "summary": "Delete a credential",
+        "tags": [
+          "Credentials"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/credentialName"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Deleted credential",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./types.json#/components/schemas/Credential"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Credential not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./types.json#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./types.json#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/minimax-tenants": {
+      "get": {
+        "operationId": "listMiniMaxTenants",
+        "summary": "List all MiniMax tenants",
+        "tags": [
+          "MiniMaxTenants"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/cursor"
+          },
+          {
+            "$ref": "#/components/parameters/limit"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "MiniMax tenant list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MiniMaxTenantList"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./types.json#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "createMiniMaxTenant",
+        "summary": "Create a MiniMax tenant",
+        "tags": [
+          "MiniMaxTenants"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MiniMaxTenantUpsert"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Created MiniMax tenant",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./types.json#/components/schemas/MiniMaxTenant"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid MiniMax tenant payload",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./types.json#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "MiniMax tenant already exists",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./types.json#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./types.json#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/minimax-tenants/{name}": {
+      "get": {
+        "operationId": "getMiniMaxTenant",
+        "summary": "Get a MiniMax tenant",
+        "tags": [
+          "MiniMaxTenants"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/miniMaxTenantName"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "MiniMax tenant",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./types.json#/components/schemas/MiniMaxTenant"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "MiniMax tenant not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./types.json#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./types.json#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "operationId": "putMiniMaxTenant",
+        "summary": "Create or update a MiniMax tenant",
+        "tags": [
+          "MiniMaxTenants"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/miniMaxTenantName"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MiniMaxTenantUpsert"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Stored MiniMax tenant",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./types.json#/components/schemas/MiniMaxTenant"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid MiniMax tenant payload",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./types.json#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./types.json#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteMiniMaxTenant",
+        "summary": "Delete a MiniMax tenant",
+        "tags": [
+          "MiniMaxTenants"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/miniMaxTenantName"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Deleted MiniMax tenant",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./types.json#/components/schemas/MiniMaxTenant"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "MiniMax tenant not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./types.json#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./types.json#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/minimax-tenants/{name}/@sync-voices": {
+      "post": {
+        "operationId": "syncMiniMaxTenantVoices",
+        "summary": "Sync voices from a MiniMax tenant into the global voice catalog",
+        "tags": [
+          "MiniMaxTenants"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/miniMaxTenantName"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "MiniMax voice sync result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MiniMaxSyncVoicesResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid MiniMax tenant configuration",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./types.json#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "MiniMax tenant not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./types.json#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Upstream MiniMax sync failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./types.json#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./types.json#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/voices": {
+      "get": {
+        "operationId": "listVoices",
+        "summary": "List all voices",
+        "tags": [
+          "Voices"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/voiceSource"
+          },
+          {
+            "$ref": "#/components/parameters/voiceProviderKind"
+          },
+          {
+            "$ref": "#/components/parameters/voiceProviderName"
+          },
+          {
+            "$ref": "#/components/parameters/cursor"
+          },
+          {
+            "$ref": "#/components/parameters/limit"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Voice list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VoiceList"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./types.json#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "createVoice",
+        "summary": "Create a voice",
+        "tags": [
+          "Voices"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VoiceUpsert"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Created voice",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./types.json#/components/schemas/Voice"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid voice payload",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./types.json#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Voice already exists",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./types.json#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./types.json#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/voices/{id}": {
+      "get": {
+        "operationId": "getVoice",
+        "summary": "Get a voice",
+        "tags": [
+          "Voices"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/voiceID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Voice",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./types.json#/components/schemas/Voice"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Voice not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./types.json#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./types.json#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "operationId": "putVoice",
+        "summary": "Create or update a voice",
+        "tags": [
+          "Voices"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/voiceID"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VoiceUpsert"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Stored voice",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./types.json#/components/schemas/Voice"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid voice payload",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./types.json#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Voice cannot be modified because source is sync",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./types.json#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./types.json#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteVoice",
+        "summary": "Delete a voice",
+        "tags": [
+          "Voices"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/voiceID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Deleted voice",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./types.json#/components/schemas/Voice"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Voice not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./types.json#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./types.json#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/workspace-templates/{name}": {
+      "get": {
+        "operationId": "getWorkspaceTemplate",
+        "summary": "Get a workspace template",
+        "tags": [
+          "WorkspaceTemplates"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/workspaceTemplateName"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Workspace template document",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./types.json#/components/schemas/WorkflowTemplateDocument"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Workspace template not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./types.json#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./types.json#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "operationId": "putWorkspaceTemplate",
+        "summary": "Create or update a workspace template",
+        "tags": [
+          "WorkspaceTemplates"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/workspaceTemplateName"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "./types.json#/components/schemas/WorkflowTemplateDocument"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Stored workspace template",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./types.json#/components/schemas/WorkflowTemplateDocument"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid template payload",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./types.json#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./types.json#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteWorkspaceTemplate",
+        "summary": "Delete a workspace template",
+        "tags": [
+          "WorkspaceTemplates"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/workspaceTemplateName"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Deleted workspace template",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./types.json#/components/schemas/WorkflowTemplateDocument"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Workspace template not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./types.json#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./types.json#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/workspaces": {
+      "get": {
+        "operationId": "listWorkspaces",
+        "summary": "List all workspaces",
+        "tags": [
+          "Workspaces"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/cursor"
+          },
+          {
+            "$ref": "#/components/parameters/limit"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Workspace list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkspaceList"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./types.json#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "createWorkspace",
+        "summary": "Create a workspace",
+        "tags": [
+          "Workspaces"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkspaceUpsert"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Created workspace",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./types.json#/components/schemas/Workspace"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid workspace payload",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./types.json#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Workspace already exists",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./types.json#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./types.json#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/workspaces/{name}": {
+      "get": {
+        "operationId": "getWorkspace",
+        "summary": "Get a workspace",
+        "tags": [
+          "Workspaces"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/workspaceName"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Workspace",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./types.json#/components/schemas/Workspace"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Workspace not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./types.json#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./types.json#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "operationId": "putWorkspace",
+        "summary": "Create or update a workspace",
+        "tags": [
+          "Workspaces"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/workspaceName"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkspaceUpsert"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Stored workspace",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./types.json#/components/schemas/Workspace"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid workspace payload",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./types.json#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./types.json#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteWorkspace",
+        "summary": "Delete a workspace",
+        "tags": [
+          "Workspaces"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/workspaceName"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Deleted workspace",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./types.json#/components/schemas/Workspace"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Workspace not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./types.json#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error",
             "content": {
               "application/json": {
                 "schema": {
@@ -1059,90 +2377,7 @@
     }
   },
   "components": {
-    "parameters": {
-      "cursor": {
-        "name": "cursor",
-        "in": "query",
-        "required": false,
-        "description": "Opaque cursor returned by the previous list response",
-        "schema": {
-          "type": "string"
-        }
-      },
-      "limit": {
-        "name": "limit",
-        "in": "query",
-        "required": false,
-        "description": "Maximum number of items to return. Omitted or non-positive values use the default page size; values above 200 are clamped.",
-        "schema": {
-          "type": "integer",
-          "format": "int32",
-          "default": 50
-        }
-      },
-      "depotName": {
-        "name": "depot",
-        "in": "path",
-        "required": true,
-        "description": "Firmware depot name",
-        "schema": {
-          "type": "string"
-        }
-      },
-      "channel": {
-        "name": "channel",
-        "in": "path",
-        "required": true,
-        "description": "Release channel",
-        "schema": {
-          "$ref": "#/components/schemas/Channel"
-        }
-      },
-      "publicKey": {
-        "name": "publicKey",
-        "in": "path",
-        "required": true,
-        "description": "Gear public key",
-        "schema": {
-          "type": "string"
-        }
-      }
-    },
     "schemas": {
-      "Channel": {
-        "type": "string"
-      },
-      "Depot": {
-        "type": "object",
-        "required": [
-          "name",
-          "info",
-          "rollback",
-          "stable",
-          "beta",
-          "testing"
-        ],
-        "properties": {
-          "name": {
-            "type": "string"
-          },
-          "info": {
-            "$ref": "#/components/schemas/DepotInfo"
-          },
-          "rollback": {
-            "$ref": "#/components/schemas/DepotRelease"
-          },
-          "stable": {
-            "$ref": "#/components/schemas/DepotRelease"
-          },
-          "beta": {
-            "$ref": "#/components/schemas/DepotRelease"
-          },
-          "testing": {
-            "$ref": "#/components/schemas/DepotRelease"
-          }
-        }
-      },
       "DepotList": {
         "type": "object",
         "required": [
@@ -1152,49 +2387,7 @@
           "items": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/Depot"
-            }
-          }
-        }
-      },
-      "DepotInfo": {
-        "type": "object",
-        "properties": {
-          "files": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/DepotInfoFile"
-            }
-          }
-        }
-      },
-      "DepotInfoFile": {
-        "type": "object",
-        "required": [
-          "path"
-        ],
-        "properties": {
-          "path": {
-            "type": "string"
-          }
-        }
-      },
-      "DepotRelease": {
-        "type": "object",
-        "required": [
-          "firmware_semver"
-        ],
-        "properties": {
-          "firmware_semver": {
-            "type": "string"
-          },
-          "channel": {
-            "type": "string"
-          },
-          "files": {
-            "type": "array",
-            "items": {
-              "$ref": "./types.json#/components/schemas/DepotFile"
+              "$ref": "./types.json#/components/schemas/Depot"
             }
           }
         }
@@ -1264,6 +2457,397 @@
           "role": {
             "$ref": "./types.json#/components/schemas/GearRole"
           }
+        }
+      },
+      "CredentialUpsert": {
+        "type": "object",
+        "required": [
+          "name",
+          "provider",
+          "method",
+          "body"
+        ],
+        "properties": {
+          "name": {
+            "$ref": "./types.json#/components/schemas/CredentialName"
+          },
+          "provider": {
+            "$ref": "./types.json#/components/schemas/CredentialProvider"
+          },
+          "method": {
+            "$ref": "./types.json#/components/schemas/CredentialMethod"
+          },
+          "description": {
+            "type": "string",
+            "example": "primary openai credential"
+          },
+          "body": {
+            "$ref": "./types.json#/components/schemas/CredentialBody"
+          }
+        }
+      },
+      "CredentialList": {
+        "type": "object",
+        "required": [
+          "items",
+          "has_next"
+        ],
+        "properties": {
+          "has_next": {
+            "type": "boolean"
+          },
+          "next_cursor": {
+            "type": "string",
+            "nullable": true
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "./types.json#/components/schemas/Credential"
+            }
+          }
+        }
+      },
+      "MiniMaxTenantUpsert": {
+        "type": "object",
+        "required": [
+          "name",
+          "app_id",
+          "group_id",
+          "credential_name"
+        ],
+        "properties": {
+          "name": {
+            "$ref": "./types.json#/components/schemas/MiniMaxTenantName"
+          },
+          "app_id": {
+            "$ref": "./types.json#/components/schemas/MiniMaxAppID"
+          },
+          "group_id": {
+            "$ref": "./types.json#/components/schemas/MiniMaxGroupID"
+          },
+          "credential_name": {
+            "$ref": "./types.json#/components/schemas/CredentialName"
+          },
+          "base_url": {
+            "type": "string",
+            "format": "uri",
+            "example": "https://api.minimax.chat"
+          },
+          "description": {
+            "type": "string",
+            "example": "primary MiniMax tenant for CN voices"
+          }
+        }
+      },
+      "MiniMaxTenantList": {
+        "type": "object",
+        "required": [
+          "items",
+          "has_next"
+        ],
+        "properties": {
+          "has_next": {
+            "type": "boolean"
+          },
+          "next_cursor": {
+            "type": "string",
+            "nullable": true
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "./types.json#/components/schemas/MiniMaxTenant"
+            }
+          }
+        }
+      },
+      "VoiceList": {
+        "type": "object",
+        "required": [
+          "items",
+          "has_next"
+        ],
+        "properties": {
+          "has_next": {
+            "type": "boolean"
+          },
+          "next_cursor": {
+            "type": "string",
+            "nullable": true
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "./types.json#/components/schemas/Voice"
+            }
+          }
+        }
+      },
+      "VoiceUpsert": {
+        "type": "object",
+        "required": [
+          "id",
+          "source",
+          "provider"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "./types.json#/components/schemas/VoiceID"
+          },
+          "source": {
+            "$ref": "./types.json#/components/schemas/VoiceSource"
+          },
+          "provider": {
+            "$ref": "./types.json#/components/schemas/VoiceProvider"
+          },
+          "provider_voice_id": {
+            "type": "string",
+            "description": "Upstream provider voice identifier. Present for synced voices."
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "provider_voice_type": {
+            "type": "string",
+            "description": "Provider-specific voice type"
+          },
+          "raw": {
+            "type": "object",
+            "additionalProperties": true,
+            "example": {}
+          }
+        }
+      },
+      "MiniMaxSyncVoicesResult": {
+        "type": "object",
+        "required": [
+          "tenant_name",
+          "synced_at",
+          "created_count",
+          "updated_count",
+          "deleted_count"
+        ],
+        "properties": {
+          "tenant_name": {
+            "$ref": "./types.json#/components/schemas/MiniMaxTenantName"
+          },
+          "synced_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "created_count": {
+            "type": "integer",
+            "format": "int32",
+            "example": 3
+          },
+          "updated_count": {
+            "type": "integer",
+            "format": "int32",
+            "example": 21
+          },
+          "deleted_count": {
+            "type": "integer",
+            "format": "int32",
+            "example": 2
+          }
+        }
+      },
+      "WorkspaceUpsert": {
+        "type": "object",
+        "required": [
+          "name",
+          "workspace_template_name"
+        ],
+        "properties": {
+          "name": {
+            "$ref": "./types.json#/components/schemas/WorkspaceName"
+          },
+          "workspace_template_name": {
+            "$ref": "./types.json#/components/schemas/WorkspaceTemplateName"
+          },
+          "parameters": {
+            "type": "object",
+            "additionalProperties": true,
+            "example": {}
+          }
+        }
+      },
+      "WorkspaceList": {
+        "type": "object",
+        "required": [
+          "items",
+          "has_next"
+        ],
+        "properties": {
+          "has_next": {
+            "type": "boolean"
+          },
+          "next_cursor": {
+            "type": "string",
+            "nullable": true
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "./types.json#/components/schemas/Workspace"
+            }
+          }
+        }
+      },
+      "WorkspaceTemplateList": {
+        "type": "object",
+        "required": [
+          "items",
+          "has_next"
+        ],
+        "properties": {
+          "has_next": {
+            "type": "boolean"
+          },
+          "next_cursor": {
+            "type": "string",
+            "nullable": true
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "./types.json#/components/schemas/WorkflowTemplateDocument"
+            }
+          }
+        }
+      }
+    },
+    "parameters": {
+      "cursor": {
+        "name": "cursor",
+        "in": "query",
+        "required": false,
+        "description": "Opaque cursor returned by the previous list response",
+        "schema": {
+          "type": "string"
+        }
+      },
+      "limit": {
+        "name": "limit",
+        "in": "query",
+        "required": false,
+        "description": "Maximum number of items to return. Omitted or non-positive values use the default page size; values above 200 are clamped.",
+        "schema": {
+          "type": "integer",
+          "format": "int32",
+          "default": 50
+        }
+      },
+      "depotName": {
+        "name": "depot",
+        "in": "path",
+        "required": true,
+        "description": "Firmware depot name",
+        "schema": {
+          "type": "string"
+        }
+      },
+      "channel": {
+        "name": "channel",
+        "in": "path",
+        "required": true,
+        "description": "Release channel",
+        "schema": {
+          "$ref": "./types.json#/components/schemas/Channel"
+        }
+      },
+      "publicKey": {
+        "name": "publicKey",
+        "in": "path",
+        "required": true,
+        "description": "Gear public key",
+        "schema": {
+          "type": "string"
+        }
+      },
+      "workspaceTemplateName": {
+        "name": "name",
+        "in": "path",
+        "required": true,
+        "description": "Workspace template name",
+        "schema": {
+          "$ref": "./types.json#/components/schemas/WorkspaceTemplateName"
+        }
+      },
+      "workspaceName": {
+        "name": "name",
+        "in": "path",
+        "required": true,
+        "description": "Workspace name",
+        "schema": {
+          "$ref": "./types.json#/components/schemas/WorkspaceName"
+        }
+      },
+      "credentialName": {
+        "name": "name",
+        "in": "path",
+        "required": true,
+        "description": "Credential name",
+        "schema": {
+          "$ref": "./types.json#/components/schemas/CredentialName"
+        }
+      },
+      "credentialProvider": {
+        "name": "provider",
+        "in": "query",
+        "required": false,
+        "description": "Filter credentials by provider",
+        "schema": {
+          "$ref": "./types.json#/components/schemas/CredentialProvider"
+        }
+      },
+      "miniMaxTenantName": {
+        "name": "name",
+        "in": "path",
+        "required": true,
+        "description": "MiniMax tenant name",
+        "schema": {
+          "$ref": "./types.json#/components/schemas/MiniMaxTenantName"
+        }
+      },
+      "voiceID": {
+        "name": "id",
+        "in": "path",
+        "required": true,
+        "description": "Voice identifier",
+        "schema": {
+          "$ref": "./types.json#/components/schemas/VoiceID"
+        }
+      },
+      "voiceSource": {
+        "name": "source",
+        "in": "query",
+        "required": false,
+        "description": "Filter voices by source",
+        "schema": {
+          "$ref": "./types.json#/components/schemas/VoiceSource"
+        }
+      },
+      "voiceProviderKind": {
+        "name": "providerKind",
+        "in": "query",
+        "required": false,
+        "description": "Filter voices by provider kind",
+        "schema": {
+          "$ref": "./types.json#/components/schemas/VoiceProviderKind"
+        }
+      },
+      "voiceProviderName": {
+        "name": "providerName",
+        "in": "query",
+        "required": false,
+        "description": "Filter voices by provider instance name",
+        "schema": {
+          "$ref": "./types.json#/components/schemas/VoiceProviderName"
         }
       }
     }

@@ -344,6 +344,524 @@
             "type": "string"
           }
         }
+      },
+      "Channel": {
+        "type": "string"
+      },
+      "Depot": {
+        "type": "object",
+        "required": [
+          "name",
+          "info",
+          "rollback",
+          "stable",
+          "beta",
+          "testing"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "info": {
+            "$ref": "#/components/schemas/DepotInfo"
+          },
+          "rollback": {
+            "$ref": "#/components/schemas/DepotRelease"
+          },
+          "stable": {
+            "$ref": "#/components/schemas/DepotRelease"
+          },
+          "beta": {
+            "$ref": "#/components/schemas/DepotRelease"
+          },
+          "testing": {
+            "$ref": "#/components/schemas/DepotRelease"
+          }
+        }
+      },
+      "DepotInfo": {
+        "type": "object",
+        "properties": {
+          "files": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DepotInfoFile"
+            }
+          }
+        }
+      },
+      "DepotInfoFile": {
+        "type": "object",
+        "required": [
+          "path"
+        ],
+        "properties": {
+          "path": {
+            "type": "string"
+          }
+        }
+      },
+      "DepotRelease": {
+        "type": "object",
+        "required": [
+          "firmware_semver"
+        ],
+        "properties": {
+          "firmware_semver": {
+            "type": "string"
+          },
+          "channel": {
+            "type": "string"
+          },
+          "files": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DepotFile"
+            }
+          }
+        }
+      },
+      "ServerInfo": {
+        "type": "object",
+        "required": [
+          "public_key",
+          "server_time",
+          "build_commit"
+        ],
+        "properties": {
+          "public_key": {
+            "type": "string"
+          },
+          "server_time": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "build_commit": {
+            "type": "string"
+          }
+        }
+      },
+      "RefreshInfo": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "manufacturer": {
+            "type": "string"
+          },
+          "model": {
+            "type": "string"
+          },
+          "hardware_revision": {
+            "type": "string"
+          }
+        }
+      },
+      "RefreshIdentifiers": {
+        "type": "object",
+        "properties": {
+          "sn": {
+            "type": "string"
+          },
+          "imeis": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GearIMEI"
+            }
+          },
+          "labels": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GearLabel"
+            }
+          }
+        }
+      },
+      "RefreshVersion": {
+        "type": "object",
+        "properties": {
+          "depot": {
+            "type": "string"
+          },
+          "firmware_semver": {
+            "type": "string"
+          }
+        }
+      },
+      "CredentialProvider": {
+        "type": "string",
+        "description": "Credential provider name"
+      },
+      "CredentialMethod": {
+        "type": "string",
+        "description": "Credential authentication method",
+        "enum": [
+          "api_key",
+          "token",
+          "app_id_token"
+        ]
+      },
+      "CredentialName": {
+        "type": "string",
+        "description": "Credential name"
+      },
+      "Credential": {
+        "type": "object",
+        "required": [
+          "name",
+          "provider",
+          "method",
+          "body",
+          "created_at",
+          "updated_at"
+        ],
+        "properties": {
+          "name": {
+            "$ref": "#/components/schemas/CredentialName"
+          },
+          "provider": {
+            "$ref": "#/components/schemas/CredentialProvider"
+          },
+          "method": {
+            "$ref": "#/components/schemas/CredentialMethod"
+          },
+          "body": {
+            "$ref": "#/components/schemas/CredentialBody"
+          },
+          "description": {
+            "type": "string",
+            "example": "primary openai credential"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "CredentialBody": {
+        "type": "object",
+        "additionalProperties": true,
+        "example": {
+          "api_key": "sk-..."
+        }
+      },
+      "MiniMaxTenantName": {
+        "type": "string",
+        "description": "MiniMax tenant name",
+        "example": "main-cn"
+      },
+      "MiniMaxAppID": {
+        "type": "string",
+        "description": "MiniMax app identifier",
+        "example": "app-123"
+      },
+      "MiniMaxGroupID": {
+        "type": "string",
+        "description": "MiniMax group identifier",
+        "example": "group-123"
+      },
+      "VoiceID": {
+        "type": "string",
+        "description": "Global voice identifier",
+        "example": "voice-01"
+      },
+      "VoiceSource": {
+        "type": "string",
+        "description": "How the voice entered the global catalog",
+        "enum": [
+          "sync",
+          "manual"
+        ],
+        "example": "sync"
+      },
+      "VoiceProviderKind": {
+        "type": "string",
+        "description": "Voice provider kind",
+        "example": "minimax-tenant"
+      },
+      "VoiceProviderName": {
+        "type": "string",
+        "description": "Voice provider instance name",
+        "example": "main-cn"
+      },
+      "VoiceProvider": {
+        "type": "object",
+        "required": [
+          "kind",
+          "name"
+        ],
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/VoiceProviderKind"
+          },
+          "name": {
+            "$ref": "#/components/schemas/VoiceProviderName"
+          }
+        }
+      },
+      "MiniMaxTenant": {
+        "type": "object",
+        "required": [
+          "name",
+          "app_id",
+          "group_id",
+          "credential_name",
+          "created_at",
+          "updated_at"
+        ],
+        "properties": {
+          "name": {
+            "$ref": "#/components/schemas/MiniMaxTenantName"
+          },
+          "app_id": {
+            "$ref": "#/components/schemas/MiniMaxAppID"
+          },
+          "group_id": {
+            "$ref": "#/components/schemas/MiniMaxGroupID"
+          },
+          "credential_name": {
+            "$ref": "#/components/schemas/CredentialName"
+          },
+          "base_url": {
+            "type": "string",
+            "format": "uri",
+            "example": "https://api.minimax.chat"
+          },
+          "description": {
+            "type": "string",
+            "example": "primary MiniMax tenant for CN voices"
+          },
+          "last_synced_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "Voice": {
+        "type": "object",
+        "required": [
+          "id",
+          "source",
+          "provider",
+          "created_at",
+          "updated_at"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/VoiceID"
+          },
+          "source": {
+            "$ref": "#/components/schemas/VoiceSource"
+          },
+          "provider": {
+            "$ref": "#/components/schemas/VoiceProvider"
+          },
+          "provider_voice_id": {
+            "type": "string",
+            "description": "Upstream provider voice identifier. Present for synced voices.",
+            "example": "voice-system-1"
+          },
+          "name": {
+            "type": "string",
+            "example": "calm narrator"
+          },
+          "description": {
+            "type": "string",
+            "example": "calm female narrator"
+          },
+          "provider_voice_type": {
+            "type": "string",
+            "description": "Provider-specific voice type",
+            "example": "voice_cloning"
+          },
+          "raw": {
+            "type": "object",
+            "additionalProperties": true,
+            "example": {
+              "gender": "female"
+            }
+          },
+          "synced_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "WorkspaceTemplateName": {
+        "type": "string",
+        "description": "Workspace template name"
+      },
+      "WorkspaceName": {
+        "type": "string",
+        "description": "Workspace name"
+      },
+      "Workspace": {
+        "type": "object",
+        "required": [
+          "name",
+          "workspace_template_name",
+          "created_at",
+          "updated_at"
+        ],
+        "properties": {
+          "name": {
+            "$ref": "#/components/schemas/WorkspaceName"
+          },
+          "workspace_template_name": {
+            "$ref": "#/components/schemas/WorkspaceTemplateName"
+          },
+          "parameters": {
+            "type": "object",
+            "additionalProperties": true,
+            "example": {}
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "WorkflowTemplateDocument": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/SingleAgentGraphWorkflowTemplate"
+          },
+          {
+            "$ref": "#/components/schemas/MultiAgentGraphWorkflowTemplate"
+          }
+        ],
+        "discriminator": {
+          "propertyName": "kind",
+          "mapping": {
+            "SingleAgentGraphWorkflowTemplate": "#/components/schemas/SingleAgentGraphWorkflowTemplate",
+            "MultiAgentGraphWorkflowTemplate": "#/components/schemas/MultiAgentGraphWorkflowTemplate"
+          }
+        }
+      },
+      "TemplateMetadata": {
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "demo-assistant"
+          },
+          "description": {
+            "type": "string",
+            "example": "single-agent graph workflow"
+          }
+        }
+      },
+      "SingleAgentGraphWorkflowTemplate": {
+        "type": "object",
+        "required": [
+          "apiVersion",
+          "kind",
+          "metadata",
+          "spec"
+        ],
+        "properties": {
+          "apiVersion": {
+            "type": "string",
+            "enum": [
+              "gizclaw.flowcraft/v1alpha1"
+            ]
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "SingleAgentGraphWorkflowTemplate"
+            ]
+          },
+          "metadata": {
+            "$ref": "#/components/schemas/TemplateMetadata"
+          },
+          "spec": {
+            "$ref": "#/components/schemas/SingleAgentGraphWorkflowSpec"
+          }
+        },
+        "example": {
+          "apiVersion": "gizclaw.flowcraft/v1alpha1",
+          "kind": "SingleAgentGraphWorkflowTemplate",
+          "metadata": {
+            "name": "demo-assistant",
+            "description": "single-agent graph workflow"
+          },
+          "spec": {}
+        }
+      },
+      "SingleAgentGraphWorkflowSpec": {
+        "type": "object",
+        "example": {}
+      },
+      "MultiAgentGraphWorkflowTemplate": {
+        "type": "object",
+        "required": [
+          "apiVersion",
+          "kind",
+          "metadata",
+          "spec"
+        ],
+        "properties": {
+          "apiVersion": {
+            "type": "string",
+            "enum": [
+              "gizclaw.flowcraft/v1alpha1"
+            ]
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "MultiAgentGraphWorkflowTemplate"
+            ]
+          },
+          "metadata": {
+            "$ref": "#/components/schemas/TemplateMetadata"
+          },
+          "spec": {
+            "$ref": "#/components/schemas/MultiAgentGraphWorkflowSpec"
+          }
+        },
+        "example": {
+          "apiVersion": "gizclaw.flowcraft/v1alpha1",
+          "kind": "MultiAgentGraphWorkflowTemplate",
+          "metadata": {
+            "name": "demo-team",
+            "description": "multi-agent graph workflow"
+          },
+          "spec": {}
+        }
+      },
+      "MultiAgentGraphWorkflowSpec": {
+        "type": "object",
+        "example": {}
       }
     }
   }

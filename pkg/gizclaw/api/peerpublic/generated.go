@@ -12,42 +12,9 @@ import (
 	"net/url"
 	"strings"
 
+	apitypes "github.com/GizClaw/gizclaw-go/pkg/gizclaw/api/apitypes"
 	"github.com/gofiber/fiber/v2"
 )
-
-// GearIMEI defines model for GearIMEI.
-type GearIMEI struct {
-	Name   *string `json:"name,omitempty"`
-	Serial string  `json:"serial"`
-	Tac    string  `json:"tac"`
-}
-
-// GearLabel defines model for GearLabel.
-type GearLabel struct {
-	Key   string `json:"key"`
-	Value string `json:"value"`
-}
-
-// RefreshIdentifiers defines model for RefreshIdentifiers.
-type RefreshIdentifiers struct {
-	Imeis  *[]GearIMEI  `json:"imeis,omitempty"`
-	Labels *[]GearLabel `json:"labels,omitempty"`
-	Sn     *string      `json:"sn,omitempty"`
-}
-
-// RefreshInfo defines model for RefreshInfo.
-type RefreshInfo struct {
-	HardwareRevision *string `json:"hardware_revision,omitempty"`
-	Manufacturer     *string `json:"manufacturer,omitempty"`
-	Model            *string `json:"model,omitempty"`
-	Name             *string `json:"name,omitempty"`
-}
-
-// RefreshVersion defines model for RefreshVersion.
-type RefreshVersion struct {
-	Depot          *string `json:"depot,omitempty"`
-	FirmwareSemver *string `json:"firmware_semver,omitempty"`
-}
 
 // RequestEditorFn  is the function signature for the RequestEditor callback function
 type RequestEditorFn func(ctx context.Context, req *http.Request) error
@@ -305,7 +272,7 @@ type ClientWithResponsesInterface interface {
 type GetIdentifiersResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
-	JSON200      *RefreshIdentifiers
+	JSON200      *apitypes.RefreshIdentifiers
 }
 
 // Status returns HTTPResponse.Status
@@ -327,7 +294,7 @@ func (r GetIdentifiersResponse) StatusCode() int {
 type GetInfoResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
-	JSON200      *RefreshInfo
+	JSON200      *apitypes.RefreshInfo
 }
 
 // Status returns HTTPResponse.Status
@@ -349,7 +316,7 @@ func (r GetInfoResponse) StatusCode() int {
 type GetVersionResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
-	JSON200      *RefreshVersion
+	JSON200      *apitypes.RefreshVersion
 }
 
 // Status returns HTTPResponse.Status
@@ -410,7 +377,7 @@ func ParseGetIdentifiersResponse(rsp *http.Response) (*GetIdentifiersResponse, e
 
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest RefreshIdentifiers
+		var dest apitypes.RefreshIdentifiers
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -436,7 +403,7 @@ func ParseGetInfoResponse(rsp *http.Response) (*GetInfoResponse, error) {
 
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest RefreshInfo
+		var dest apitypes.RefreshInfo
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -462,7 +429,7 @@ func ParseGetVersionResponse(rsp *http.Response) (*GetVersionResponse, error) {
 
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest RefreshVersion
+		var dest apitypes.RefreshVersion
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -547,7 +514,7 @@ type GetIdentifiersResponseObject interface {
 	VisitGetIdentifiersResponse(ctx *fiber.Ctx) error
 }
 
-type GetIdentifiers200JSONResponse RefreshIdentifiers
+type GetIdentifiers200JSONResponse apitypes.RefreshIdentifiers
 
 func (response GetIdentifiers200JSONResponse) VisitGetIdentifiersResponse(ctx *fiber.Ctx) error {
 	ctx.Response().Header.Set("Content-Type", "application/json")
@@ -572,7 +539,7 @@ type GetInfoResponseObject interface {
 	VisitGetInfoResponse(ctx *fiber.Ctx) error
 }
 
-type GetInfo200JSONResponse RefreshInfo
+type GetInfo200JSONResponse apitypes.RefreshInfo
 
 func (response GetInfo200JSONResponse) VisitGetInfoResponse(ctx *fiber.Ctx) error {
 	ctx.Response().Header.Set("Content-Type", "application/json")
@@ -597,7 +564,7 @@ type GetVersionResponseObject interface {
 	VisitGetVersionResponse(ctx *fiber.Ctx) error
 }
 
-type GetVersion200JSONResponse RefreshVersion
+type GetVersion200JSONResponse apitypes.RefreshVersion
 
 func (response GetVersion200JSONResponse) VisitGetVersionResponse(ctx *fiber.Ctx) error {
 	ctx.Response().Header.Set("Content-Type", "application/json")

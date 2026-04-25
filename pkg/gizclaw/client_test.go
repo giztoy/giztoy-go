@@ -16,7 +16,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/GizClaw/gizclaw-go/pkg/gizclaw/api/adminservice"
 	apitypes "github.com/GizClaw/gizclaw-go/pkg/gizclaw/api/apitypes"
 
 	"github.com/GizClaw/gizclaw-go/pkg/gizclaw/api/rpc"
@@ -109,7 +108,7 @@ func TestClientProxyMuxRoutesRemoteServices(t *testing.T) {
 	}
 	manager := NewManager(gearServer)
 	firmwareServer := &firmware.Server{Store: depotstore.Dir(t.TempDir())}
-	service := &GearService{
+	service := &PeerService{
 		peerManager: manager,
 		admin: &adminService{
 			FirmwareAdminService: firmwareServer,
@@ -461,7 +460,7 @@ func buildFirmwareReleaseTar(t *testing.T) []byte {
 	sum256 := sha256.Sum256(payload)
 	sumMD5 := md5.Sum(payload)
 	channel := "stable"
-	release := adminservice.DepotRelease{
+	release := apitypes.DepotRelease{
 		FirmwareSemver: "1.0.0",
 		Channel:        &channel,
 		Files: &[]apitypes.DepotFile{{

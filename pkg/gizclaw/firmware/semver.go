@@ -2,13 +2,12 @@ package firmware
 
 import (
 	"fmt"
+	apitypes "github.com/GizClaw/gizclaw-go/pkg/gizclaw/api/apitypes"
 	"strconv"
 	"strings"
-
-	"github.com/GizClaw/gizclaw-go/pkg/gizclaw/api/adminservice"
 )
 
-func validateVersionOrder(depot adminservice.Depot) error {
+func validateVersionOrder(depot apitypes.Depot) error {
 	stable, stableOK := depotRelease(depot, Stable)
 	beta, betaOK := depotRelease(depot, Beta)
 	testing, testingOK := depotRelease(depot, Testing)

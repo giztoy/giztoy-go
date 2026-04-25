@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	apitypes "github.com/GizClaw/gizclaw-go/pkg/gizclaw/api/apitypes"
 	"github.com/gofiber/fiber/v2"
@@ -23,39 +24,66 @@ type ApproveRequest struct {
 	Role apitypes.GearRole `json:"role"`
 }
 
-// Channel defines model for Channel.
-type Channel = string
-
-// Depot defines model for Depot.
-type Depot struct {
-	Beta     DepotRelease `json:"beta"`
-	Info     DepotInfo    `json:"info"`
-	Name     string       `json:"name"`
-	Rollback DepotRelease `json:"rollback"`
-	Stable   DepotRelease `json:"stable"`
-	Testing  DepotRelease `json:"testing"`
+// CredentialList defines model for CredentialList.
+type CredentialList struct {
+	HasNext    bool                  `json:"has_next"`
+	Items      []apitypes.Credential `json:"items"`
+	NextCursor *string               `json:"next_cursor,omitempty"`
 }
 
-// DepotInfo defines model for DepotInfo.
-type DepotInfo struct {
-	Files *[]DepotInfoFile `json:"files,omitempty"`
-}
+// CredentialUpsert defines model for CredentialUpsert.
+type CredentialUpsert struct {
+	Body        apitypes.CredentialBody `json:"body"`
+	Description *string                 `json:"description,omitempty"`
 
-// DepotInfoFile defines model for DepotInfoFile.
-type DepotInfoFile struct {
-	Path string `json:"path"`
+	// Method Credential authentication method
+	Method apitypes.CredentialMethod `json:"method"`
+
+	// Name Credential name
+	Name apitypes.CredentialName `json:"name"`
+
+	// Provider Credential provider name
+	Provider apitypes.CredentialProvider `json:"provider"`
 }
 
 // DepotList defines model for DepotList.
 type DepotList struct {
-	Items []Depot `json:"items"`
+	Items []apitypes.Depot `json:"items"`
 }
 
-// DepotRelease defines model for DepotRelease.
-type DepotRelease struct {
-	Channel        *string               `json:"channel,omitempty"`
-	Files          *[]apitypes.DepotFile `json:"files,omitempty"`
-	FirmwareSemver string                `json:"firmware_semver"`
+// MiniMaxSyncVoicesResult defines model for MiniMaxSyncVoicesResult.
+type MiniMaxSyncVoicesResult struct {
+	CreatedCount int32     `json:"created_count"`
+	DeletedCount int32     `json:"deleted_count"`
+	SyncedAt     time.Time `json:"synced_at"`
+
+	// TenantName MiniMax tenant name
+	TenantName   apitypes.MiniMaxTenantName `json:"tenant_name"`
+	UpdatedCount int32                      `json:"updated_count"`
+}
+
+// MiniMaxTenantList defines model for MiniMaxTenantList.
+type MiniMaxTenantList struct {
+	HasNext    bool                     `json:"has_next"`
+	Items      []apitypes.MiniMaxTenant `json:"items"`
+	NextCursor *string                  `json:"next_cursor,omitempty"`
+}
+
+// MiniMaxTenantUpsert defines model for MiniMaxTenantUpsert.
+type MiniMaxTenantUpsert struct {
+	// AppId MiniMax app identifier
+	AppId   apitypes.MiniMaxAppID `json:"app_id"`
+	BaseUrl *string               `json:"base_url,omitempty"`
+
+	// CredentialName Credential name
+	CredentialName apitypes.CredentialName `json:"credential_name"`
+	Description    *string                 `json:"description,omitempty"`
+
+	// GroupId MiniMax group identifier
+	GroupId apitypes.MiniMaxGroupID `json:"group_id"`
+
+	// Name MiniMax tenant name
+	Name apitypes.MiniMaxTenantName `json:"name"`
 }
 
 // PublicKeyResponse defines model for PublicKeyResponse.
@@ -77,6 +105,66 @@ type RegistrationList struct {
 	NextCursor *string                 `json:"next_cursor,omitempty"`
 }
 
+// VoiceList defines model for VoiceList.
+type VoiceList struct {
+	HasNext    bool             `json:"has_next"`
+	Items      []apitypes.Voice `json:"items"`
+	NextCursor *string          `json:"next_cursor,omitempty"`
+}
+
+// VoiceUpsert defines model for VoiceUpsert.
+type VoiceUpsert struct {
+	Description *string `json:"description,omitempty"`
+
+	// Id Global voice identifier
+	Id       apitypes.VoiceID       `json:"id"`
+	Name     *string                `json:"name,omitempty"`
+	Provider apitypes.VoiceProvider `json:"provider"`
+
+	// ProviderVoiceId Upstream provider voice identifier. Present for synced voices.
+	ProviderVoiceId *string `json:"provider_voice_id,omitempty"`
+
+	// ProviderVoiceType Provider-specific voice type
+	ProviderVoiceType *string                 `json:"provider_voice_type,omitempty"`
+	Raw               *map[string]interface{} `json:"raw,omitempty"`
+
+	// Source How the voice entered the global catalog
+	Source apitypes.VoiceSource `json:"source"`
+}
+
+// WorkspaceList defines model for WorkspaceList.
+type WorkspaceList struct {
+	HasNext    bool                 `json:"has_next"`
+	Items      []apitypes.Workspace `json:"items"`
+	NextCursor *string              `json:"next_cursor,omitempty"`
+}
+
+// WorkspaceTemplateList defines model for WorkspaceTemplateList.
+type WorkspaceTemplateList struct {
+	HasNext    bool                                `json:"has_next"`
+	Items      []apitypes.WorkflowTemplateDocument `json:"items"`
+	NextCursor *string                             `json:"next_cursor,omitempty"`
+}
+
+// WorkspaceUpsert defines model for WorkspaceUpsert.
+type WorkspaceUpsert struct {
+	// Name Workspace name
+	Name       apitypes.WorkspaceName  `json:"name"`
+	Parameters *map[string]interface{} `json:"parameters,omitempty"`
+
+	// WorkspaceTemplateName Workspace template name
+	WorkspaceTemplateName apitypes.WorkspaceTemplateName `json:"workspace_template_name"`
+}
+
+// Channel defines model for channel.
+type Channel = apitypes.Channel
+
+// CredentialName Credential name
+type CredentialName = apitypes.CredentialName
+
+// CredentialProvider Credential provider name
+type CredentialProvider = apitypes.CredentialProvider
+
 // Cursor defines model for cursor.
 type Cursor = string
 
@@ -86,8 +174,41 @@ type DepotName = string
 // Limit defines model for limit.
 type Limit = int32
 
+// MiniMaxTenantName MiniMax tenant name
+type MiniMaxTenantName = apitypes.MiniMaxTenantName
+
 // PublicKey defines model for publicKey.
 type PublicKey = string
+
+// VoiceID Global voice identifier
+type VoiceID = apitypes.VoiceID
+
+// VoiceProviderKind Voice provider kind
+type VoiceProviderKind = apitypes.VoiceProviderKind
+
+// VoiceProviderName Voice provider instance name
+type VoiceProviderName = apitypes.VoiceProviderName
+
+// VoiceSource How the voice entered the global catalog
+type VoiceSource = apitypes.VoiceSource
+
+// WorkspaceName Workspace name
+type WorkspaceName = apitypes.WorkspaceName
+
+// WorkspaceTemplateName Workspace template name
+type WorkspaceTemplateName = apitypes.WorkspaceTemplateName
+
+// ListCredentialsParams defines parameters for ListCredentials.
+type ListCredentialsParams struct {
+	// Provider Filter credentials by provider
+	Provider *CredentialProvider `form:"provider,omitempty" json:"provider,omitempty"`
+
+	// Cursor Opaque cursor returned by the previous list response
+	Cursor *Cursor `form:"cursor,omitempty" json:"cursor,omitempty"`
+
+	// Limit Maximum number of items to return. Omitted or non-positive values use the default page size; values above 200 are clamped.
+	Limit *Limit `form:"limit,omitempty" json:"limit,omitempty"`
+}
 
 // ListGearsParams defines parameters for ListGears.
 type ListGearsParams struct {
@@ -125,14 +246,89 @@ type ListByLabelParams struct {
 	Limit *Limit `form:"limit,omitempty" json:"limit,omitempty"`
 }
 
+// ListMiniMaxTenantsParams defines parameters for ListMiniMaxTenants.
+type ListMiniMaxTenantsParams struct {
+	// Cursor Opaque cursor returned by the previous list response
+	Cursor *Cursor `form:"cursor,omitempty" json:"cursor,omitempty"`
+
+	// Limit Maximum number of items to return. Omitted or non-positive values use the default page size; values above 200 are clamped.
+	Limit *Limit `form:"limit,omitempty" json:"limit,omitempty"`
+}
+
+// ListVoicesParams defines parameters for ListVoices.
+type ListVoicesParams struct {
+	// Source Filter voices by source
+	Source *VoiceSource `form:"source,omitempty" json:"source,omitempty"`
+
+	// ProviderKind Filter voices by provider kind
+	ProviderKind *VoiceProviderKind `form:"providerKind,omitempty" json:"providerKind,omitempty"`
+
+	// ProviderName Filter voices by provider instance name
+	ProviderName *VoiceProviderName `form:"providerName,omitempty" json:"providerName,omitempty"`
+
+	// Cursor Opaque cursor returned by the previous list response
+	Cursor *Cursor `form:"cursor,omitempty" json:"cursor,omitempty"`
+
+	// Limit Maximum number of items to return. Omitted or non-positive values use the default page size; values above 200 are clamped.
+	Limit *Limit `form:"limit,omitempty" json:"limit,omitempty"`
+}
+
+// ListWorkspaceTemplatesParams defines parameters for ListWorkspaceTemplates.
+type ListWorkspaceTemplatesParams struct {
+	// Cursor Opaque cursor returned by the previous list response
+	Cursor *Cursor `form:"cursor,omitempty" json:"cursor,omitempty"`
+
+	// Limit Maximum number of items to return. Omitted or non-positive values use the default page size; values above 200 are clamped.
+	Limit *Limit `form:"limit,omitempty" json:"limit,omitempty"`
+}
+
+// ListWorkspacesParams defines parameters for ListWorkspaces.
+type ListWorkspacesParams struct {
+	// Cursor Opaque cursor returned by the previous list response
+	Cursor *Cursor `form:"cursor,omitempty" json:"cursor,omitempty"`
+
+	// Limit Maximum number of items to return. Omitted or non-positive values use the default page size; values above 200 are clamped.
+	Limit *Limit `form:"limit,omitempty" json:"limit,omitempty"`
+}
+
+// CreateCredentialJSONRequestBody defines body for CreateCredential for application/json ContentType.
+type CreateCredentialJSONRequestBody = CredentialUpsert
+
+// PutCredentialJSONRequestBody defines body for PutCredential for application/json ContentType.
+type PutCredentialJSONRequestBody = CredentialUpsert
+
 // PutDepotInfoJSONRequestBody defines body for PutDepotInfo for application/json ContentType.
-type PutDepotInfoJSONRequestBody = DepotInfo
+type PutDepotInfoJSONRequestBody = apitypes.DepotInfo
 
 // ApproveGearJSONRequestBody defines body for ApproveGear for application/json ContentType.
 type ApproveGearJSONRequestBody = ApproveRequest
 
 // PutGearConfigJSONRequestBody defines body for PutGearConfig for application/json ContentType.
 type PutGearConfigJSONRequestBody = apitypes.Configuration
+
+// CreateMiniMaxTenantJSONRequestBody defines body for CreateMiniMaxTenant for application/json ContentType.
+type CreateMiniMaxTenantJSONRequestBody = MiniMaxTenantUpsert
+
+// PutMiniMaxTenantJSONRequestBody defines body for PutMiniMaxTenant for application/json ContentType.
+type PutMiniMaxTenantJSONRequestBody = MiniMaxTenantUpsert
+
+// CreateVoiceJSONRequestBody defines body for CreateVoice for application/json ContentType.
+type CreateVoiceJSONRequestBody = VoiceUpsert
+
+// PutVoiceJSONRequestBody defines body for PutVoice for application/json ContentType.
+type PutVoiceJSONRequestBody = VoiceUpsert
+
+// CreateWorkspaceTemplateJSONRequestBody defines body for CreateWorkspaceTemplate for application/json ContentType.
+type CreateWorkspaceTemplateJSONRequestBody = apitypes.WorkflowTemplateDocument
+
+// PutWorkspaceTemplateJSONRequestBody defines body for PutWorkspaceTemplate for application/json ContentType.
+type PutWorkspaceTemplateJSONRequestBody = apitypes.WorkflowTemplateDocument
+
+// CreateWorkspaceJSONRequestBody defines body for CreateWorkspace for application/json ContentType.
+type CreateWorkspaceJSONRequestBody = WorkspaceUpsert
+
+// PutWorkspaceJSONRequestBody defines body for PutWorkspace for application/json ContentType.
+type PutWorkspaceJSONRequestBody = WorkspaceUpsert
 
 // RequestEditorFn  is the function signature for the RequestEditor callback function
 type RequestEditorFn func(ctx context.Context, req *http.Request) error
@@ -207,6 +403,25 @@ func WithRequestEditorFn(fn RequestEditorFn) ClientOption {
 
 // The interface specification for the client above.
 type ClientInterface interface {
+	// ListCredentials request
+	ListCredentials(ctx context.Context, params *ListCredentialsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateCredentialWithBody request with any body
+	CreateCredentialWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	CreateCredential(ctx context.Context, body CreateCredentialJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeleteCredential request
+	DeleteCredential(ctx context.Context, name CredentialName, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetCredential request
+	GetCredential(ctx context.Context, name CredentialName, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PutCredentialWithBody request with any body
+	PutCredentialWithBody(ctx context.Context, name CredentialName, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	PutCredential(ctx context.Context, name CredentialName, body PutCredentialJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// ListDepots request
 	ListDepots(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -281,6 +496,169 @@ type ClientInterface interface {
 
 	// GetGearRuntime request
 	GetGearRuntime(ctx context.Context, publicKey PublicKey, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListMiniMaxTenants request
+	ListMiniMaxTenants(ctx context.Context, params *ListMiniMaxTenantsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateMiniMaxTenantWithBody request with any body
+	CreateMiniMaxTenantWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	CreateMiniMaxTenant(ctx context.Context, body CreateMiniMaxTenantJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeleteMiniMaxTenant request
+	DeleteMiniMaxTenant(ctx context.Context, name MiniMaxTenantName, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetMiniMaxTenant request
+	GetMiniMaxTenant(ctx context.Context, name MiniMaxTenantName, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PutMiniMaxTenantWithBody request with any body
+	PutMiniMaxTenantWithBody(ctx context.Context, name MiniMaxTenantName, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	PutMiniMaxTenant(ctx context.Context, name MiniMaxTenantName, body PutMiniMaxTenantJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SyncMiniMaxTenantVoices request
+	SyncMiniMaxTenantVoices(ctx context.Context, name MiniMaxTenantName, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListVoices request
+	ListVoices(ctx context.Context, params *ListVoicesParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateVoiceWithBody request with any body
+	CreateVoiceWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	CreateVoice(ctx context.Context, body CreateVoiceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeleteVoice request
+	DeleteVoice(ctx context.Context, id VoiceID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetVoice request
+	GetVoice(ctx context.Context, id VoiceID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PutVoiceWithBody request with any body
+	PutVoiceWithBody(ctx context.Context, id VoiceID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	PutVoice(ctx context.Context, id VoiceID, body PutVoiceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListWorkspaceTemplates request
+	ListWorkspaceTemplates(ctx context.Context, params *ListWorkspaceTemplatesParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateWorkspaceTemplateWithBody request with any body
+	CreateWorkspaceTemplateWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	CreateWorkspaceTemplate(ctx context.Context, body CreateWorkspaceTemplateJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeleteWorkspaceTemplate request
+	DeleteWorkspaceTemplate(ctx context.Context, name WorkspaceTemplateName, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetWorkspaceTemplate request
+	GetWorkspaceTemplate(ctx context.Context, name WorkspaceTemplateName, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PutWorkspaceTemplateWithBody request with any body
+	PutWorkspaceTemplateWithBody(ctx context.Context, name WorkspaceTemplateName, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	PutWorkspaceTemplate(ctx context.Context, name WorkspaceTemplateName, body PutWorkspaceTemplateJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListWorkspaces request
+	ListWorkspaces(ctx context.Context, params *ListWorkspacesParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateWorkspaceWithBody request with any body
+	CreateWorkspaceWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	CreateWorkspace(ctx context.Context, body CreateWorkspaceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeleteWorkspace request
+	DeleteWorkspace(ctx context.Context, name WorkspaceName, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetWorkspace request
+	GetWorkspace(ctx context.Context, name WorkspaceName, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PutWorkspaceWithBody request with any body
+	PutWorkspaceWithBody(ctx context.Context, name WorkspaceName, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	PutWorkspace(ctx context.Context, name WorkspaceName, body PutWorkspaceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+}
+
+func (c *Client) ListCredentials(ctx context.Context, params *ListCredentialsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListCredentialsRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) CreateCredentialWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateCredentialRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) CreateCredential(ctx context.Context, body CreateCredentialJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateCredentialRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) DeleteCredential(ctx context.Context, name CredentialName, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteCredentialRequest(c.Server, name)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetCredential(ctx context.Context, name CredentialName, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetCredentialRequest(c.Server, name)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PutCredentialWithBody(ctx context.Context, name CredentialName, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPutCredentialRequestWithBody(c.Server, name, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PutCredential(ctx context.Context, name CredentialName, body PutCredentialJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPutCredentialRequest(c.Server, name, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
 }
 
 func (c *Client) ListDepots(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -593,6 +971,590 @@ func (c *Client) GetGearRuntime(ctx context.Context, publicKey PublicKey, reqEdi
 		return nil, err
 	}
 	return c.Client.Do(req)
+}
+
+func (c *Client) ListMiniMaxTenants(ctx context.Context, params *ListMiniMaxTenantsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListMiniMaxTenantsRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) CreateMiniMaxTenantWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateMiniMaxTenantRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) CreateMiniMaxTenant(ctx context.Context, body CreateMiniMaxTenantJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateMiniMaxTenantRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) DeleteMiniMaxTenant(ctx context.Context, name MiniMaxTenantName, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteMiniMaxTenantRequest(c.Server, name)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetMiniMaxTenant(ctx context.Context, name MiniMaxTenantName, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetMiniMaxTenantRequest(c.Server, name)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PutMiniMaxTenantWithBody(ctx context.Context, name MiniMaxTenantName, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPutMiniMaxTenantRequestWithBody(c.Server, name, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PutMiniMaxTenant(ctx context.Context, name MiniMaxTenantName, body PutMiniMaxTenantJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPutMiniMaxTenantRequest(c.Server, name, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) SyncMiniMaxTenantVoices(ctx context.Context, name MiniMaxTenantName, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSyncMiniMaxTenantVoicesRequest(c.Server, name)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ListVoices(ctx context.Context, params *ListVoicesParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListVoicesRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) CreateVoiceWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateVoiceRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) CreateVoice(ctx context.Context, body CreateVoiceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateVoiceRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) DeleteVoice(ctx context.Context, id VoiceID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteVoiceRequest(c.Server, id)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetVoice(ctx context.Context, id VoiceID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetVoiceRequest(c.Server, id)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PutVoiceWithBody(ctx context.Context, id VoiceID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPutVoiceRequestWithBody(c.Server, id, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PutVoice(ctx context.Context, id VoiceID, body PutVoiceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPutVoiceRequest(c.Server, id, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ListWorkspaceTemplates(ctx context.Context, params *ListWorkspaceTemplatesParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListWorkspaceTemplatesRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) CreateWorkspaceTemplateWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateWorkspaceTemplateRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) CreateWorkspaceTemplate(ctx context.Context, body CreateWorkspaceTemplateJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateWorkspaceTemplateRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) DeleteWorkspaceTemplate(ctx context.Context, name WorkspaceTemplateName, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteWorkspaceTemplateRequest(c.Server, name)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetWorkspaceTemplate(ctx context.Context, name WorkspaceTemplateName, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetWorkspaceTemplateRequest(c.Server, name)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PutWorkspaceTemplateWithBody(ctx context.Context, name WorkspaceTemplateName, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPutWorkspaceTemplateRequestWithBody(c.Server, name, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PutWorkspaceTemplate(ctx context.Context, name WorkspaceTemplateName, body PutWorkspaceTemplateJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPutWorkspaceTemplateRequest(c.Server, name, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ListWorkspaces(ctx context.Context, params *ListWorkspacesParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListWorkspacesRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) CreateWorkspaceWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateWorkspaceRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) CreateWorkspace(ctx context.Context, body CreateWorkspaceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateWorkspaceRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) DeleteWorkspace(ctx context.Context, name WorkspaceName, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteWorkspaceRequest(c.Server, name)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetWorkspace(ctx context.Context, name WorkspaceName, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetWorkspaceRequest(c.Server, name)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PutWorkspaceWithBody(ctx context.Context, name WorkspaceName, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPutWorkspaceRequestWithBody(c.Server, name, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PutWorkspace(ctx context.Context, name WorkspaceName, body PutWorkspaceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPutWorkspaceRequest(c.Server, name, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// NewListCredentialsRequest generates requests for ListCredentials
+func NewListCredentialsRequest(server string, params *ListCredentialsParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/credentials")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Provider != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "provider", *params.Provider, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Cursor != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "cursor", *params.Cursor, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Limit != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "limit", *params.Limit, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: "int32"}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewCreateCredentialRequest calls the generic CreateCredential builder with application/json body
+func NewCreateCredentialRequest(server string, body CreateCredentialJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCreateCredentialRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewCreateCredentialRequestWithBody generates requests for CreateCredential with any type of body
+func NewCreateCredentialRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/credentials")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewDeleteCredentialRequest generates requests for DeleteCredential
+func NewDeleteCredentialRequest(server string, name CredentialName) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "name", name, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/credentials/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("DELETE", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetCredentialRequest generates requests for GetCredential
+func NewGetCredentialRequest(server string, name CredentialName) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "name", name, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/credentials/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewPutCredentialRequest calls the generic PutCredential builder with application/json body
+func NewPutCredentialRequest(server string, name CredentialName, body PutCredentialJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewPutCredentialRequestWithBody(server, name, "application/json", bodyReader)
+}
+
+// NewPutCredentialRequestWithBody generates requests for PutCredential with any type of body
+func NewPutCredentialRequestWithBody(server string, name CredentialName, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "name", name, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/credentials/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("PUT", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
 }
 
 // NewListDepotsRequest generates requests for ListDepots
@@ -1605,6 +2567,968 @@ func NewGetGearRuntimeRequest(server string, publicKey PublicKey) (*http.Request
 	return req, nil
 }
 
+// NewListMiniMaxTenantsRequest generates requests for ListMiniMaxTenants
+func NewListMiniMaxTenantsRequest(server string, params *ListMiniMaxTenantsParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/minimax-tenants")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Cursor != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "cursor", *params.Cursor, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Limit != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "limit", *params.Limit, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: "int32"}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewCreateMiniMaxTenantRequest calls the generic CreateMiniMaxTenant builder with application/json body
+func NewCreateMiniMaxTenantRequest(server string, body CreateMiniMaxTenantJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCreateMiniMaxTenantRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewCreateMiniMaxTenantRequestWithBody generates requests for CreateMiniMaxTenant with any type of body
+func NewCreateMiniMaxTenantRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/minimax-tenants")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewDeleteMiniMaxTenantRequest generates requests for DeleteMiniMaxTenant
+func NewDeleteMiniMaxTenantRequest(server string, name MiniMaxTenantName) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "name", name, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/minimax-tenants/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("DELETE", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetMiniMaxTenantRequest generates requests for GetMiniMaxTenant
+func NewGetMiniMaxTenantRequest(server string, name MiniMaxTenantName) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "name", name, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/minimax-tenants/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewPutMiniMaxTenantRequest calls the generic PutMiniMaxTenant builder with application/json body
+func NewPutMiniMaxTenantRequest(server string, name MiniMaxTenantName, body PutMiniMaxTenantJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewPutMiniMaxTenantRequestWithBody(server, name, "application/json", bodyReader)
+}
+
+// NewPutMiniMaxTenantRequestWithBody generates requests for PutMiniMaxTenant with any type of body
+func NewPutMiniMaxTenantRequestWithBody(server string, name MiniMaxTenantName, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "name", name, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/minimax-tenants/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("PUT", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewSyncMiniMaxTenantVoicesRequest generates requests for SyncMiniMaxTenantVoices
+func NewSyncMiniMaxTenantVoicesRequest(server string, name MiniMaxTenantName) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "name", name, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/minimax-tenants/%s/@sync-voices", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewListVoicesRequest generates requests for ListVoices
+func NewListVoicesRequest(server string, params *ListVoicesParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/voices")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Source != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "source", *params.Source, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.ProviderKind != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "providerKind", *params.ProviderKind, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.ProviderName != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "providerName", *params.ProviderName, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Cursor != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "cursor", *params.Cursor, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Limit != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "limit", *params.Limit, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: "int32"}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewCreateVoiceRequest calls the generic CreateVoice builder with application/json body
+func NewCreateVoiceRequest(server string, body CreateVoiceJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCreateVoiceRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewCreateVoiceRequestWithBody generates requests for CreateVoice with any type of body
+func NewCreateVoiceRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/voices")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewDeleteVoiceRequest generates requests for DeleteVoice
+func NewDeleteVoiceRequest(server string, id VoiceID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "id", id, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/voices/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("DELETE", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetVoiceRequest generates requests for GetVoice
+func NewGetVoiceRequest(server string, id VoiceID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "id", id, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/voices/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewPutVoiceRequest calls the generic PutVoice builder with application/json body
+func NewPutVoiceRequest(server string, id VoiceID, body PutVoiceJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewPutVoiceRequestWithBody(server, id, "application/json", bodyReader)
+}
+
+// NewPutVoiceRequestWithBody generates requests for PutVoice with any type of body
+func NewPutVoiceRequestWithBody(server string, id VoiceID, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "id", id, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/voices/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("PUT", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewListWorkspaceTemplatesRequest generates requests for ListWorkspaceTemplates
+func NewListWorkspaceTemplatesRequest(server string, params *ListWorkspaceTemplatesParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/workspace-templates")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Cursor != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "cursor", *params.Cursor, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Limit != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "limit", *params.Limit, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: "int32"}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewCreateWorkspaceTemplateRequest calls the generic CreateWorkspaceTemplate builder with application/json body
+func NewCreateWorkspaceTemplateRequest(server string, body CreateWorkspaceTemplateJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCreateWorkspaceTemplateRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewCreateWorkspaceTemplateRequestWithBody generates requests for CreateWorkspaceTemplate with any type of body
+func NewCreateWorkspaceTemplateRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/workspace-templates")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewDeleteWorkspaceTemplateRequest generates requests for DeleteWorkspaceTemplate
+func NewDeleteWorkspaceTemplateRequest(server string, name WorkspaceTemplateName) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "name", name, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/workspace-templates/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("DELETE", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetWorkspaceTemplateRequest generates requests for GetWorkspaceTemplate
+func NewGetWorkspaceTemplateRequest(server string, name WorkspaceTemplateName) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "name", name, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/workspace-templates/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewPutWorkspaceTemplateRequest calls the generic PutWorkspaceTemplate builder with application/json body
+func NewPutWorkspaceTemplateRequest(server string, name WorkspaceTemplateName, body PutWorkspaceTemplateJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewPutWorkspaceTemplateRequestWithBody(server, name, "application/json", bodyReader)
+}
+
+// NewPutWorkspaceTemplateRequestWithBody generates requests for PutWorkspaceTemplate with any type of body
+func NewPutWorkspaceTemplateRequestWithBody(server string, name WorkspaceTemplateName, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "name", name, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/workspace-templates/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("PUT", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewListWorkspacesRequest generates requests for ListWorkspaces
+func NewListWorkspacesRequest(server string, params *ListWorkspacesParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/workspaces")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Cursor != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "cursor", *params.Cursor, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Limit != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "limit", *params.Limit, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: "int32"}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewCreateWorkspaceRequest calls the generic CreateWorkspace builder with application/json body
+func NewCreateWorkspaceRequest(server string, body CreateWorkspaceJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCreateWorkspaceRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewCreateWorkspaceRequestWithBody generates requests for CreateWorkspace with any type of body
+func NewCreateWorkspaceRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/workspaces")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewDeleteWorkspaceRequest generates requests for DeleteWorkspace
+func NewDeleteWorkspaceRequest(server string, name WorkspaceName) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "name", name, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/workspaces/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("DELETE", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetWorkspaceRequest generates requests for GetWorkspace
+func NewGetWorkspaceRequest(server string, name WorkspaceName) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "name", name, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/workspaces/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewPutWorkspaceRequest calls the generic PutWorkspace builder with application/json body
+func NewPutWorkspaceRequest(server string, name WorkspaceName, body PutWorkspaceJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewPutWorkspaceRequestWithBody(server, name, "application/json", bodyReader)
+}
+
+// NewPutWorkspaceRequestWithBody generates requests for PutWorkspace with any type of body
+func NewPutWorkspaceRequestWithBody(server string, name WorkspaceName, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "name", name, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/workspaces/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("PUT", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 func (c *Client) applyEditors(ctx context.Context, req *http.Request, additionalEditors []RequestEditorFn) error {
 	for _, r := range c.RequestEditors {
 		if err := r(ctx, req); err != nil {
@@ -1648,6 +3572,25 @@ func WithBaseURL(baseURL string) ClientOption {
 
 // ClientWithResponsesInterface is the interface specification for the client with responses above.
 type ClientWithResponsesInterface interface {
+	// ListCredentialsWithResponse request
+	ListCredentialsWithResponse(ctx context.Context, params *ListCredentialsParams, reqEditors ...RequestEditorFn) (*ListCredentialsResponse, error)
+
+	// CreateCredentialWithBodyWithResponse request with any body
+	CreateCredentialWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateCredentialResponse, error)
+
+	CreateCredentialWithResponse(ctx context.Context, body CreateCredentialJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateCredentialResponse, error)
+
+	// DeleteCredentialWithResponse request
+	DeleteCredentialWithResponse(ctx context.Context, name CredentialName, reqEditors ...RequestEditorFn) (*DeleteCredentialResponse, error)
+
+	// GetCredentialWithResponse request
+	GetCredentialWithResponse(ctx context.Context, name CredentialName, reqEditors ...RequestEditorFn) (*GetCredentialResponse, error)
+
+	// PutCredentialWithBodyWithResponse request with any body
+	PutCredentialWithBodyWithResponse(ctx context.Context, name CredentialName, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PutCredentialResponse, error)
+
+	PutCredentialWithResponse(ctx context.Context, name CredentialName, body PutCredentialJSONRequestBody, reqEditors ...RequestEditorFn) (*PutCredentialResponse, error)
+
 	// ListDepotsWithResponse request
 	ListDepotsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListDepotsResponse, error)
 
@@ -1722,6 +3665,205 @@ type ClientWithResponsesInterface interface {
 
 	// GetGearRuntimeWithResponse request
 	GetGearRuntimeWithResponse(ctx context.Context, publicKey PublicKey, reqEditors ...RequestEditorFn) (*GetGearRuntimeResponse, error)
+
+	// ListMiniMaxTenantsWithResponse request
+	ListMiniMaxTenantsWithResponse(ctx context.Context, params *ListMiniMaxTenantsParams, reqEditors ...RequestEditorFn) (*ListMiniMaxTenantsResponse, error)
+
+	// CreateMiniMaxTenantWithBodyWithResponse request with any body
+	CreateMiniMaxTenantWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateMiniMaxTenantResponse, error)
+
+	CreateMiniMaxTenantWithResponse(ctx context.Context, body CreateMiniMaxTenantJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateMiniMaxTenantResponse, error)
+
+	// DeleteMiniMaxTenantWithResponse request
+	DeleteMiniMaxTenantWithResponse(ctx context.Context, name MiniMaxTenantName, reqEditors ...RequestEditorFn) (*DeleteMiniMaxTenantResponse, error)
+
+	// GetMiniMaxTenantWithResponse request
+	GetMiniMaxTenantWithResponse(ctx context.Context, name MiniMaxTenantName, reqEditors ...RequestEditorFn) (*GetMiniMaxTenantResponse, error)
+
+	// PutMiniMaxTenantWithBodyWithResponse request with any body
+	PutMiniMaxTenantWithBodyWithResponse(ctx context.Context, name MiniMaxTenantName, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PutMiniMaxTenantResponse, error)
+
+	PutMiniMaxTenantWithResponse(ctx context.Context, name MiniMaxTenantName, body PutMiniMaxTenantJSONRequestBody, reqEditors ...RequestEditorFn) (*PutMiniMaxTenantResponse, error)
+
+	// SyncMiniMaxTenantVoicesWithResponse request
+	SyncMiniMaxTenantVoicesWithResponse(ctx context.Context, name MiniMaxTenantName, reqEditors ...RequestEditorFn) (*SyncMiniMaxTenantVoicesResponse, error)
+
+	// ListVoicesWithResponse request
+	ListVoicesWithResponse(ctx context.Context, params *ListVoicesParams, reqEditors ...RequestEditorFn) (*ListVoicesResponse, error)
+
+	// CreateVoiceWithBodyWithResponse request with any body
+	CreateVoiceWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateVoiceResponse, error)
+
+	CreateVoiceWithResponse(ctx context.Context, body CreateVoiceJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateVoiceResponse, error)
+
+	// DeleteVoiceWithResponse request
+	DeleteVoiceWithResponse(ctx context.Context, id VoiceID, reqEditors ...RequestEditorFn) (*DeleteVoiceResponse, error)
+
+	// GetVoiceWithResponse request
+	GetVoiceWithResponse(ctx context.Context, id VoiceID, reqEditors ...RequestEditorFn) (*GetVoiceResponse, error)
+
+	// PutVoiceWithBodyWithResponse request with any body
+	PutVoiceWithBodyWithResponse(ctx context.Context, id VoiceID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PutVoiceResponse, error)
+
+	PutVoiceWithResponse(ctx context.Context, id VoiceID, body PutVoiceJSONRequestBody, reqEditors ...RequestEditorFn) (*PutVoiceResponse, error)
+
+	// ListWorkspaceTemplatesWithResponse request
+	ListWorkspaceTemplatesWithResponse(ctx context.Context, params *ListWorkspaceTemplatesParams, reqEditors ...RequestEditorFn) (*ListWorkspaceTemplatesResponse, error)
+
+	// CreateWorkspaceTemplateWithBodyWithResponse request with any body
+	CreateWorkspaceTemplateWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateWorkspaceTemplateResponse, error)
+
+	CreateWorkspaceTemplateWithResponse(ctx context.Context, body CreateWorkspaceTemplateJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateWorkspaceTemplateResponse, error)
+
+	// DeleteWorkspaceTemplateWithResponse request
+	DeleteWorkspaceTemplateWithResponse(ctx context.Context, name WorkspaceTemplateName, reqEditors ...RequestEditorFn) (*DeleteWorkspaceTemplateResponse, error)
+
+	// GetWorkspaceTemplateWithResponse request
+	GetWorkspaceTemplateWithResponse(ctx context.Context, name WorkspaceTemplateName, reqEditors ...RequestEditorFn) (*GetWorkspaceTemplateResponse, error)
+
+	// PutWorkspaceTemplateWithBodyWithResponse request with any body
+	PutWorkspaceTemplateWithBodyWithResponse(ctx context.Context, name WorkspaceTemplateName, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PutWorkspaceTemplateResponse, error)
+
+	PutWorkspaceTemplateWithResponse(ctx context.Context, name WorkspaceTemplateName, body PutWorkspaceTemplateJSONRequestBody, reqEditors ...RequestEditorFn) (*PutWorkspaceTemplateResponse, error)
+
+	// ListWorkspacesWithResponse request
+	ListWorkspacesWithResponse(ctx context.Context, params *ListWorkspacesParams, reqEditors ...RequestEditorFn) (*ListWorkspacesResponse, error)
+
+	// CreateWorkspaceWithBodyWithResponse request with any body
+	CreateWorkspaceWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateWorkspaceResponse, error)
+
+	CreateWorkspaceWithResponse(ctx context.Context, body CreateWorkspaceJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateWorkspaceResponse, error)
+
+	// DeleteWorkspaceWithResponse request
+	DeleteWorkspaceWithResponse(ctx context.Context, name WorkspaceName, reqEditors ...RequestEditorFn) (*DeleteWorkspaceResponse, error)
+
+	// GetWorkspaceWithResponse request
+	GetWorkspaceWithResponse(ctx context.Context, name WorkspaceName, reqEditors ...RequestEditorFn) (*GetWorkspaceResponse, error)
+
+	// PutWorkspaceWithBodyWithResponse request with any body
+	PutWorkspaceWithBodyWithResponse(ctx context.Context, name WorkspaceName, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PutWorkspaceResponse, error)
+
+	PutWorkspaceWithResponse(ctx context.Context, name WorkspaceName, body PutWorkspaceJSONRequestBody, reqEditors ...RequestEditorFn) (*PutWorkspaceResponse, error)
+}
+
+type ListCredentialsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *CredentialList
+	JSON500      *apitypes.ErrorResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r ListCredentialsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListCredentialsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type CreateCredentialResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *apitypes.Credential
+	JSON400      *apitypes.ErrorResponse
+	JSON409      *apitypes.ErrorResponse
+	JSON500      *apitypes.ErrorResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r CreateCredentialResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CreateCredentialResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type DeleteCredentialResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *apitypes.Credential
+	JSON404      *apitypes.ErrorResponse
+	JSON500      *apitypes.ErrorResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteCredentialResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteCredentialResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetCredentialResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *apitypes.Credential
+	JSON404      *apitypes.ErrorResponse
+	JSON500      *apitypes.ErrorResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r GetCredentialResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetCredentialResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type PutCredentialResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *apitypes.Credential
+	JSON400      *apitypes.ErrorResponse
+	JSON500      *apitypes.ErrorResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r PutCredentialResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PutCredentialResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
 }
 
 type ListDepotsResponse struct {
@@ -1750,7 +3892,7 @@ func (r ListDepotsResponse) StatusCode() int {
 type GetDepotResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
-	JSON200      *Depot
+	JSON200      *apitypes.Depot
 	JSON404      *apitypes.ErrorResponse
 }
 
@@ -1773,7 +3915,7 @@ func (r GetDepotResponse) StatusCode() int {
 type PutDepotInfoResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
-	JSON200      *Depot
+	JSON200      *apitypes.Depot
 	JSON400      *apitypes.ErrorResponse
 	JSON409      *apitypes.ErrorResponse
 	JSON500      *apitypes.ErrorResponse
@@ -1798,7 +3940,7 @@ func (r PutDepotInfoResponse) StatusCode() int {
 type ReleaseDepotResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
-	JSON200      *Depot
+	JSON200      *apitypes.Depot
 	JSON404      *apitypes.ErrorResponse
 	JSON409      *apitypes.ErrorResponse
 	JSON500      *apitypes.ErrorResponse
@@ -1823,7 +3965,7 @@ func (r ReleaseDepotResponse) StatusCode() int {
 type RollbackDepotResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
-	JSON200      *Depot
+	JSON200      *apitypes.Depot
 	JSON404      *apitypes.ErrorResponse
 	JSON409      *apitypes.ErrorResponse
 	JSON500      *apitypes.ErrorResponse
@@ -1848,7 +3990,7 @@ func (r RollbackDepotResponse) StatusCode() int {
 type GetChannelResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
-	JSON200      *DepotRelease
+	JSON200      *apitypes.DepotRelease
 	JSON404      *apitypes.ErrorResponse
 }
 
@@ -1871,7 +4013,7 @@ func (r GetChannelResponse) StatusCode() int {
 type PutChannelResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
-	JSON200      *DepotRelease
+	JSON200      *apitypes.DepotRelease
 	JSON409      *apitypes.ErrorResponse
 }
 
@@ -2261,6 +4403,574 @@ func (r GetGearRuntimeResponse) StatusCode() int {
 	return 0
 }
 
+type ListMiniMaxTenantsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *MiniMaxTenantList
+	JSON500      *apitypes.ErrorResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r ListMiniMaxTenantsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListMiniMaxTenantsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type CreateMiniMaxTenantResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *apitypes.MiniMaxTenant
+	JSON400      *apitypes.ErrorResponse
+	JSON409      *apitypes.ErrorResponse
+	JSON500      *apitypes.ErrorResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r CreateMiniMaxTenantResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CreateMiniMaxTenantResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type DeleteMiniMaxTenantResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *apitypes.MiniMaxTenant
+	JSON404      *apitypes.ErrorResponse
+	JSON500      *apitypes.ErrorResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteMiniMaxTenantResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteMiniMaxTenantResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetMiniMaxTenantResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *apitypes.MiniMaxTenant
+	JSON404      *apitypes.ErrorResponse
+	JSON500      *apitypes.ErrorResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r GetMiniMaxTenantResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetMiniMaxTenantResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type PutMiniMaxTenantResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *apitypes.MiniMaxTenant
+	JSON400      *apitypes.ErrorResponse
+	JSON500      *apitypes.ErrorResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r PutMiniMaxTenantResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PutMiniMaxTenantResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type SyncMiniMaxTenantVoicesResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *MiniMaxSyncVoicesResult
+	JSON400      *apitypes.ErrorResponse
+	JSON404      *apitypes.ErrorResponse
+	JSON500      *apitypes.ErrorResponse
+	JSON502      *apitypes.ErrorResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r SyncMiniMaxTenantVoicesResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r SyncMiniMaxTenantVoicesResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type ListVoicesResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *VoiceList
+	JSON500      *apitypes.ErrorResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r ListVoicesResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListVoicesResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type CreateVoiceResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *apitypes.Voice
+	JSON400      *apitypes.ErrorResponse
+	JSON409      *apitypes.ErrorResponse
+	JSON500      *apitypes.ErrorResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r CreateVoiceResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CreateVoiceResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type DeleteVoiceResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *apitypes.Voice
+	JSON404      *apitypes.ErrorResponse
+	JSON500      *apitypes.ErrorResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteVoiceResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteVoiceResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetVoiceResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *apitypes.Voice
+	JSON404      *apitypes.ErrorResponse
+	JSON500      *apitypes.ErrorResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r GetVoiceResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetVoiceResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type PutVoiceResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *apitypes.Voice
+	JSON400      *apitypes.ErrorResponse
+	JSON409      *apitypes.ErrorResponse
+	JSON500      *apitypes.ErrorResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r PutVoiceResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PutVoiceResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type ListWorkspaceTemplatesResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *WorkspaceTemplateList
+	JSON500      *apitypes.ErrorResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r ListWorkspaceTemplatesResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListWorkspaceTemplatesResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type CreateWorkspaceTemplateResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *apitypes.WorkflowTemplateDocument
+	JSON400      *apitypes.ErrorResponse
+	JSON409      *apitypes.ErrorResponse
+	JSON500      *apitypes.ErrorResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r CreateWorkspaceTemplateResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CreateWorkspaceTemplateResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type DeleteWorkspaceTemplateResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *apitypes.WorkflowTemplateDocument
+	JSON404      *apitypes.ErrorResponse
+	JSON500      *apitypes.ErrorResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteWorkspaceTemplateResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteWorkspaceTemplateResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetWorkspaceTemplateResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *apitypes.WorkflowTemplateDocument
+	JSON404      *apitypes.ErrorResponse
+	JSON500      *apitypes.ErrorResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r GetWorkspaceTemplateResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetWorkspaceTemplateResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type PutWorkspaceTemplateResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *apitypes.WorkflowTemplateDocument
+	JSON400      *apitypes.ErrorResponse
+	JSON500      *apitypes.ErrorResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r PutWorkspaceTemplateResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PutWorkspaceTemplateResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type ListWorkspacesResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *WorkspaceList
+	JSON500      *apitypes.ErrorResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r ListWorkspacesResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListWorkspacesResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type CreateWorkspaceResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *apitypes.Workspace
+	JSON400      *apitypes.ErrorResponse
+	JSON409      *apitypes.ErrorResponse
+	JSON500      *apitypes.ErrorResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r CreateWorkspaceResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CreateWorkspaceResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type DeleteWorkspaceResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *apitypes.Workspace
+	JSON404      *apitypes.ErrorResponse
+	JSON500      *apitypes.ErrorResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteWorkspaceResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteWorkspaceResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetWorkspaceResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *apitypes.Workspace
+	JSON404      *apitypes.ErrorResponse
+	JSON500      *apitypes.ErrorResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r GetWorkspaceResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetWorkspaceResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type PutWorkspaceResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *apitypes.Workspace
+	JSON400      *apitypes.ErrorResponse
+	JSON500      *apitypes.ErrorResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r PutWorkspaceResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PutWorkspaceResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ListCredentialsWithResponse request returning *ListCredentialsResponse
+func (c *ClientWithResponses) ListCredentialsWithResponse(ctx context.Context, params *ListCredentialsParams, reqEditors ...RequestEditorFn) (*ListCredentialsResponse, error) {
+	rsp, err := c.ListCredentials(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListCredentialsResponse(rsp)
+}
+
+// CreateCredentialWithBodyWithResponse request with arbitrary body returning *CreateCredentialResponse
+func (c *ClientWithResponses) CreateCredentialWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateCredentialResponse, error) {
+	rsp, err := c.CreateCredentialWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateCredentialResponse(rsp)
+}
+
+func (c *ClientWithResponses) CreateCredentialWithResponse(ctx context.Context, body CreateCredentialJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateCredentialResponse, error) {
+	rsp, err := c.CreateCredential(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateCredentialResponse(rsp)
+}
+
+// DeleteCredentialWithResponse request returning *DeleteCredentialResponse
+func (c *ClientWithResponses) DeleteCredentialWithResponse(ctx context.Context, name CredentialName, reqEditors ...RequestEditorFn) (*DeleteCredentialResponse, error) {
+	rsp, err := c.DeleteCredential(ctx, name, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteCredentialResponse(rsp)
+}
+
+// GetCredentialWithResponse request returning *GetCredentialResponse
+func (c *ClientWithResponses) GetCredentialWithResponse(ctx context.Context, name CredentialName, reqEditors ...RequestEditorFn) (*GetCredentialResponse, error) {
+	rsp, err := c.GetCredential(ctx, name, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetCredentialResponse(rsp)
+}
+
+// PutCredentialWithBodyWithResponse request with arbitrary body returning *PutCredentialResponse
+func (c *ClientWithResponses) PutCredentialWithBodyWithResponse(ctx context.Context, name CredentialName, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PutCredentialResponse, error) {
+	rsp, err := c.PutCredentialWithBody(ctx, name, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePutCredentialResponse(rsp)
+}
+
+func (c *ClientWithResponses) PutCredentialWithResponse(ctx context.Context, name CredentialName, body PutCredentialJSONRequestBody, reqEditors ...RequestEditorFn) (*PutCredentialResponse, error) {
+	rsp, err := c.PutCredential(ctx, name, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePutCredentialResponse(rsp)
+}
+
 // ListDepotsWithResponse request returning *ListDepotsResponse
 func (c *ClientWithResponses) ListDepotsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListDepotsResponse, error) {
 	rsp, err := c.ListDepots(ctx, reqEditors...)
@@ -2492,6 +5202,459 @@ func (c *ClientWithResponses) GetGearRuntimeWithResponse(ctx context.Context, pu
 	return ParseGetGearRuntimeResponse(rsp)
 }
 
+// ListMiniMaxTenantsWithResponse request returning *ListMiniMaxTenantsResponse
+func (c *ClientWithResponses) ListMiniMaxTenantsWithResponse(ctx context.Context, params *ListMiniMaxTenantsParams, reqEditors ...RequestEditorFn) (*ListMiniMaxTenantsResponse, error) {
+	rsp, err := c.ListMiniMaxTenants(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListMiniMaxTenantsResponse(rsp)
+}
+
+// CreateMiniMaxTenantWithBodyWithResponse request with arbitrary body returning *CreateMiniMaxTenantResponse
+func (c *ClientWithResponses) CreateMiniMaxTenantWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateMiniMaxTenantResponse, error) {
+	rsp, err := c.CreateMiniMaxTenantWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateMiniMaxTenantResponse(rsp)
+}
+
+func (c *ClientWithResponses) CreateMiniMaxTenantWithResponse(ctx context.Context, body CreateMiniMaxTenantJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateMiniMaxTenantResponse, error) {
+	rsp, err := c.CreateMiniMaxTenant(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateMiniMaxTenantResponse(rsp)
+}
+
+// DeleteMiniMaxTenantWithResponse request returning *DeleteMiniMaxTenantResponse
+func (c *ClientWithResponses) DeleteMiniMaxTenantWithResponse(ctx context.Context, name MiniMaxTenantName, reqEditors ...RequestEditorFn) (*DeleteMiniMaxTenantResponse, error) {
+	rsp, err := c.DeleteMiniMaxTenant(ctx, name, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteMiniMaxTenantResponse(rsp)
+}
+
+// GetMiniMaxTenantWithResponse request returning *GetMiniMaxTenantResponse
+func (c *ClientWithResponses) GetMiniMaxTenantWithResponse(ctx context.Context, name MiniMaxTenantName, reqEditors ...RequestEditorFn) (*GetMiniMaxTenantResponse, error) {
+	rsp, err := c.GetMiniMaxTenant(ctx, name, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetMiniMaxTenantResponse(rsp)
+}
+
+// PutMiniMaxTenantWithBodyWithResponse request with arbitrary body returning *PutMiniMaxTenantResponse
+func (c *ClientWithResponses) PutMiniMaxTenantWithBodyWithResponse(ctx context.Context, name MiniMaxTenantName, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PutMiniMaxTenantResponse, error) {
+	rsp, err := c.PutMiniMaxTenantWithBody(ctx, name, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePutMiniMaxTenantResponse(rsp)
+}
+
+func (c *ClientWithResponses) PutMiniMaxTenantWithResponse(ctx context.Context, name MiniMaxTenantName, body PutMiniMaxTenantJSONRequestBody, reqEditors ...RequestEditorFn) (*PutMiniMaxTenantResponse, error) {
+	rsp, err := c.PutMiniMaxTenant(ctx, name, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePutMiniMaxTenantResponse(rsp)
+}
+
+// SyncMiniMaxTenantVoicesWithResponse request returning *SyncMiniMaxTenantVoicesResponse
+func (c *ClientWithResponses) SyncMiniMaxTenantVoicesWithResponse(ctx context.Context, name MiniMaxTenantName, reqEditors ...RequestEditorFn) (*SyncMiniMaxTenantVoicesResponse, error) {
+	rsp, err := c.SyncMiniMaxTenantVoices(ctx, name, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSyncMiniMaxTenantVoicesResponse(rsp)
+}
+
+// ListVoicesWithResponse request returning *ListVoicesResponse
+func (c *ClientWithResponses) ListVoicesWithResponse(ctx context.Context, params *ListVoicesParams, reqEditors ...RequestEditorFn) (*ListVoicesResponse, error) {
+	rsp, err := c.ListVoices(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListVoicesResponse(rsp)
+}
+
+// CreateVoiceWithBodyWithResponse request with arbitrary body returning *CreateVoiceResponse
+func (c *ClientWithResponses) CreateVoiceWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateVoiceResponse, error) {
+	rsp, err := c.CreateVoiceWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateVoiceResponse(rsp)
+}
+
+func (c *ClientWithResponses) CreateVoiceWithResponse(ctx context.Context, body CreateVoiceJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateVoiceResponse, error) {
+	rsp, err := c.CreateVoice(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateVoiceResponse(rsp)
+}
+
+// DeleteVoiceWithResponse request returning *DeleteVoiceResponse
+func (c *ClientWithResponses) DeleteVoiceWithResponse(ctx context.Context, id VoiceID, reqEditors ...RequestEditorFn) (*DeleteVoiceResponse, error) {
+	rsp, err := c.DeleteVoice(ctx, id, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteVoiceResponse(rsp)
+}
+
+// GetVoiceWithResponse request returning *GetVoiceResponse
+func (c *ClientWithResponses) GetVoiceWithResponse(ctx context.Context, id VoiceID, reqEditors ...RequestEditorFn) (*GetVoiceResponse, error) {
+	rsp, err := c.GetVoice(ctx, id, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetVoiceResponse(rsp)
+}
+
+// PutVoiceWithBodyWithResponse request with arbitrary body returning *PutVoiceResponse
+func (c *ClientWithResponses) PutVoiceWithBodyWithResponse(ctx context.Context, id VoiceID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PutVoiceResponse, error) {
+	rsp, err := c.PutVoiceWithBody(ctx, id, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePutVoiceResponse(rsp)
+}
+
+func (c *ClientWithResponses) PutVoiceWithResponse(ctx context.Context, id VoiceID, body PutVoiceJSONRequestBody, reqEditors ...RequestEditorFn) (*PutVoiceResponse, error) {
+	rsp, err := c.PutVoice(ctx, id, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePutVoiceResponse(rsp)
+}
+
+// ListWorkspaceTemplatesWithResponse request returning *ListWorkspaceTemplatesResponse
+func (c *ClientWithResponses) ListWorkspaceTemplatesWithResponse(ctx context.Context, params *ListWorkspaceTemplatesParams, reqEditors ...RequestEditorFn) (*ListWorkspaceTemplatesResponse, error) {
+	rsp, err := c.ListWorkspaceTemplates(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListWorkspaceTemplatesResponse(rsp)
+}
+
+// CreateWorkspaceTemplateWithBodyWithResponse request with arbitrary body returning *CreateWorkspaceTemplateResponse
+func (c *ClientWithResponses) CreateWorkspaceTemplateWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateWorkspaceTemplateResponse, error) {
+	rsp, err := c.CreateWorkspaceTemplateWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateWorkspaceTemplateResponse(rsp)
+}
+
+func (c *ClientWithResponses) CreateWorkspaceTemplateWithResponse(ctx context.Context, body CreateWorkspaceTemplateJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateWorkspaceTemplateResponse, error) {
+	rsp, err := c.CreateWorkspaceTemplate(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateWorkspaceTemplateResponse(rsp)
+}
+
+// DeleteWorkspaceTemplateWithResponse request returning *DeleteWorkspaceTemplateResponse
+func (c *ClientWithResponses) DeleteWorkspaceTemplateWithResponse(ctx context.Context, name WorkspaceTemplateName, reqEditors ...RequestEditorFn) (*DeleteWorkspaceTemplateResponse, error) {
+	rsp, err := c.DeleteWorkspaceTemplate(ctx, name, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteWorkspaceTemplateResponse(rsp)
+}
+
+// GetWorkspaceTemplateWithResponse request returning *GetWorkspaceTemplateResponse
+func (c *ClientWithResponses) GetWorkspaceTemplateWithResponse(ctx context.Context, name WorkspaceTemplateName, reqEditors ...RequestEditorFn) (*GetWorkspaceTemplateResponse, error) {
+	rsp, err := c.GetWorkspaceTemplate(ctx, name, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetWorkspaceTemplateResponse(rsp)
+}
+
+// PutWorkspaceTemplateWithBodyWithResponse request with arbitrary body returning *PutWorkspaceTemplateResponse
+func (c *ClientWithResponses) PutWorkspaceTemplateWithBodyWithResponse(ctx context.Context, name WorkspaceTemplateName, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PutWorkspaceTemplateResponse, error) {
+	rsp, err := c.PutWorkspaceTemplateWithBody(ctx, name, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePutWorkspaceTemplateResponse(rsp)
+}
+
+func (c *ClientWithResponses) PutWorkspaceTemplateWithResponse(ctx context.Context, name WorkspaceTemplateName, body PutWorkspaceTemplateJSONRequestBody, reqEditors ...RequestEditorFn) (*PutWorkspaceTemplateResponse, error) {
+	rsp, err := c.PutWorkspaceTemplate(ctx, name, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePutWorkspaceTemplateResponse(rsp)
+}
+
+// ListWorkspacesWithResponse request returning *ListWorkspacesResponse
+func (c *ClientWithResponses) ListWorkspacesWithResponse(ctx context.Context, params *ListWorkspacesParams, reqEditors ...RequestEditorFn) (*ListWorkspacesResponse, error) {
+	rsp, err := c.ListWorkspaces(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListWorkspacesResponse(rsp)
+}
+
+// CreateWorkspaceWithBodyWithResponse request with arbitrary body returning *CreateWorkspaceResponse
+func (c *ClientWithResponses) CreateWorkspaceWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateWorkspaceResponse, error) {
+	rsp, err := c.CreateWorkspaceWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateWorkspaceResponse(rsp)
+}
+
+func (c *ClientWithResponses) CreateWorkspaceWithResponse(ctx context.Context, body CreateWorkspaceJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateWorkspaceResponse, error) {
+	rsp, err := c.CreateWorkspace(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateWorkspaceResponse(rsp)
+}
+
+// DeleteWorkspaceWithResponse request returning *DeleteWorkspaceResponse
+func (c *ClientWithResponses) DeleteWorkspaceWithResponse(ctx context.Context, name WorkspaceName, reqEditors ...RequestEditorFn) (*DeleteWorkspaceResponse, error) {
+	rsp, err := c.DeleteWorkspace(ctx, name, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteWorkspaceResponse(rsp)
+}
+
+// GetWorkspaceWithResponse request returning *GetWorkspaceResponse
+func (c *ClientWithResponses) GetWorkspaceWithResponse(ctx context.Context, name WorkspaceName, reqEditors ...RequestEditorFn) (*GetWorkspaceResponse, error) {
+	rsp, err := c.GetWorkspace(ctx, name, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetWorkspaceResponse(rsp)
+}
+
+// PutWorkspaceWithBodyWithResponse request with arbitrary body returning *PutWorkspaceResponse
+func (c *ClientWithResponses) PutWorkspaceWithBodyWithResponse(ctx context.Context, name WorkspaceName, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PutWorkspaceResponse, error) {
+	rsp, err := c.PutWorkspaceWithBody(ctx, name, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePutWorkspaceResponse(rsp)
+}
+
+func (c *ClientWithResponses) PutWorkspaceWithResponse(ctx context.Context, name WorkspaceName, body PutWorkspaceJSONRequestBody, reqEditors ...RequestEditorFn) (*PutWorkspaceResponse, error) {
+	rsp, err := c.PutWorkspace(ctx, name, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePutWorkspaceResponse(rsp)
+}
+
+// ParseListCredentialsResponse parses an HTTP response from a ListCredentialsWithResponse call
+func ParseListCredentialsResponse(rsp *http.Response) (*ListCredentialsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListCredentialsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest CredentialList
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest apitypes.ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCreateCredentialResponse parses an HTTP response from a CreateCredentialWithResponse call
+func ParseCreateCredentialResponse(rsp *http.Response) (*CreateCredentialResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CreateCredentialResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest apitypes.Credential
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest apitypes.ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest apitypes.ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON409 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest apitypes.ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDeleteCredentialResponse parses an HTTP response from a DeleteCredentialWithResponse call
+func ParseDeleteCredentialResponse(rsp *http.Response) (*DeleteCredentialResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteCredentialResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest apitypes.Credential
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest apitypes.ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest apitypes.ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetCredentialResponse parses an HTTP response from a GetCredentialWithResponse call
+func ParseGetCredentialResponse(rsp *http.Response) (*GetCredentialResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetCredentialResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest apitypes.Credential
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest apitypes.ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest apitypes.ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParsePutCredentialResponse parses an HTTP response from a PutCredentialWithResponse call
+func ParsePutCredentialResponse(rsp *http.Response) (*PutCredentialResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PutCredentialResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest apitypes.Credential
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest apitypes.ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest apitypes.ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseListDepotsResponse parses an HTTP response from a ListDepotsWithResponse call
 func ParseListDepotsResponse(rsp *http.Response) (*ListDepotsResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -2540,7 +5703,7 @@ func ParseGetDepotResponse(rsp *http.Response) (*GetDepotResponse, error) {
 
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest Depot
+		var dest apitypes.Depot
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -2573,7 +5736,7 @@ func ParsePutDepotInfoResponse(rsp *http.Response) (*PutDepotInfoResponse, error
 
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest Depot
+		var dest apitypes.Depot
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -2620,7 +5783,7 @@ func ParseReleaseDepotResponse(rsp *http.Response) (*ReleaseDepotResponse, error
 
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest Depot
+		var dest apitypes.Depot
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -2667,7 +5830,7 @@ func ParseRollbackDepotResponse(rsp *http.Response) (*RollbackDepotResponse, err
 
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest Depot
+		var dest apitypes.Depot
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -2714,7 +5877,7 @@ func ParseGetChannelResponse(rsp *http.Response) (*GetChannelResponse, error) {
 
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest DepotRelease
+		var dest apitypes.DepotRelease
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -2747,7 +5910,7 @@ func ParsePutChannelResponse(rsp *http.Response) (*PutChannelResponse, error) {
 
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest DepotRelease
+		var dest apitypes.DepotRelease
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -3307,8 +6470,884 @@ func ParseGetGearRuntimeResponse(rsp *http.Response) (*GetGearRuntimeResponse, e
 	return response, nil
 }
 
+// ParseListMiniMaxTenantsResponse parses an HTTP response from a ListMiniMaxTenantsWithResponse call
+func ParseListMiniMaxTenantsResponse(rsp *http.Response) (*ListMiniMaxTenantsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListMiniMaxTenantsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest MiniMaxTenantList
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest apitypes.ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCreateMiniMaxTenantResponse parses an HTTP response from a CreateMiniMaxTenantWithResponse call
+func ParseCreateMiniMaxTenantResponse(rsp *http.Response) (*CreateMiniMaxTenantResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CreateMiniMaxTenantResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest apitypes.MiniMaxTenant
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest apitypes.ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest apitypes.ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON409 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest apitypes.ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDeleteMiniMaxTenantResponse parses an HTTP response from a DeleteMiniMaxTenantWithResponse call
+func ParseDeleteMiniMaxTenantResponse(rsp *http.Response) (*DeleteMiniMaxTenantResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteMiniMaxTenantResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest apitypes.MiniMaxTenant
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest apitypes.ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest apitypes.ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetMiniMaxTenantResponse parses an HTTP response from a GetMiniMaxTenantWithResponse call
+func ParseGetMiniMaxTenantResponse(rsp *http.Response) (*GetMiniMaxTenantResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetMiniMaxTenantResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest apitypes.MiniMaxTenant
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest apitypes.ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest apitypes.ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParsePutMiniMaxTenantResponse parses an HTTP response from a PutMiniMaxTenantWithResponse call
+func ParsePutMiniMaxTenantResponse(rsp *http.Response) (*PutMiniMaxTenantResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PutMiniMaxTenantResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest apitypes.MiniMaxTenant
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest apitypes.ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest apitypes.ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseSyncMiniMaxTenantVoicesResponse parses an HTTP response from a SyncMiniMaxTenantVoicesWithResponse call
+func ParseSyncMiniMaxTenantVoicesResponse(rsp *http.Response) (*SyncMiniMaxTenantVoicesResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &SyncMiniMaxTenantVoicesResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest MiniMaxSyncVoicesResult
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest apitypes.ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest apitypes.ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest apitypes.ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 502:
+		var dest apitypes.ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON502 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListVoicesResponse parses an HTTP response from a ListVoicesWithResponse call
+func ParseListVoicesResponse(rsp *http.Response) (*ListVoicesResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListVoicesResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest VoiceList
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest apitypes.ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCreateVoiceResponse parses an HTTP response from a CreateVoiceWithResponse call
+func ParseCreateVoiceResponse(rsp *http.Response) (*CreateVoiceResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CreateVoiceResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest apitypes.Voice
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest apitypes.ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest apitypes.ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON409 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest apitypes.ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDeleteVoiceResponse parses an HTTP response from a DeleteVoiceWithResponse call
+func ParseDeleteVoiceResponse(rsp *http.Response) (*DeleteVoiceResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteVoiceResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest apitypes.Voice
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest apitypes.ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest apitypes.ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetVoiceResponse parses an HTTP response from a GetVoiceWithResponse call
+func ParseGetVoiceResponse(rsp *http.Response) (*GetVoiceResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetVoiceResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest apitypes.Voice
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest apitypes.ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest apitypes.ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParsePutVoiceResponse parses an HTTP response from a PutVoiceWithResponse call
+func ParsePutVoiceResponse(rsp *http.Response) (*PutVoiceResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PutVoiceResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest apitypes.Voice
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest apitypes.ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest apitypes.ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON409 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest apitypes.ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListWorkspaceTemplatesResponse parses an HTTP response from a ListWorkspaceTemplatesWithResponse call
+func ParseListWorkspaceTemplatesResponse(rsp *http.Response) (*ListWorkspaceTemplatesResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListWorkspaceTemplatesResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest WorkspaceTemplateList
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest apitypes.ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCreateWorkspaceTemplateResponse parses an HTTP response from a CreateWorkspaceTemplateWithResponse call
+func ParseCreateWorkspaceTemplateResponse(rsp *http.Response) (*CreateWorkspaceTemplateResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CreateWorkspaceTemplateResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest apitypes.WorkflowTemplateDocument
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest apitypes.ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest apitypes.ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON409 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest apitypes.ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDeleteWorkspaceTemplateResponse parses an HTTP response from a DeleteWorkspaceTemplateWithResponse call
+func ParseDeleteWorkspaceTemplateResponse(rsp *http.Response) (*DeleteWorkspaceTemplateResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteWorkspaceTemplateResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest apitypes.WorkflowTemplateDocument
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest apitypes.ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest apitypes.ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetWorkspaceTemplateResponse parses an HTTP response from a GetWorkspaceTemplateWithResponse call
+func ParseGetWorkspaceTemplateResponse(rsp *http.Response) (*GetWorkspaceTemplateResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetWorkspaceTemplateResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest apitypes.WorkflowTemplateDocument
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest apitypes.ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest apitypes.ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParsePutWorkspaceTemplateResponse parses an HTTP response from a PutWorkspaceTemplateWithResponse call
+func ParsePutWorkspaceTemplateResponse(rsp *http.Response) (*PutWorkspaceTemplateResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PutWorkspaceTemplateResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest apitypes.WorkflowTemplateDocument
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest apitypes.ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest apitypes.ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListWorkspacesResponse parses an HTTP response from a ListWorkspacesWithResponse call
+func ParseListWorkspacesResponse(rsp *http.Response) (*ListWorkspacesResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListWorkspacesResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest WorkspaceList
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest apitypes.ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCreateWorkspaceResponse parses an HTTP response from a CreateWorkspaceWithResponse call
+func ParseCreateWorkspaceResponse(rsp *http.Response) (*CreateWorkspaceResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CreateWorkspaceResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest apitypes.Workspace
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest apitypes.ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest apitypes.ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON409 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest apitypes.ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDeleteWorkspaceResponse parses an HTTP response from a DeleteWorkspaceWithResponse call
+func ParseDeleteWorkspaceResponse(rsp *http.Response) (*DeleteWorkspaceResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteWorkspaceResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest apitypes.Workspace
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest apitypes.ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest apitypes.ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetWorkspaceResponse parses an HTTP response from a GetWorkspaceWithResponse call
+func ParseGetWorkspaceResponse(rsp *http.Response) (*GetWorkspaceResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetWorkspaceResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest apitypes.Workspace
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest apitypes.ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest apitypes.ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParsePutWorkspaceResponse parses an HTTP response from a PutWorkspaceWithResponse call
+func ParsePutWorkspaceResponse(rsp *http.Response) (*PutWorkspaceResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PutWorkspaceResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest apitypes.Workspace
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest apitypes.ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest apitypes.ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	}
+
+	return response, nil
+}
+
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
+	// List stored credentials
+	// (GET /credentials)
+	ListCredentials(c *fiber.Ctx, params ListCredentialsParams) error
+	// Create a credential
+	// (POST /credentials)
+	CreateCredential(c *fiber.Ctx) error
+	// Delete a credential
+	// (DELETE /credentials/{name})
+	DeleteCredential(c *fiber.Ctx, name CredentialName) error
+	// Get a credential
+	// (GET /credentials/{name})
+	GetCredential(c *fiber.Ctx, name CredentialName) error
+	// Create or update a credential
+	// (PUT /credentials/{name})
+	PutCredential(c *fiber.Ctx, name CredentialName) error
 	// List all firmware depots
 	// (GET /depots)
 	ListDepots(c *fiber.Ctx) error
@@ -3378,6 +7417,69 @@ type ServerInterface interface {
 	// Get gear runtime status
 	// (GET /gears/{publicKey}/runtime)
 	GetGearRuntime(c *fiber.Ctx, publicKey PublicKey) error
+	// List all MiniMax tenants
+	// (GET /minimax-tenants)
+	ListMiniMaxTenants(c *fiber.Ctx, params ListMiniMaxTenantsParams) error
+	// Create a MiniMax tenant
+	// (POST /minimax-tenants)
+	CreateMiniMaxTenant(c *fiber.Ctx) error
+	// Delete a MiniMax tenant
+	// (DELETE /minimax-tenants/{name})
+	DeleteMiniMaxTenant(c *fiber.Ctx, name MiniMaxTenantName) error
+	// Get a MiniMax tenant
+	// (GET /minimax-tenants/{name})
+	GetMiniMaxTenant(c *fiber.Ctx, name MiniMaxTenantName) error
+	// Create or update a MiniMax tenant
+	// (PUT /minimax-tenants/{name})
+	PutMiniMaxTenant(c *fiber.Ctx, name MiniMaxTenantName) error
+	// Sync voices from a MiniMax tenant into the global voice catalog
+	// (POST /minimax-tenants/{name}/@sync-voices)
+	SyncMiniMaxTenantVoices(c *fiber.Ctx, name MiniMaxTenantName) error
+	// List all voices
+	// (GET /voices)
+	ListVoices(c *fiber.Ctx, params ListVoicesParams) error
+	// Create a voice
+	// (POST /voices)
+	CreateVoice(c *fiber.Ctx) error
+	// Delete a voice
+	// (DELETE /voices/{id})
+	DeleteVoice(c *fiber.Ctx, id VoiceID) error
+	// Get a voice
+	// (GET /voices/{id})
+	GetVoice(c *fiber.Ctx, id VoiceID) error
+	// Create or update a voice
+	// (PUT /voices/{id})
+	PutVoice(c *fiber.Ctx, id VoiceID) error
+	// List all workspace templates
+	// (GET /workspace-templates)
+	ListWorkspaceTemplates(c *fiber.Ctx, params ListWorkspaceTemplatesParams) error
+	// Create a workspace template
+	// (POST /workspace-templates)
+	CreateWorkspaceTemplate(c *fiber.Ctx) error
+	// Delete a workspace template
+	// (DELETE /workspace-templates/{name})
+	DeleteWorkspaceTemplate(c *fiber.Ctx, name WorkspaceTemplateName) error
+	// Get a workspace template
+	// (GET /workspace-templates/{name})
+	GetWorkspaceTemplate(c *fiber.Ctx, name WorkspaceTemplateName) error
+	// Create or update a workspace template
+	// (PUT /workspace-templates/{name})
+	PutWorkspaceTemplate(c *fiber.Ctx, name WorkspaceTemplateName) error
+	// List all workspaces
+	// (GET /workspaces)
+	ListWorkspaces(c *fiber.Ctx, params ListWorkspacesParams) error
+	// Create a workspace
+	// (POST /workspaces)
+	CreateWorkspace(c *fiber.Ctx) error
+	// Delete a workspace
+	// (DELETE /workspaces/{name})
+	DeleteWorkspace(c *fiber.Ctx, name WorkspaceName) error
+	// Get a workspace
+	// (GET /workspaces/{name})
+	GetWorkspace(c *fiber.Ctx, name WorkspaceName) error
+	// Create or update a workspace
+	// (PUT /workspaces/{name})
+	PutWorkspace(c *fiber.Ctx, name WorkspaceName) error
 }
 
 // ServerInterfaceWrapper converts contexts to parameters.
@@ -3386,6 +7488,98 @@ type ServerInterfaceWrapper struct {
 }
 
 type MiddlewareFunc fiber.Handler
+
+// ListCredentials operation middleware
+func (siw *ServerInterfaceWrapper) ListCredentials(c *fiber.Ctx) error {
+
+	var err error
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListCredentialsParams
+
+	var query url.Values
+	query, err = url.ParseQuery(string(c.Request().URI().QueryString()))
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, fmt.Errorf("Invalid format for query string: %w", err).Error())
+	}
+
+	// ------------- Optional query parameter "provider" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "provider", query, &params.Provider, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, fmt.Errorf("Invalid format for parameter provider: %w", err).Error())
+	}
+
+	// ------------- Optional query parameter "cursor" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "cursor", query, &params.Cursor, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, fmt.Errorf("Invalid format for parameter cursor: %w", err).Error())
+	}
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", query, &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: "int32"})
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, fmt.Errorf("Invalid format for parameter limit: %w", err).Error())
+	}
+
+	return siw.Handler.ListCredentials(c, params)
+}
+
+// CreateCredential operation middleware
+func (siw *ServerInterfaceWrapper) CreateCredential(c *fiber.Ctx) error {
+
+	return siw.Handler.CreateCredential(c)
+}
+
+// DeleteCredential operation middleware
+func (siw *ServerInterfaceWrapper) DeleteCredential(c *fiber.Ctx) error {
+
+	var err error
+
+	// ------------- Path parameter "name" -------------
+	var name CredentialName
+
+	err = runtime.BindStyledParameterWithOptions("simple", "name", c.Params("name"), &name, runtime.BindStyledParameterOptions{Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, fmt.Errorf("Invalid format for parameter name: %w", err).Error())
+	}
+
+	return siw.Handler.DeleteCredential(c, name)
+}
+
+// GetCredential operation middleware
+func (siw *ServerInterfaceWrapper) GetCredential(c *fiber.Ctx) error {
+
+	var err error
+
+	// ------------- Path parameter "name" -------------
+	var name CredentialName
+
+	err = runtime.BindStyledParameterWithOptions("simple", "name", c.Params("name"), &name, runtime.BindStyledParameterOptions{Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, fmt.Errorf("Invalid format for parameter name: %w", err).Error())
+	}
+
+	return siw.Handler.GetCredential(c, name)
+}
+
+// PutCredential operation middleware
+func (siw *ServerInterfaceWrapper) PutCredential(c *fiber.Ctx) error {
+
+	var err error
+
+	// ------------- Path parameter "name" -------------
+	var name CredentialName
+
+	err = runtime.BindStyledParameterWithOptions("simple", "name", c.Params("name"), &name, runtime.BindStyledParameterOptions{Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, fmt.Errorf("Invalid format for parameter name: %w", err).Error())
+	}
+
+	return siw.Handler.PutCredential(c, name)
+}
 
 // ListDepots operation middleware
 func (siw *ServerInterfaceWrapper) ListDepots(c *fiber.Ctx) error {
@@ -3885,6 +8079,383 @@ func (siw *ServerInterfaceWrapper) GetGearRuntime(c *fiber.Ctx) error {
 	return siw.Handler.GetGearRuntime(c, publicKey)
 }
 
+// ListMiniMaxTenants operation middleware
+func (siw *ServerInterfaceWrapper) ListMiniMaxTenants(c *fiber.Ctx) error {
+
+	var err error
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListMiniMaxTenantsParams
+
+	var query url.Values
+	query, err = url.ParseQuery(string(c.Request().URI().QueryString()))
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, fmt.Errorf("Invalid format for query string: %w", err).Error())
+	}
+
+	// ------------- Optional query parameter "cursor" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "cursor", query, &params.Cursor, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, fmt.Errorf("Invalid format for parameter cursor: %w", err).Error())
+	}
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", query, &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: "int32"})
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, fmt.Errorf("Invalid format for parameter limit: %w", err).Error())
+	}
+
+	return siw.Handler.ListMiniMaxTenants(c, params)
+}
+
+// CreateMiniMaxTenant operation middleware
+func (siw *ServerInterfaceWrapper) CreateMiniMaxTenant(c *fiber.Ctx) error {
+
+	return siw.Handler.CreateMiniMaxTenant(c)
+}
+
+// DeleteMiniMaxTenant operation middleware
+func (siw *ServerInterfaceWrapper) DeleteMiniMaxTenant(c *fiber.Ctx) error {
+
+	var err error
+
+	// ------------- Path parameter "name" -------------
+	var name MiniMaxTenantName
+
+	err = runtime.BindStyledParameterWithOptions("simple", "name", c.Params("name"), &name, runtime.BindStyledParameterOptions{Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, fmt.Errorf("Invalid format for parameter name: %w", err).Error())
+	}
+
+	return siw.Handler.DeleteMiniMaxTenant(c, name)
+}
+
+// GetMiniMaxTenant operation middleware
+func (siw *ServerInterfaceWrapper) GetMiniMaxTenant(c *fiber.Ctx) error {
+
+	var err error
+
+	// ------------- Path parameter "name" -------------
+	var name MiniMaxTenantName
+
+	err = runtime.BindStyledParameterWithOptions("simple", "name", c.Params("name"), &name, runtime.BindStyledParameterOptions{Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, fmt.Errorf("Invalid format for parameter name: %w", err).Error())
+	}
+
+	return siw.Handler.GetMiniMaxTenant(c, name)
+}
+
+// PutMiniMaxTenant operation middleware
+func (siw *ServerInterfaceWrapper) PutMiniMaxTenant(c *fiber.Ctx) error {
+
+	var err error
+
+	// ------------- Path parameter "name" -------------
+	var name MiniMaxTenantName
+
+	err = runtime.BindStyledParameterWithOptions("simple", "name", c.Params("name"), &name, runtime.BindStyledParameterOptions{Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, fmt.Errorf("Invalid format for parameter name: %w", err).Error())
+	}
+
+	return siw.Handler.PutMiniMaxTenant(c, name)
+}
+
+// SyncMiniMaxTenantVoices operation middleware
+func (siw *ServerInterfaceWrapper) SyncMiniMaxTenantVoices(c *fiber.Ctx) error {
+
+	var err error
+
+	// ------------- Path parameter "name" -------------
+	var name MiniMaxTenantName
+
+	err = runtime.BindStyledParameterWithOptions("simple", "name", c.Params("name"), &name, runtime.BindStyledParameterOptions{Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, fmt.Errorf("Invalid format for parameter name: %w", err).Error())
+	}
+
+	return siw.Handler.SyncMiniMaxTenantVoices(c, name)
+}
+
+// ListVoices operation middleware
+func (siw *ServerInterfaceWrapper) ListVoices(c *fiber.Ctx) error {
+
+	var err error
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListVoicesParams
+
+	var query url.Values
+	query, err = url.ParseQuery(string(c.Request().URI().QueryString()))
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, fmt.Errorf("Invalid format for query string: %w", err).Error())
+	}
+
+	// ------------- Optional query parameter "source" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "source", query, &params.Source, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, fmt.Errorf("Invalid format for parameter source: %w", err).Error())
+	}
+
+	// ------------- Optional query parameter "providerKind" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "providerKind", query, &params.ProviderKind, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, fmt.Errorf("Invalid format for parameter providerKind: %w", err).Error())
+	}
+
+	// ------------- Optional query parameter "providerName" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "providerName", query, &params.ProviderName, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, fmt.Errorf("Invalid format for parameter providerName: %w", err).Error())
+	}
+
+	// ------------- Optional query parameter "cursor" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "cursor", query, &params.Cursor, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, fmt.Errorf("Invalid format for parameter cursor: %w", err).Error())
+	}
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", query, &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: "int32"})
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, fmt.Errorf("Invalid format for parameter limit: %w", err).Error())
+	}
+
+	return siw.Handler.ListVoices(c, params)
+}
+
+// CreateVoice operation middleware
+func (siw *ServerInterfaceWrapper) CreateVoice(c *fiber.Ctx) error {
+
+	return siw.Handler.CreateVoice(c)
+}
+
+// DeleteVoice operation middleware
+func (siw *ServerInterfaceWrapper) DeleteVoice(c *fiber.Ctx) error {
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id VoiceID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", c.Params("id"), &id, runtime.BindStyledParameterOptions{Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, fmt.Errorf("Invalid format for parameter id: %w", err).Error())
+	}
+
+	return siw.Handler.DeleteVoice(c, id)
+}
+
+// GetVoice operation middleware
+func (siw *ServerInterfaceWrapper) GetVoice(c *fiber.Ctx) error {
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id VoiceID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", c.Params("id"), &id, runtime.BindStyledParameterOptions{Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, fmt.Errorf("Invalid format for parameter id: %w", err).Error())
+	}
+
+	return siw.Handler.GetVoice(c, id)
+}
+
+// PutVoice operation middleware
+func (siw *ServerInterfaceWrapper) PutVoice(c *fiber.Ctx) error {
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id VoiceID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", c.Params("id"), &id, runtime.BindStyledParameterOptions{Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, fmt.Errorf("Invalid format for parameter id: %w", err).Error())
+	}
+
+	return siw.Handler.PutVoice(c, id)
+}
+
+// ListWorkspaceTemplates operation middleware
+func (siw *ServerInterfaceWrapper) ListWorkspaceTemplates(c *fiber.Ctx) error {
+
+	var err error
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListWorkspaceTemplatesParams
+
+	var query url.Values
+	query, err = url.ParseQuery(string(c.Request().URI().QueryString()))
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, fmt.Errorf("Invalid format for query string: %w", err).Error())
+	}
+
+	// ------------- Optional query parameter "cursor" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "cursor", query, &params.Cursor, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, fmt.Errorf("Invalid format for parameter cursor: %w", err).Error())
+	}
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", query, &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: "int32"})
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, fmt.Errorf("Invalid format for parameter limit: %w", err).Error())
+	}
+
+	return siw.Handler.ListWorkspaceTemplates(c, params)
+}
+
+// CreateWorkspaceTemplate operation middleware
+func (siw *ServerInterfaceWrapper) CreateWorkspaceTemplate(c *fiber.Ctx) error {
+
+	return siw.Handler.CreateWorkspaceTemplate(c)
+}
+
+// DeleteWorkspaceTemplate operation middleware
+func (siw *ServerInterfaceWrapper) DeleteWorkspaceTemplate(c *fiber.Ctx) error {
+
+	var err error
+
+	// ------------- Path parameter "name" -------------
+	var name WorkspaceTemplateName
+
+	err = runtime.BindStyledParameterWithOptions("simple", "name", c.Params("name"), &name, runtime.BindStyledParameterOptions{Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, fmt.Errorf("Invalid format for parameter name: %w", err).Error())
+	}
+
+	return siw.Handler.DeleteWorkspaceTemplate(c, name)
+}
+
+// GetWorkspaceTemplate operation middleware
+func (siw *ServerInterfaceWrapper) GetWorkspaceTemplate(c *fiber.Ctx) error {
+
+	var err error
+
+	// ------------- Path parameter "name" -------------
+	var name WorkspaceTemplateName
+
+	err = runtime.BindStyledParameterWithOptions("simple", "name", c.Params("name"), &name, runtime.BindStyledParameterOptions{Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, fmt.Errorf("Invalid format for parameter name: %w", err).Error())
+	}
+
+	return siw.Handler.GetWorkspaceTemplate(c, name)
+}
+
+// PutWorkspaceTemplate operation middleware
+func (siw *ServerInterfaceWrapper) PutWorkspaceTemplate(c *fiber.Ctx) error {
+
+	var err error
+
+	// ------------- Path parameter "name" -------------
+	var name WorkspaceTemplateName
+
+	err = runtime.BindStyledParameterWithOptions("simple", "name", c.Params("name"), &name, runtime.BindStyledParameterOptions{Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, fmt.Errorf("Invalid format for parameter name: %w", err).Error())
+	}
+
+	return siw.Handler.PutWorkspaceTemplate(c, name)
+}
+
+// ListWorkspaces operation middleware
+func (siw *ServerInterfaceWrapper) ListWorkspaces(c *fiber.Ctx) error {
+
+	var err error
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListWorkspacesParams
+
+	var query url.Values
+	query, err = url.ParseQuery(string(c.Request().URI().QueryString()))
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, fmt.Errorf("Invalid format for query string: %w", err).Error())
+	}
+
+	// ------------- Optional query parameter "cursor" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "cursor", query, &params.Cursor, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, fmt.Errorf("Invalid format for parameter cursor: %w", err).Error())
+	}
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", query, &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: "int32"})
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, fmt.Errorf("Invalid format for parameter limit: %w", err).Error())
+	}
+
+	return siw.Handler.ListWorkspaces(c, params)
+}
+
+// CreateWorkspace operation middleware
+func (siw *ServerInterfaceWrapper) CreateWorkspace(c *fiber.Ctx) error {
+
+	return siw.Handler.CreateWorkspace(c)
+}
+
+// DeleteWorkspace operation middleware
+func (siw *ServerInterfaceWrapper) DeleteWorkspace(c *fiber.Ctx) error {
+
+	var err error
+
+	// ------------- Path parameter "name" -------------
+	var name WorkspaceName
+
+	err = runtime.BindStyledParameterWithOptions("simple", "name", c.Params("name"), &name, runtime.BindStyledParameterOptions{Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, fmt.Errorf("Invalid format for parameter name: %w", err).Error())
+	}
+
+	return siw.Handler.DeleteWorkspace(c, name)
+}
+
+// GetWorkspace operation middleware
+func (siw *ServerInterfaceWrapper) GetWorkspace(c *fiber.Ctx) error {
+
+	var err error
+
+	// ------------- Path parameter "name" -------------
+	var name WorkspaceName
+
+	err = runtime.BindStyledParameterWithOptions("simple", "name", c.Params("name"), &name, runtime.BindStyledParameterOptions{Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, fmt.Errorf("Invalid format for parameter name: %w", err).Error())
+	}
+
+	return siw.Handler.GetWorkspace(c, name)
+}
+
+// PutWorkspace operation middleware
+func (siw *ServerInterfaceWrapper) PutWorkspace(c *fiber.Ctx) error {
+
+	var err error
+
+	// ------------- Path parameter "name" -------------
+	var name WorkspaceName
+
+	err = runtime.BindStyledParameterWithOptions("simple", "name", c.Params("name"), &name, runtime.BindStyledParameterOptions{Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, fmt.Errorf("Invalid format for parameter name: %w", err).Error())
+	}
+
+	return siw.Handler.PutWorkspace(c, name)
+}
+
 // FiberServerOptions provides options for the Fiber server.
 type FiberServerOptions struct {
 	BaseURL     string
@@ -3905,6 +8476,16 @@ func RegisterHandlersWithOptions(router fiber.Router, si ServerInterface, option
 	for _, m := range options.Middlewares {
 		router.Use(fiber.Handler(m))
 	}
+
+	router.Get(options.BaseURL+"/credentials", wrapper.ListCredentials)
+
+	router.Post(options.BaseURL+"/credentials", wrapper.CreateCredential)
+
+	router.Delete(options.BaseURL+"/credentials/:name", wrapper.DeleteCredential)
+
+	router.Get(options.BaseURL+"/credentials/:name", wrapper.GetCredential)
+
+	router.Put(options.BaseURL+"/credentials/:name", wrapper.PutCredential)
 
 	router.Get(options.BaseURL+"/depots", wrapper.ListDepots)
 
@@ -3952,6 +8533,224 @@ func RegisterHandlersWithOptions(router fiber.Router, si ServerInterface, option
 
 	router.Get(options.BaseURL+"/gears/:publicKey/runtime", wrapper.GetGearRuntime)
 
+	router.Get(options.BaseURL+"/minimax-tenants", wrapper.ListMiniMaxTenants)
+
+	router.Post(options.BaseURL+"/minimax-tenants", wrapper.CreateMiniMaxTenant)
+
+	router.Delete(options.BaseURL+"/minimax-tenants/:name", wrapper.DeleteMiniMaxTenant)
+
+	router.Get(options.BaseURL+"/minimax-tenants/:name", wrapper.GetMiniMaxTenant)
+
+	router.Put(options.BaseURL+"/minimax-tenants/:name", wrapper.PutMiniMaxTenant)
+
+	router.Post(options.BaseURL+"/minimax-tenants/:name/@sync-voices", wrapper.SyncMiniMaxTenantVoices)
+
+	router.Get(options.BaseURL+"/voices", wrapper.ListVoices)
+
+	router.Post(options.BaseURL+"/voices", wrapper.CreateVoice)
+
+	router.Delete(options.BaseURL+"/voices/:id", wrapper.DeleteVoice)
+
+	router.Get(options.BaseURL+"/voices/:id", wrapper.GetVoice)
+
+	router.Put(options.BaseURL+"/voices/:id", wrapper.PutVoice)
+
+	router.Get(options.BaseURL+"/workspace-templates", wrapper.ListWorkspaceTemplates)
+
+	router.Post(options.BaseURL+"/workspace-templates", wrapper.CreateWorkspaceTemplate)
+
+	router.Delete(options.BaseURL+"/workspace-templates/:name", wrapper.DeleteWorkspaceTemplate)
+
+	router.Get(options.BaseURL+"/workspace-templates/:name", wrapper.GetWorkspaceTemplate)
+
+	router.Put(options.BaseURL+"/workspace-templates/:name", wrapper.PutWorkspaceTemplate)
+
+	router.Get(options.BaseURL+"/workspaces", wrapper.ListWorkspaces)
+
+	router.Post(options.BaseURL+"/workspaces", wrapper.CreateWorkspace)
+
+	router.Delete(options.BaseURL+"/workspaces/:name", wrapper.DeleteWorkspace)
+
+	router.Get(options.BaseURL+"/workspaces/:name", wrapper.GetWorkspace)
+
+	router.Put(options.BaseURL+"/workspaces/:name", wrapper.PutWorkspace)
+
+}
+
+type ListCredentialsRequestObject struct {
+	Params ListCredentialsParams
+}
+
+type ListCredentialsResponseObject interface {
+	VisitListCredentialsResponse(ctx *fiber.Ctx) error
+}
+
+type ListCredentials200JSONResponse CredentialList
+
+func (response ListCredentials200JSONResponse) VisitListCredentialsResponse(ctx *fiber.Ctx) error {
+	ctx.Response().Header.Set("Content-Type", "application/json")
+	ctx.Status(200)
+
+	return ctx.JSON(&response)
+}
+
+type ListCredentials500JSONResponse apitypes.ErrorResponse
+
+func (response ListCredentials500JSONResponse) VisitListCredentialsResponse(ctx *fiber.Ctx) error {
+	ctx.Response().Header.Set("Content-Type", "application/json")
+	ctx.Status(500)
+
+	return ctx.JSON(&response)
+}
+
+type CreateCredentialRequestObject struct {
+	Body *CreateCredentialJSONRequestBody
+}
+
+type CreateCredentialResponseObject interface {
+	VisitCreateCredentialResponse(ctx *fiber.Ctx) error
+}
+
+type CreateCredential200JSONResponse apitypes.Credential
+
+func (response CreateCredential200JSONResponse) VisitCreateCredentialResponse(ctx *fiber.Ctx) error {
+	ctx.Response().Header.Set("Content-Type", "application/json")
+	ctx.Status(200)
+
+	return ctx.JSON(&response)
+}
+
+type CreateCredential400JSONResponse apitypes.ErrorResponse
+
+func (response CreateCredential400JSONResponse) VisitCreateCredentialResponse(ctx *fiber.Ctx) error {
+	ctx.Response().Header.Set("Content-Type", "application/json")
+	ctx.Status(400)
+
+	return ctx.JSON(&response)
+}
+
+type CreateCredential409JSONResponse apitypes.ErrorResponse
+
+func (response CreateCredential409JSONResponse) VisitCreateCredentialResponse(ctx *fiber.Ctx) error {
+	ctx.Response().Header.Set("Content-Type", "application/json")
+	ctx.Status(409)
+
+	return ctx.JSON(&response)
+}
+
+type CreateCredential500JSONResponse apitypes.ErrorResponse
+
+func (response CreateCredential500JSONResponse) VisitCreateCredentialResponse(ctx *fiber.Ctx) error {
+	ctx.Response().Header.Set("Content-Type", "application/json")
+	ctx.Status(500)
+
+	return ctx.JSON(&response)
+}
+
+type DeleteCredentialRequestObject struct {
+	Name CredentialName `json:"name"`
+}
+
+type DeleteCredentialResponseObject interface {
+	VisitDeleteCredentialResponse(ctx *fiber.Ctx) error
+}
+
+type DeleteCredential200JSONResponse apitypes.Credential
+
+func (response DeleteCredential200JSONResponse) VisitDeleteCredentialResponse(ctx *fiber.Ctx) error {
+	ctx.Response().Header.Set("Content-Type", "application/json")
+	ctx.Status(200)
+
+	return ctx.JSON(&response)
+}
+
+type DeleteCredential404JSONResponse apitypes.ErrorResponse
+
+func (response DeleteCredential404JSONResponse) VisitDeleteCredentialResponse(ctx *fiber.Ctx) error {
+	ctx.Response().Header.Set("Content-Type", "application/json")
+	ctx.Status(404)
+
+	return ctx.JSON(&response)
+}
+
+type DeleteCredential500JSONResponse apitypes.ErrorResponse
+
+func (response DeleteCredential500JSONResponse) VisitDeleteCredentialResponse(ctx *fiber.Ctx) error {
+	ctx.Response().Header.Set("Content-Type", "application/json")
+	ctx.Status(500)
+
+	return ctx.JSON(&response)
+}
+
+type GetCredentialRequestObject struct {
+	Name CredentialName `json:"name"`
+}
+
+type GetCredentialResponseObject interface {
+	VisitGetCredentialResponse(ctx *fiber.Ctx) error
+}
+
+type GetCredential200JSONResponse apitypes.Credential
+
+func (response GetCredential200JSONResponse) VisitGetCredentialResponse(ctx *fiber.Ctx) error {
+	ctx.Response().Header.Set("Content-Type", "application/json")
+	ctx.Status(200)
+
+	return ctx.JSON(&response)
+}
+
+type GetCredential404JSONResponse apitypes.ErrorResponse
+
+func (response GetCredential404JSONResponse) VisitGetCredentialResponse(ctx *fiber.Ctx) error {
+	ctx.Response().Header.Set("Content-Type", "application/json")
+	ctx.Status(404)
+
+	return ctx.JSON(&response)
+}
+
+type GetCredential500JSONResponse apitypes.ErrorResponse
+
+func (response GetCredential500JSONResponse) VisitGetCredentialResponse(ctx *fiber.Ctx) error {
+	ctx.Response().Header.Set("Content-Type", "application/json")
+	ctx.Status(500)
+
+	return ctx.JSON(&response)
+}
+
+type PutCredentialRequestObject struct {
+	Name CredentialName `json:"name"`
+	Body *PutCredentialJSONRequestBody
+}
+
+type PutCredentialResponseObject interface {
+	VisitPutCredentialResponse(ctx *fiber.Ctx) error
+}
+
+type PutCredential200JSONResponse apitypes.Credential
+
+func (response PutCredential200JSONResponse) VisitPutCredentialResponse(ctx *fiber.Ctx) error {
+	ctx.Response().Header.Set("Content-Type", "application/json")
+	ctx.Status(200)
+
+	return ctx.JSON(&response)
+}
+
+type PutCredential400JSONResponse apitypes.ErrorResponse
+
+func (response PutCredential400JSONResponse) VisitPutCredentialResponse(ctx *fiber.Ctx) error {
+	ctx.Response().Header.Set("Content-Type", "application/json")
+	ctx.Status(400)
+
+	return ctx.JSON(&response)
+}
+
+type PutCredential500JSONResponse apitypes.ErrorResponse
+
+func (response PutCredential500JSONResponse) VisitPutCredentialResponse(ctx *fiber.Ctx) error {
+	ctx.Response().Header.Set("Content-Type", "application/json")
+	ctx.Status(500)
+
+	return ctx.JSON(&response)
 }
 
 type ListDepotsRequestObject struct {
@@ -3987,7 +8786,7 @@ type GetDepotResponseObject interface {
 	VisitGetDepotResponse(ctx *fiber.Ctx) error
 }
 
-type GetDepot200JSONResponse Depot
+type GetDepot200JSONResponse apitypes.Depot
 
 func (response GetDepot200JSONResponse) VisitGetDepotResponse(ctx *fiber.Ctx) error {
 	ctx.Response().Header.Set("Content-Type", "application/json")
@@ -4014,7 +8813,7 @@ type PutDepotInfoResponseObject interface {
 	VisitPutDepotInfoResponse(ctx *fiber.Ctx) error
 }
 
-type PutDepotInfo200JSONResponse Depot
+type PutDepotInfo200JSONResponse apitypes.Depot
 
 func (response PutDepotInfo200JSONResponse) VisitPutDepotInfoResponse(ctx *fiber.Ctx) error {
 	ctx.Response().Header.Set("Content-Type", "application/json")
@@ -4058,7 +8857,7 @@ type ReleaseDepotResponseObject interface {
 	VisitReleaseDepotResponse(ctx *fiber.Ctx) error
 }
 
-type ReleaseDepot200JSONResponse Depot
+type ReleaseDepot200JSONResponse apitypes.Depot
 
 func (response ReleaseDepot200JSONResponse) VisitReleaseDepotResponse(ctx *fiber.Ctx) error {
 	ctx.Response().Header.Set("Content-Type", "application/json")
@@ -4102,7 +8901,7 @@ type RollbackDepotResponseObject interface {
 	VisitRollbackDepotResponse(ctx *fiber.Ctx) error
 }
 
-type RollbackDepot200JSONResponse Depot
+type RollbackDepot200JSONResponse apitypes.Depot
 
 func (response RollbackDepot200JSONResponse) VisitRollbackDepotResponse(ctx *fiber.Ctx) error {
 	ctx.Response().Header.Set("Content-Type", "application/json")
@@ -4147,7 +8946,7 @@ type GetChannelResponseObject interface {
 	VisitGetChannelResponse(ctx *fiber.Ctx) error
 }
 
-type GetChannel200JSONResponse DepotRelease
+type GetChannel200JSONResponse apitypes.DepotRelease
 
 func (response GetChannel200JSONResponse) VisitGetChannelResponse(ctx *fiber.Ctx) error {
 	ctx.Response().Header.Set("Content-Type", "application/json")
@@ -4175,7 +8974,7 @@ type PutChannelResponseObject interface {
 	VisitPutChannelResponse(ctx *fiber.Ctx) error
 }
 
-type PutChannel200JSONResponse DepotRelease
+type PutChannel200JSONResponse apitypes.DepotRelease
 
 func (response PutChannel200JSONResponse) VisitPutChannelResponse(ctx *fiber.Ctx) error {
 	ctx.Response().Header.Set("Content-Type", "application/json")
@@ -4637,8 +9436,789 @@ func (response GetGearRuntime200JSONResponse) VisitGetGearRuntimeResponse(ctx *f
 	return ctx.JSON(&response)
 }
 
+type ListMiniMaxTenantsRequestObject struct {
+	Params ListMiniMaxTenantsParams
+}
+
+type ListMiniMaxTenantsResponseObject interface {
+	VisitListMiniMaxTenantsResponse(ctx *fiber.Ctx) error
+}
+
+type ListMiniMaxTenants200JSONResponse MiniMaxTenantList
+
+func (response ListMiniMaxTenants200JSONResponse) VisitListMiniMaxTenantsResponse(ctx *fiber.Ctx) error {
+	ctx.Response().Header.Set("Content-Type", "application/json")
+	ctx.Status(200)
+
+	return ctx.JSON(&response)
+}
+
+type ListMiniMaxTenants500JSONResponse apitypes.ErrorResponse
+
+func (response ListMiniMaxTenants500JSONResponse) VisitListMiniMaxTenantsResponse(ctx *fiber.Ctx) error {
+	ctx.Response().Header.Set("Content-Type", "application/json")
+	ctx.Status(500)
+
+	return ctx.JSON(&response)
+}
+
+type CreateMiniMaxTenantRequestObject struct {
+	Body *CreateMiniMaxTenantJSONRequestBody
+}
+
+type CreateMiniMaxTenantResponseObject interface {
+	VisitCreateMiniMaxTenantResponse(ctx *fiber.Ctx) error
+}
+
+type CreateMiniMaxTenant200JSONResponse apitypes.MiniMaxTenant
+
+func (response CreateMiniMaxTenant200JSONResponse) VisitCreateMiniMaxTenantResponse(ctx *fiber.Ctx) error {
+	ctx.Response().Header.Set("Content-Type", "application/json")
+	ctx.Status(200)
+
+	return ctx.JSON(&response)
+}
+
+type CreateMiniMaxTenant400JSONResponse apitypes.ErrorResponse
+
+func (response CreateMiniMaxTenant400JSONResponse) VisitCreateMiniMaxTenantResponse(ctx *fiber.Ctx) error {
+	ctx.Response().Header.Set("Content-Type", "application/json")
+	ctx.Status(400)
+
+	return ctx.JSON(&response)
+}
+
+type CreateMiniMaxTenant409JSONResponse apitypes.ErrorResponse
+
+func (response CreateMiniMaxTenant409JSONResponse) VisitCreateMiniMaxTenantResponse(ctx *fiber.Ctx) error {
+	ctx.Response().Header.Set("Content-Type", "application/json")
+	ctx.Status(409)
+
+	return ctx.JSON(&response)
+}
+
+type CreateMiniMaxTenant500JSONResponse apitypes.ErrorResponse
+
+func (response CreateMiniMaxTenant500JSONResponse) VisitCreateMiniMaxTenantResponse(ctx *fiber.Ctx) error {
+	ctx.Response().Header.Set("Content-Type", "application/json")
+	ctx.Status(500)
+
+	return ctx.JSON(&response)
+}
+
+type DeleteMiniMaxTenantRequestObject struct {
+	Name MiniMaxTenantName `json:"name"`
+}
+
+type DeleteMiniMaxTenantResponseObject interface {
+	VisitDeleteMiniMaxTenantResponse(ctx *fiber.Ctx) error
+}
+
+type DeleteMiniMaxTenant200JSONResponse apitypes.MiniMaxTenant
+
+func (response DeleteMiniMaxTenant200JSONResponse) VisitDeleteMiniMaxTenantResponse(ctx *fiber.Ctx) error {
+	ctx.Response().Header.Set("Content-Type", "application/json")
+	ctx.Status(200)
+
+	return ctx.JSON(&response)
+}
+
+type DeleteMiniMaxTenant404JSONResponse apitypes.ErrorResponse
+
+func (response DeleteMiniMaxTenant404JSONResponse) VisitDeleteMiniMaxTenantResponse(ctx *fiber.Ctx) error {
+	ctx.Response().Header.Set("Content-Type", "application/json")
+	ctx.Status(404)
+
+	return ctx.JSON(&response)
+}
+
+type DeleteMiniMaxTenant500JSONResponse apitypes.ErrorResponse
+
+func (response DeleteMiniMaxTenant500JSONResponse) VisitDeleteMiniMaxTenantResponse(ctx *fiber.Ctx) error {
+	ctx.Response().Header.Set("Content-Type", "application/json")
+	ctx.Status(500)
+
+	return ctx.JSON(&response)
+}
+
+type GetMiniMaxTenantRequestObject struct {
+	Name MiniMaxTenantName `json:"name"`
+}
+
+type GetMiniMaxTenantResponseObject interface {
+	VisitGetMiniMaxTenantResponse(ctx *fiber.Ctx) error
+}
+
+type GetMiniMaxTenant200JSONResponse apitypes.MiniMaxTenant
+
+func (response GetMiniMaxTenant200JSONResponse) VisitGetMiniMaxTenantResponse(ctx *fiber.Ctx) error {
+	ctx.Response().Header.Set("Content-Type", "application/json")
+	ctx.Status(200)
+
+	return ctx.JSON(&response)
+}
+
+type GetMiniMaxTenant404JSONResponse apitypes.ErrorResponse
+
+func (response GetMiniMaxTenant404JSONResponse) VisitGetMiniMaxTenantResponse(ctx *fiber.Ctx) error {
+	ctx.Response().Header.Set("Content-Type", "application/json")
+	ctx.Status(404)
+
+	return ctx.JSON(&response)
+}
+
+type GetMiniMaxTenant500JSONResponse apitypes.ErrorResponse
+
+func (response GetMiniMaxTenant500JSONResponse) VisitGetMiniMaxTenantResponse(ctx *fiber.Ctx) error {
+	ctx.Response().Header.Set("Content-Type", "application/json")
+	ctx.Status(500)
+
+	return ctx.JSON(&response)
+}
+
+type PutMiniMaxTenantRequestObject struct {
+	Name MiniMaxTenantName `json:"name"`
+	Body *PutMiniMaxTenantJSONRequestBody
+}
+
+type PutMiniMaxTenantResponseObject interface {
+	VisitPutMiniMaxTenantResponse(ctx *fiber.Ctx) error
+}
+
+type PutMiniMaxTenant200JSONResponse apitypes.MiniMaxTenant
+
+func (response PutMiniMaxTenant200JSONResponse) VisitPutMiniMaxTenantResponse(ctx *fiber.Ctx) error {
+	ctx.Response().Header.Set("Content-Type", "application/json")
+	ctx.Status(200)
+
+	return ctx.JSON(&response)
+}
+
+type PutMiniMaxTenant400JSONResponse apitypes.ErrorResponse
+
+func (response PutMiniMaxTenant400JSONResponse) VisitPutMiniMaxTenantResponse(ctx *fiber.Ctx) error {
+	ctx.Response().Header.Set("Content-Type", "application/json")
+	ctx.Status(400)
+
+	return ctx.JSON(&response)
+}
+
+type PutMiniMaxTenant500JSONResponse apitypes.ErrorResponse
+
+func (response PutMiniMaxTenant500JSONResponse) VisitPutMiniMaxTenantResponse(ctx *fiber.Ctx) error {
+	ctx.Response().Header.Set("Content-Type", "application/json")
+	ctx.Status(500)
+
+	return ctx.JSON(&response)
+}
+
+type SyncMiniMaxTenantVoicesRequestObject struct {
+	Name MiniMaxTenantName `json:"name"`
+}
+
+type SyncMiniMaxTenantVoicesResponseObject interface {
+	VisitSyncMiniMaxTenantVoicesResponse(ctx *fiber.Ctx) error
+}
+
+type SyncMiniMaxTenantVoices200JSONResponse MiniMaxSyncVoicesResult
+
+func (response SyncMiniMaxTenantVoices200JSONResponse) VisitSyncMiniMaxTenantVoicesResponse(ctx *fiber.Ctx) error {
+	ctx.Response().Header.Set("Content-Type", "application/json")
+	ctx.Status(200)
+
+	return ctx.JSON(&response)
+}
+
+type SyncMiniMaxTenantVoices400JSONResponse apitypes.ErrorResponse
+
+func (response SyncMiniMaxTenantVoices400JSONResponse) VisitSyncMiniMaxTenantVoicesResponse(ctx *fiber.Ctx) error {
+	ctx.Response().Header.Set("Content-Type", "application/json")
+	ctx.Status(400)
+
+	return ctx.JSON(&response)
+}
+
+type SyncMiniMaxTenantVoices404JSONResponse apitypes.ErrorResponse
+
+func (response SyncMiniMaxTenantVoices404JSONResponse) VisitSyncMiniMaxTenantVoicesResponse(ctx *fiber.Ctx) error {
+	ctx.Response().Header.Set("Content-Type", "application/json")
+	ctx.Status(404)
+
+	return ctx.JSON(&response)
+}
+
+type SyncMiniMaxTenantVoices500JSONResponse apitypes.ErrorResponse
+
+func (response SyncMiniMaxTenantVoices500JSONResponse) VisitSyncMiniMaxTenantVoicesResponse(ctx *fiber.Ctx) error {
+	ctx.Response().Header.Set("Content-Type", "application/json")
+	ctx.Status(500)
+
+	return ctx.JSON(&response)
+}
+
+type SyncMiniMaxTenantVoices502JSONResponse apitypes.ErrorResponse
+
+func (response SyncMiniMaxTenantVoices502JSONResponse) VisitSyncMiniMaxTenantVoicesResponse(ctx *fiber.Ctx) error {
+	ctx.Response().Header.Set("Content-Type", "application/json")
+	ctx.Status(502)
+
+	return ctx.JSON(&response)
+}
+
+type ListVoicesRequestObject struct {
+	Params ListVoicesParams
+}
+
+type ListVoicesResponseObject interface {
+	VisitListVoicesResponse(ctx *fiber.Ctx) error
+}
+
+type ListVoices200JSONResponse VoiceList
+
+func (response ListVoices200JSONResponse) VisitListVoicesResponse(ctx *fiber.Ctx) error {
+	ctx.Response().Header.Set("Content-Type", "application/json")
+	ctx.Status(200)
+
+	return ctx.JSON(&response)
+}
+
+type ListVoices500JSONResponse apitypes.ErrorResponse
+
+func (response ListVoices500JSONResponse) VisitListVoicesResponse(ctx *fiber.Ctx) error {
+	ctx.Response().Header.Set("Content-Type", "application/json")
+	ctx.Status(500)
+
+	return ctx.JSON(&response)
+}
+
+type CreateVoiceRequestObject struct {
+	Body *CreateVoiceJSONRequestBody
+}
+
+type CreateVoiceResponseObject interface {
+	VisitCreateVoiceResponse(ctx *fiber.Ctx) error
+}
+
+type CreateVoice200JSONResponse apitypes.Voice
+
+func (response CreateVoice200JSONResponse) VisitCreateVoiceResponse(ctx *fiber.Ctx) error {
+	ctx.Response().Header.Set("Content-Type", "application/json")
+	ctx.Status(200)
+
+	return ctx.JSON(&response)
+}
+
+type CreateVoice400JSONResponse apitypes.ErrorResponse
+
+func (response CreateVoice400JSONResponse) VisitCreateVoiceResponse(ctx *fiber.Ctx) error {
+	ctx.Response().Header.Set("Content-Type", "application/json")
+	ctx.Status(400)
+
+	return ctx.JSON(&response)
+}
+
+type CreateVoice409JSONResponse apitypes.ErrorResponse
+
+func (response CreateVoice409JSONResponse) VisitCreateVoiceResponse(ctx *fiber.Ctx) error {
+	ctx.Response().Header.Set("Content-Type", "application/json")
+	ctx.Status(409)
+
+	return ctx.JSON(&response)
+}
+
+type CreateVoice500JSONResponse apitypes.ErrorResponse
+
+func (response CreateVoice500JSONResponse) VisitCreateVoiceResponse(ctx *fiber.Ctx) error {
+	ctx.Response().Header.Set("Content-Type", "application/json")
+	ctx.Status(500)
+
+	return ctx.JSON(&response)
+}
+
+type DeleteVoiceRequestObject struct {
+	Id VoiceID `json:"id"`
+}
+
+type DeleteVoiceResponseObject interface {
+	VisitDeleteVoiceResponse(ctx *fiber.Ctx) error
+}
+
+type DeleteVoice200JSONResponse apitypes.Voice
+
+func (response DeleteVoice200JSONResponse) VisitDeleteVoiceResponse(ctx *fiber.Ctx) error {
+	ctx.Response().Header.Set("Content-Type", "application/json")
+	ctx.Status(200)
+
+	return ctx.JSON(&response)
+}
+
+type DeleteVoice404JSONResponse apitypes.ErrorResponse
+
+func (response DeleteVoice404JSONResponse) VisitDeleteVoiceResponse(ctx *fiber.Ctx) error {
+	ctx.Response().Header.Set("Content-Type", "application/json")
+	ctx.Status(404)
+
+	return ctx.JSON(&response)
+}
+
+type DeleteVoice500JSONResponse apitypes.ErrorResponse
+
+func (response DeleteVoice500JSONResponse) VisitDeleteVoiceResponse(ctx *fiber.Ctx) error {
+	ctx.Response().Header.Set("Content-Type", "application/json")
+	ctx.Status(500)
+
+	return ctx.JSON(&response)
+}
+
+type GetVoiceRequestObject struct {
+	Id VoiceID `json:"id"`
+}
+
+type GetVoiceResponseObject interface {
+	VisitGetVoiceResponse(ctx *fiber.Ctx) error
+}
+
+type GetVoice200JSONResponse apitypes.Voice
+
+func (response GetVoice200JSONResponse) VisitGetVoiceResponse(ctx *fiber.Ctx) error {
+	ctx.Response().Header.Set("Content-Type", "application/json")
+	ctx.Status(200)
+
+	return ctx.JSON(&response)
+}
+
+type GetVoice404JSONResponse apitypes.ErrorResponse
+
+func (response GetVoice404JSONResponse) VisitGetVoiceResponse(ctx *fiber.Ctx) error {
+	ctx.Response().Header.Set("Content-Type", "application/json")
+	ctx.Status(404)
+
+	return ctx.JSON(&response)
+}
+
+type GetVoice500JSONResponse apitypes.ErrorResponse
+
+func (response GetVoice500JSONResponse) VisitGetVoiceResponse(ctx *fiber.Ctx) error {
+	ctx.Response().Header.Set("Content-Type", "application/json")
+	ctx.Status(500)
+
+	return ctx.JSON(&response)
+}
+
+type PutVoiceRequestObject struct {
+	Id   VoiceID `json:"id"`
+	Body *PutVoiceJSONRequestBody
+}
+
+type PutVoiceResponseObject interface {
+	VisitPutVoiceResponse(ctx *fiber.Ctx) error
+}
+
+type PutVoice200JSONResponse apitypes.Voice
+
+func (response PutVoice200JSONResponse) VisitPutVoiceResponse(ctx *fiber.Ctx) error {
+	ctx.Response().Header.Set("Content-Type", "application/json")
+	ctx.Status(200)
+
+	return ctx.JSON(&response)
+}
+
+type PutVoice400JSONResponse apitypes.ErrorResponse
+
+func (response PutVoice400JSONResponse) VisitPutVoiceResponse(ctx *fiber.Ctx) error {
+	ctx.Response().Header.Set("Content-Type", "application/json")
+	ctx.Status(400)
+
+	return ctx.JSON(&response)
+}
+
+type PutVoice409JSONResponse apitypes.ErrorResponse
+
+func (response PutVoice409JSONResponse) VisitPutVoiceResponse(ctx *fiber.Ctx) error {
+	ctx.Response().Header.Set("Content-Type", "application/json")
+	ctx.Status(409)
+
+	return ctx.JSON(&response)
+}
+
+type PutVoice500JSONResponse apitypes.ErrorResponse
+
+func (response PutVoice500JSONResponse) VisitPutVoiceResponse(ctx *fiber.Ctx) error {
+	ctx.Response().Header.Set("Content-Type", "application/json")
+	ctx.Status(500)
+
+	return ctx.JSON(&response)
+}
+
+type ListWorkspaceTemplatesRequestObject struct {
+	Params ListWorkspaceTemplatesParams
+}
+
+type ListWorkspaceTemplatesResponseObject interface {
+	VisitListWorkspaceTemplatesResponse(ctx *fiber.Ctx) error
+}
+
+type ListWorkspaceTemplates200JSONResponse WorkspaceTemplateList
+
+func (response ListWorkspaceTemplates200JSONResponse) VisitListWorkspaceTemplatesResponse(ctx *fiber.Ctx) error {
+	ctx.Response().Header.Set("Content-Type", "application/json")
+	ctx.Status(200)
+
+	return ctx.JSON(&response)
+}
+
+type ListWorkspaceTemplates500JSONResponse apitypes.ErrorResponse
+
+func (response ListWorkspaceTemplates500JSONResponse) VisitListWorkspaceTemplatesResponse(ctx *fiber.Ctx) error {
+	ctx.Response().Header.Set("Content-Type", "application/json")
+	ctx.Status(500)
+
+	return ctx.JSON(&response)
+}
+
+type CreateWorkspaceTemplateRequestObject struct {
+	Body *CreateWorkspaceTemplateJSONRequestBody
+}
+
+type CreateWorkspaceTemplateResponseObject interface {
+	VisitCreateWorkspaceTemplateResponse(ctx *fiber.Ctx) error
+}
+
+type CreateWorkspaceTemplate200JSONResponse apitypes.WorkflowTemplateDocument
+
+func (response CreateWorkspaceTemplate200JSONResponse) VisitCreateWorkspaceTemplateResponse(ctx *fiber.Ctx) error {
+	ctx.Response().Header.Set("Content-Type", "application/json")
+	ctx.Status(200)
+
+	return ctx.JSON(&response)
+}
+
+type CreateWorkspaceTemplate400JSONResponse apitypes.ErrorResponse
+
+func (response CreateWorkspaceTemplate400JSONResponse) VisitCreateWorkspaceTemplateResponse(ctx *fiber.Ctx) error {
+	ctx.Response().Header.Set("Content-Type", "application/json")
+	ctx.Status(400)
+
+	return ctx.JSON(&response)
+}
+
+type CreateWorkspaceTemplate409JSONResponse apitypes.ErrorResponse
+
+func (response CreateWorkspaceTemplate409JSONResponse) VisitCreateWorkspaceTemplateResponse(ctx *fiber.Ctx) error {
+	ctx.Response().Header.Set("Content-Type", "application/json")
+	ctx.Status(409)
+
+	return ctx.JSON(&response)
+}
+
+type CreateWorkspaceTemplate500JSONResponse apitypes.ErrorResponse
+
+func (response CreateWorkspaceTemplate500JSONResponse) VisitCreateWorkspaceTemplateResponse(ctx *fiber.Ctx) error {
+	ctx.Response().Header.Set("Content-Type", "application/json")
+	ctx.Status(500)
+
+	return ctx.JSON(&response)
+}
+
+type DeleteWorkspaceTemplateRequestObject struct {
+	Name WorkspaceTemplateName `json:"name"`
+}
+
+type DeleteWorkspaceTemplateResponseObject interface {
+	VisitDeleteWorkspaceTemplateResponse(ctx *fiber.Ctx) error
+}
+
+type DeleteWorkspaceTemplate200JSONResponse apitypes.WorkflowTemplateDocument
+
+func (response DeleteWorkspaceTemplate200JSONResponse) VisitDeleteWorkspaceTemplateResponse(ctx *fiber.Ctx) error {
+	ctx.Response().Header.Set("Content-Type", "application/json")
+	ctx.Status(200)
+
+	return ctx.JSON(&response)
+}
+
+type DeleteWorkspaceTemplate404JSONResponse apitypes.ErrorResponse
+
+func (response DeleteWorkspaceTemplate404JSONResponse) VisitDeleteWorkspaceTemplateResponse(ctx *fiber.Ctx) error {
+	ctx.Response().Header.Set("Content-Type", "application/json")
+	ctx.Status(404)
+
+	return ctx.JSON(&response)
+}
+
+type DeleteWorkspaceTemplate500JSONResponse apitypes.ErrorResponse
+
+func (response DeleteWorkspaceTemplate500JSONResponse) VisitDeleteWorkspaceTemplateResponse(ctx *fiber.Ctx) error {
+	ctx.Response().Header.Set("Content-Type", "application/json")
+	ctx.Status(500)
+
+	return ctx.JSON(&response)
+}
+
+type GetWorkspaceTemplateRequestObject struct {
+	Name WorkspaceTemplateName `json:"name"`
+}
+
+type GetWorkspaceTemplateResponseObject interface {
+	VisitGetWorkspaceTemplateResponse(ctx *fiber.Ctx) error
+}
+
+type GetWorkspaceTemplate200JSONResponse apitypes.WorkflowTemplateDocument
+
+func (response GetWorkspaceTemplate200JSONResponse) VisitGetWorkspaceTemplateResponse(ctx *fiber.Ctx) error {
+	ctx.Response().Header.Set("Content-Type", "application/json")
+	ctx.Status(200)
+
+	return ctx.JSON(&response)
+}
+
+type GetWorkspaceTemplate404JSONResponse apitypes.ErrorResponse
+
+func (response GetWorkspaceTemplate404JSONResponse) VisitGetWorkspaceTemplateResponse(ctx *fiber.Ctx) error {
+	ctx.Response().Header.Set("Content-Type", "application/json")
+	ctx.Status(404)
+
+	return ctx.JSON(&response)
+}
+
+type GetWorkspaceTemplate500JSONResponse apitypes.ErrorResponse
+
+func (response GetWorkspaceTemplate500JSONResponse) VisitGetWorkspaceTemplateResponse(ctx *fiber.Ctx) error {
+	ctx.Response().Header.Set("Content-Type", "application/json")
+	ctx.Status(500)
+
+	return ctx.JSON(&response)
+}
+
+type PutWorkspaceTemplateRequestObject struct {
+	Name WorkspaceTemplateName `json:"name"`
+	Body *PutWorkspaceTemplateJSONRequestBody
+}
+
+type PutWorkspaceTemplateResponseObject interface {
+	VisitPutWorkspaceTemplateResponse(ctx *fiber.Ctx) error
+}
+
+type PutWorkspaceTemplate200JSONResponse apitypes.WorkflowTemplateDocument
+
+func (response PutWorkspaceTemplate200JSONResponse) VisitPutWorkspaceTemplateResponse(ctx *fiber.Ctx) error {
+	ctx.Response().Header.Set("Content-Type", "application/json")
+	ctx.Status(200)
+
+	return ctx.JSON(&response)
+}
+
+type PutWorkspaceTemplate400JSONResponse apitypes.ErrorResponse
+
+func (response PutWorkspaceTemplate400JSONResponse) VisitPutWorkspaceTemplateResponse(ctx *fiber.Ctx) error {
+	ctx.Response().Header.Set("Content-Type", "application/json")
+	ctx.Status(400)
+
+	return ctx.JSON(&response)
+}
+
+type PutWorkspaceTemplate500JSONResponse apitypes.ErrorResponse
+
+func (response PutWorkspaceTemplate500JSONResponse) VisitPutWorkspaceTemplateResponse(ctx *fiber.Ctx) error {
+	ctx.Response().Header.Set("Content-Type", "application/json")
+	ctx.Status(500)
+
+	return ctx.JSON(&response)
+}
+
+type ListWorkspacesRequestObject struct {
+	Params ListWorkspacesParams
+}
+
+type ListWorkspacesResponseObject interface {
+	VisitListWorkspacesResponse(ctx *fiber.Ctx) error
+}
+
+type ListWorkspaces200JSONResponse WorkspaceList
+
+func (response ListWorkspaces200JSONResponse) VisitListWorkspacesResponse(ctx *fiber.Ctx) error {
+	ctx.Response().Header.Set("Content-Type", "application/json")
+	ctx.Status(200)
+
+	return ctx.JSON(&response)
+}
+
+type ListWorkspaces500JSONResponse apitypes.ErrorResponse
+
+func (response ListWorkspaces500JSONResponse) VisitListWorkspacesResponse(ctx *fiber.Ctx) error {
+	ctx.Response().Header.Set("Content-Type", "application/json")
+	ctx.Status(500)
+
+	return ctx.JSON(&response)
+}
+
+type CreateWorkspaceRequestObject struct {
+	Body *CreateWorkspaceJSONRequestBody
+}
+
+type CreateWorkspaceResponseObject interface {
+	VisitCreateWorkspaceResponse(ctx *fiber.Ctx) error
+}
+
+type CreateWorkspace200JSONResponse apitypes.Workspace
+
+func (response CreateWorkspace200JSONResponse) VisitCreateWorkspaceResponse(ctx *fiber.Ctx) error {
+	ctx.Response().Header.Set("Content-Type", "application/json")
+	ctx.Status(200)
+
+	return ctx.JSON(&response)
+}
+
+type CreateWorkspace400JSONResponse apitypes.ErrorResponse
+
+func (response CreateWorkspace400JSONResponse) VisitCreateWorkspaceResponse(ctx *fiber.Ctx) error {
+	ctx.Response().Header.Set("Content-Type", "application/json")
+	ctx.Status(400)
+
+	return ctx.JSON(&response)
+}
+
+type CreateWorkspace409JSONResponse apitypes.ErrorResponse
+
+func (response CreateWorkspace409JSONResponse) VisitCreateWorkspaceResponse(ctx *fiber.Ctx) error {
+	ctx.Response().Header.Set("Content-Type", "application/json")
+	ctx.Status(409)
+
+	return ctx.JSON(&response)
+}
+
+type CreateWorkspace500JSONResponse apitypes.ErrorResponse
+
+func (response CreateWorkspace500JSONResponse) VisitCreateWorkspaceResponse(ctx *fiber.Ctx) error {
+	ctx.Response().Header.Set("Content-Type", "application/json")
+	ctx.Status(500)
+
+	return ctx.JSON(&response)
+}
+
+type DeleteWorkspaceRequestObject struct {
+	Name WorkspaceName `json:"name"`
+}
+
+type DeleteWorkspaceResponseObject interface {
+	VisitDeleteWorkspaceResponse(ctx *fiber.Ctx) error
+}
+
+type DeleteWorkspace200JSONResponse apitypes.Workspace
+
+func (response DeleteWorkspace200JSONResponse) VisitDeleteWorkspaceResponse(ctx *fiber.Ctx) error {
+	ctx.Response().Header.Set("Content-Type", "application/json")
+	ctx.Status(200)
+
+	return ctx.JSON(&response)
+}
+
+type DeleteWorkspace404JSONResponse apitypes.ErrorResponse
+
+func (response DeleteWorkspace404JSONResponse) VisitDeleteWorkspaceResponse(ctx *fiber.Ctx) error {
+	ctx.Response().Header.Set("Content-Type", "application/json")
+	ctx.Status(404)
+
+	return ctx.JSON(&response)
+}
+
+type DeleteWorkspace500JSONResponse apitypes.ErrorResponse
+
+func (response DeleteWorkspace500JSONResponse) VisitDeleteWorkspaceResponse(ctx *fiber.Ctx) error {
+	ctx.Response().Header.Set("Content-Type", "application/json")
+	ctx.Status(500)
+
+	return ctx.JSON(&response)
+}
+
+type GetWorkspaceRequestObject struct {
+	Name WorkspaceName `json:"name"`
+}
+
+type GetWorkspaceResponseObject interface {
+	VisitGetWorkspaceResponse(ctx *fiber.Ctx) error
+}
+
+type GetWorkspace200JSONResponse apitypes.Workspace
+
+func (response GetWorkspace200JSONResponse) VisitGetWorkspaceResponse(ctx *fiber.Ctx) error {
+	ctx.Response().Header.Set("Content-Type", "application/json")
+	ctx.Status(200)
+
+	return ctx.JSON(&response)
+}
+
+type GetWorkspace404JSONResponse apitypes.ErrorResponse
+
+func (response GetWorkspace404JSONResponse) VisitGetWorkspaceResponse(ctx *fiber.Ctx) error {
+	ctx.Response().Header.Set("Content-Type", "application/json")
+	ctx.Status(404)
+
+	return ctx.JSON(&response)
+}
+
+type GetWorkspace500JSONResponse apitypes.ErrorResponse
+
+func (response GetWorkspace500JSONResponse) VisitGetWorkspaceResponse(ctx *fiber.Ctx) error {
+	ctx.Response().Header.Set("Content-Type", "application/json")
+	ctx.Status(500)
+
+	return ctx.JSON(&response)
+}
+
+type PutWorkspaceRequestObject struct {
+	Name WorkspaceName `json:"name"`
+	Body *PutWorkspaceJSONRequestBody
+}
+
+type PutWorkspaceResponseObject interface {
+	VisitPutWorkspaceResponse(ctx *fiber.Ctx) error
+}
+
+type PutWorkspace200JSONResponse apitypes.Workspace
+
+func (response PutWorkspace200JSONResponse) VisitPutWorkspaceResponse(ctx *fiber.Ctx) error {
+	ctx.Response().Header.Set("Content-Type", "application/json")
+	ctx.Status(200)
+
+	return ctx.JSON(&response)
+}
+
+type PutWorkspace400JSONResponse apitypes.ErrorResponse
+
+func (response PutWorkspace400JSONResponse) VisitPutWorkspaceResponse(ctx *fiber.Ctx) error {
+	ctx.Response().Header.Set("Content-Type", "application/json")
+	ctx.Status(400)
+
+	return ctx.JSON(&response)
+}
+
+type PutWorkspace500JSONResponse apitypes.ErrorResponse
+
+func (response PutWorkspace500JSONResponse) VisitPutWorkspaceResponse(ctx *fiber.Ctx) error {
+	ctx.Response().Header.Set("Content-Type", "application/json")
+	ctx.Status(500)
+
+	return ctx.JSON(&response)
+}
+
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
+	// List stored credentials
+	// (GET /credentials)
+	ListCredentials(ctx context.Context, request ListCredentialsRequestObject) (ListCredentialsResponseObject, error)
+	// Create a credential
+	// (POST /credentials)
+	CreateCredential(ctx context.Context, request CreateCredentialRequestObject) (CreateCredentialResponseObject, error)
+	// Delete a credential
+	// (DELETE /credentials/{name})
+	DeleteCredential(ctx context.Context, request DeleteCredentialRequestObject) (DeleteCredentialResponseObject, error)
+	// Get a credential
+	// (GET /credentials/{name})
+	GetCredential(ctx context.Context, request GetCredentialRequestObject) (GetCredentialResponseObject, error)
+	// Create or update a credential
+	// (PUT /credentials/{name})
+	PutCredential(ctx context.Context, request PutCredentialRequestObject) (PutCredentialResponseObject, error)
 	// List all firmware depots
 	// (GET /depots)
 	ListDepots(ctx context.Context, request ListDepotsRequestObject) (ListDepotsResponseObject, error)
@@ -4708,6 +10288,69 @@ type StrictServerInterface interface {
 	// Get gear runtime status
 	// (GET /gears/{publicKey}/runtime)
 	GetGearRuntime(ctx context.Context, request GetGearRuntimeRequestObject) (GetGearRuntimeResponseObject, error)
+	// List all MiniMax tenants
+	// (GET /minimax-tenants)
+	ListMiniMaxTenants(ctx context.Context, request ListMiniMaxTenantsRequestObject) (ListMiniMaxTenantsResponseObject, error)
+	// Create a MiniMax tenant
+	// (POST /minimax-tenants)
+	CreateMiniMaxTenant(ctx context.Context, request CreateMiniMaxTenantRequestObject) (CreateMiniMaxTenantResponseObject, error)
+	// Delete a MiniMax tenant
+	// (DELETE /minimax-tenants/{name})
+	DeleteMiniMaxTenant(ctx context.Context, request DeleteMiniMaxTenantRequestObject) (DeleteMiniMaxTenantResponseObject, error)
+	// Get a MiniMax tenant
+	// (GET /minimax-tenants/{name})
+	GetMiniMaxTenant(ctx context.Context, request GetMiniMaxTenantRequestObject) (GetMiniMaxTenantResponseObject, error)
+	// Create or update a MiniMax tenant
+	// (PUT /minimax-tenants/{name})
+	PutMiniMaxTenant(ctx context.Context, request PutMiniMaxTenantRequestObject) (PutMiniMaxTenantResponseObject, error)
+	// Sync voices from a MiniMax tenant into the global voice catalog
+	// (POST /minimax-tenants/{name}/@sync-voices)
+	SyncMiniMaxTenantVoices(ctx context.Context, request SyncMiniMaxTenantVoicesRequestObject) (SyncMiniMaxTenantVoicesResponseObject, error)
+	// List all voices
+	// (GET /voices)
+	ListVoices(ctx context.Context, request ListVoicesRequestObject) (ListVoicesResponseObject, error)
+	// Create a voice
+	// (POST /voices)
+	CreateVoice(ctx context.Context, request CreateVoiceRequestObject) (CreateVoiceResponseObject, error)
+	// Delete a voice
+	// (DELETE /voices/{id})
+	DeleteVoice(ctx context.Context, request DeleteVoiceRequestObject) (DeleteVoiceResponseObject, error)
+	// Get a voice
+	// (GET /voices/{id})
+	GetVoice(ctx context.Context, request GetVoiceRequestObject) (GetVoiceResponseObject, error)
+	// Create or update a voice
+	// (PUT /voices/{id})
+	PutVoice(ctx context.Context, request PutVoiceRequestObject) (PutVoiceResponseObject, error)
+	// List all workspace templates
+	// (GET /workspace-templates)
+	ListWorkspaceTemplates(ctx context.Context, request ListWorkspaceTemplatesRequestObject) (ListWorkspaceTemplatesResponseObject, error)
+	// Create a workspace template
+	// (POST /workspace-templates)
+	CreateWorkspaceTemplate(ctx context.Context, request CreateWorkspaceTemplateRequestObject) (CreateWorkspaceTemplateResponseObject, error)
+	// Delete a workspace template
+	// (DELETE /workspace-templates/{name})
+	DeleteWorkspaceTemplate(ctx context.Context, request DeleteWorkspaceTemplateRequestObject) (DeleteWorkspaceTemplateResponseObject, error)
+	// Get a workspace template
+	// (GET /workspace-templates/{name})
+	GetWorkspaceTemplate(ctx context.Context, request GetWorkspaceTemplateRequestObject) (GetWorkspaceTemplateResponseObject, error)
+	// Create or update a workspace template
+	// (PUT /workspace-templates/{name})
+	PutWorkspaceTemplate(ctx context.Context, request PutWorkspaceTemplateRequestObject) (PutWorkspaceTemplateResponseObject, error)
+	// List all workspaces
+	// (GET /workspaces)
+	ListWorkspaces(ctx context.Context, request ListWorkspacesRequestObject) (ListWorkspacesResponseObject, error)
+	// Create a workspace
+	// (POST /workspaces)
+	CreateWorkspace(ctx context.Context, request CreateWorkspaceRequestObject) (CreateWorkspaceResponseObject, error)
+	// Delete a workspace
+	// (DELETE /workspaces/{name})
+	DeleteWorkspace(ctx context.Context, request DeleteWorkspaceRequestObject) (DeleteWorkspaceResponseObject, error)
+	// Get a workspace
+	// (GET /workspaces/{name})
+	GetWorkspace(ctx context.Context, request GetWorkspaceRequestObject) (GetWorkspaceResponseObject, error)
+	// Create or update a workspace
+	// (PUT /workspaces/{name})
+	PutWorkspace(ctx context.Context, request PutWorkspaceRequestObject) (PutWorkspaceResponseObject, error)
 }
 
 type StrictHandlerFunc func(ctx *fiber.Ctx, args interface{}) (interface{}, error)
@@ -4721,6 +10364,151 @@ func NewStrictHandler(ssi StrictServerInterface, middlewares []StrictMiddlewareF
 type strictHandler struct {
 	ssi         StrictServerInterface
 	middlewares []StrictMiddlewareFunc
+}
+
+// ListCredentials operation middleware
+func (sh *strictHandler) ListCredentials(ctx *fiber.Ctx, params ListCredentialsParams) error {
+	var request ListCredentialsRequestObject
+
+	request.Params = params
+
+	handler := func(ctx *fiber.Ctx, request interface{}) (interface{}, error) {
+		return sh.ssi.ListCredentials(ctx.UserContext(), request.(ListCredentialsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListCredentials")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, err.Error())
+	} else if validResponse, ok := response.(ListCredentialsResponseObject); ok {
+		if err := validResponse.VisitListCredentialsResponse(ctx); err != nil {
+			return fiber.NewError(fiber.StatusBadRequest, err.Error())
+		}
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// CreateCredential operation middleware
+func (sh *strictHandler) CreateCredential(ctx *fiber.Ctx) error {
+	var request CreateCredentialRequestObject
+
+	var body CreateCredentialJSONRequestBody
+	if err := ctx.BodyParser(&body); err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, err.Error())
+	}
+	request.Body = &body
+
+	handler := func(ctx *fiber.Ctx, request interface{}) (interface{}, error) {
+		return sh.ssi.CreateCredential(ctx.UserContext(), request.(CreateCredentialRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CreateCredential")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, err.Error())
+	} else if validResponse, ok := response.(CreateCredentialResponseObject); ok {
+		if err := validResponse.VisitCreateCredentialResponse(ctx); err != nil {
+			return fiber.NewError(fiber.StatusBadRequest, err.Error())
+		}
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// DeleteCredential operation middleware
+func (sh *strictHandler) DeleteCredential(ctx *fiber.Ctx, name CredentialName) error {
+	var request DeleteCredentialRequestObject
+
+	request.Name = name
+
+	handler := func(ctx *fiber.Ctx, request interface{}) (interface{}, error) {
+		return sh.ssi.DeleteCredential(ctx.UserContext(), request.(DeleteCredentialRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DeleteCredential")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, err.Error())
+	} else if validResponse, ok := response.(DeleteCredentialResponseObject); ok {
+		if err := validResponse.VisitDeleteCredentialResponse(ctx); err != nil {
+			return fiber.NewError(fiber.StatusBadRequest, err.Error())
+		}
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// GetCredential operation middleware
+func (sh *strictHandler) GetCredential(ctx *fiber.Ctx, name CredentialName) error {
+	var request GetCredentialRequestObject
+
+	request.Name = name
+
+	handler := func(ctx *fiber.Ctx, request interface{}) (interface{}, error) {
+		return sh.ssi.GetCredential(ctx.UserContext(), request.(GetCredentialRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetCredential")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, err.Error())
+	} else if validResponse, ok := response.(GetCredentialResponseObject); ok {
+		if err := validResponse.VisitGetCredentialResponse(ctx); err != nil {
+			return fiber.NewError(fiber.StatusBadRequest, err.Error())
+		}
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// PutCredential operation middleware
+func (sh *strictHandler) PutCredential(ctx *fiber.Ctx, name CredentialName) error {
+	var request PutCredentialRequestObject
+
+	request.Name = name
+
+	var body PutCredentialJSONRequestBody
+	if err := ctx.BodyParser(&body); err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, err.Error())
+	}
+	request.Body = &body
+
+	handler := func(ctx *fiber.Ctx, request interface{}) (interface{}, error) {
+		return sh.ssi.PutCredential(ctx.UserContext(), request.(PutCredentialRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PutCredential")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, err.Error())
+	} else if validResponse, ok := response.(PutCredentialResponseObject); ok {
+		if err := validResponse.VisitPutCredentialResponse(ctx); err != nil {
+			return fiber.NewError(fiber.StatusBadRequest, err.Error())
+		}
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
 }
 
 // ListDepots operation middleware
@@ -5364,6 +11152,613 @@ func (sh *strictHandler) GetGearRuntime(ctx *fiber.Ctx, publicKey PublicKey) err
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	} else if validResponse, ok := response.(GetGearRuntimeResponseObject); ok {
 		if err := validResponse.VisitGetGearRuntimeResponse(ctx); err != nil {
+			return fiber.NewError(fiber.StatusBadRequest, err.Error())
+		}
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// ListMiniMaxTenants operation middleware
+func (sh *strictHandler) ListMiniMaxTenants(ctx *fiber.Ctx, params ListMiniMaxTenantsParams) error {
+	var request ListMiniMaxTenantsRequestObject
+
+	request.Params = params
+
+	handler := func(ctx *fiber.Ctx, request interface{}) (interface{}, error) {
+		return sh.ssi.ListMiniMaxTenants(ctx.UserContext(), request.(ListMiniMaxTenantsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListMiniMaxTenants")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, err.Error())
+	} else if validResponse, ok := response.(ListMiniMaxTenantsResponseObject); ok {
+		if err := validResponse.VisitListMiniMaxTenantsResponse(ctx); err != nil {
+			return fiber.NewError(fiber.StatusBadRequest, err.Error())
+		}
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// CreateMiniMaxTenant operation middleware
+func (sh *strictHandler) CreateMiniMaxTenant(ctx *fiber.Ctx) error {
+	var request CreateMiniMaxTenantRequestObject
+
+	var body CreateMiniMaxTenantJSONRequestBody
+	if err := ctx.BodyParser(&body); err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, err.Error())
+	}
+	request.Body = &body
+
+	handler := func(ctx *fiber.Ctx, request interface{}) (interface{}, error) {
+		return sh.ssi.CreateMiniMaxTenant(ctx.UserContext(), request.(CreateMiniMaxTenantRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CreateMiniMaxTenant")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, err.Error())
+	} else if validResponse, ok := response.(CreateMiniMaxTenantResponseObject); ok {
+		if err := validResponse.VisitCreateMiniMaxTenantResponse(ctx); err != nil {
+			return fiber.NewError(fiber.StatusBadRequest, err.Error())
+		}
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// DeleteMiniMaxTenant operation middleware
+func (sh *strictHandler) DeleteMiniMaxTenant(ctx *fiber.Ctx, name MiniMaxTenantName) error {
+	var request DeleteMiniMaxTenantRequestObject
+
+	request.Name = name
+
+	handler := func(ctx *fiber.Ctx, request interface{}) (interface{}, error) {
+		return sh.ssi.DeleteMiniMaxTenant(ctx.UserContext(), request.(DeleteMiniMaxTenantRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DeleteMiniMaxTenant")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, err.Error())
+	} else if validResponse, ok := response.(DeleteMiniMaxTenantResponseObject); ok {
+		if err := validResponse.VisitDeleteMiniMaxTenantResponse(ctx); err != nil {
+			return fiber.NewError(fiber.StatusBadRequest, err.Error())
+		}
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// GetMiniMaxTenant operation middleware
+func (sh *strictHandler) GetMiniMaxTenant(ctx *fiber.Ctx, name MiniMaxTenantName) error {
+	var request GetMiniMaxTenantRequestObject
+
+	request.Name = name
+
+	handler := func(ctx *fiber.Ctx, request interface{}) (interface{}, error) {
+		return sh.ssi.GetMiniMaxTenant(ctx.UserContext(), request.(GetMiniMaxTenantRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetMiniMaxTenant")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, err.Error())
+	} else if validResponse, ok := response.(GetMiniMaxTenantResponseObject); ok {
+		if err := validResponse.VisitGetMiniMaxTenantResponse(ctx); err != nil {
+			return fiber.NewError(fiber.StatusBadRequest, err.Error())
+		}
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// PutMiniMaxTenant operation middleware
+func (sh *strictHandler) PutMiniMaxTenant(ctx *fiber.Ctx, name MiniMaxTenantName) error {
+	var request PutMiniMaxTenantRequestObject
+
+	request.Name = name
+
+	var body PutMiniMaxTenantJSONRequestBody
+	if err := ctx.BodyParser(&body); err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, err.Error())
+	}
+	request.Body = &body
+
+	handler := func(ctx *fiber.Ctx, request interface{}) (interface{}, error) {
+		return sh.ssi.PutMiniMaxTenant(ctx.UserContext(), request.(PutMiniMaxTenantRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PutMiniMaxTenant")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, err.Error())
+	} else if validResponse, ok := response.(PutMiniMaxTenantResponseObject); ok {
+		if err := validResponse.VisitPutMiniMaxTenantResponse(ctx); err != nil {
+			return fiber.NewError(fiber.StatusBadRequest, err.Error())
+		}
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// SyncMiniMaxTenantVoices operation middleware
+func (sh *strictHandler) SyncMiniMaxTenantVoices(ctx *fiber.Ctx, name MiniMaxTenantName) error {
+	var request SyncMiniMaxTenantVoicesRequestObject
+
+	request.Name = name
+
+	handler := func(ctx *fiber.Ctx, request interface{}) (interface{}, error) {
+		return sh.ssi.SyncMiniMaxTenantVoices(ctx.UserContext(), request.(SyncMiniMaxTenantVoicesRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "SyncMiniMaxTenantVoices")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, err.Error())
+	} else if validResponse, ok := response.(SyncMiniMaxTenantVoicesResponseObject); ok {
+		if err := validResponse.VisitSyncMiniMaxTenantVoicesResponse(ctx); err != nil {
+			return fiber.NewError(fiber.StatusBadRequest, err.Error())
+		}
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// ListVoices operation middleware
+func (sh *strictHandler) ListVoices(ctx *fiber.Ctx, params ListVoicesParams) error {
+	var request ListVoicesRequestObject
+
+	request.Params = params
+
+	handler := func(ctx *fiber.Ctx, request interface{}) (interface{}, error) {
+		return sh.ssi.ListVoices(ctx.UserContext(), request.(ListVoicesRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListVoices")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, err.Error())
+	} else if validResponse, ok := response.(ListVoicesResponseObject); ok {
+		if err := validResponse.VisitListVoicesResponse(ctx); err != nil {
+			return fiber.NewError(fiber.StatusBadRequest, err.Error())
+		}
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// CreateVoice operation middleware
+func (sh *strictHandler) CreateVoice(ctx *fiber.Ctx) error {
+	var request CreateVoiceRequestObject
+
+	var body CreateVoiceJSONRequestBody
+	if err := ctx.BodyParser(&body); err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, err.Error())
+	}
+	request.Body = &body
+
+	handler := func(ctx *fiber.Ctx, request interface{}) (interface{}, error) {
+		return sh.ssi.CreateVoice(ctx.UserContext(), request.(CreateVoiceRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CreateVoice")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, err.Error())
+	} else if validResponse, ok := response.(CreateVoiceResponseObject); ok {
+		if err := validResponse.VisitCreateVoiceResponse(ctx); err != nil {
+			return fiber.NewError(fiber.StatusBadRequest, err.Error())
+		}
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// DeleteVoice operation middleware
+func (sh *strictHandler) DeleteVoice(ctx *fiber.Ctx, id VoiceID) error {
+	var request DeleteVoiceRequestObject
+
+	request.Id = id
+
+	handler := func(ctx *fiber.Ctx, request interface{}) (interface{}, error) {
+		return sh.ssi.DeleteVoice(ctx.UserContext(), request.(DeleteVoiceRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DeleteVoice")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, err.Error())
+	} else if validResponse, ok := response.(DeleteVoiceResponseObject); ok {
+		if err := validResponse.VisitDeleteVoiceResponse(ctx); err != nil {
+			return fiber.NewError(fiber.StatusBadRequest, err.Error())
+		}
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// GetVoice operation middleware
+func (sh *strictHandler) GetVoice(ctx *fiber.Ctx, id VoiceID) error {
+	var request GetVoiceRequestObject
+
+	request.Id = id
+
+	handler := func(ctx *fiber.Ctx, request interface{}) (interface{}, error) {
+		return sh.ssi.GetVoice(ctx.UserContext(), request.(GetVoiceRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetVoice")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, err.Error())
+	} else if validResponse, ok := response.(GetVoiceResponseObject); ok {
+		if err := validResponse.VisitGetVoiceResponse(ctx); err != nil {
+			return fiber.NewError(fiber.StatusBadRequest, err.Error())
+		}
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// PutVoice operation middleware
+func (sh *strictHandler) PutVoice(ctx *fiber.Ctx, id VoiceID) error {
+	var request PutVoiceRequestObject
+
+	request.Id = id
+
+	var body PutVoiceJSONRequestBody
+	if err := ctx.BodyParser(&body); err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, err.Error())
+	}
+	request.Body = &body
+
+	handler := func(ctx *fiber.Ctx, request interface{}) (interface{}, error) {
+		return sh.ssi.PutVoice(ctx.UserContext(), request.(PutVoiceRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PutVoice")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, err.Error())
+	} else if validResponse, ok := response.(PutVoiceResponseObject); ok {
+		if err := validResponse.VisitPutVoiceResponse(ctx); err != nil {
+			return fiber.NewError(fiber.StatusBadRequest, err.Error())
+		}
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// ListWorkspaceTemplates operation middleware
+func (sh *strictHandler) ListWorkspaceTemplates(ctx *fiber.Ctx, params ListWorkspaceTemplatesParams) error {
+	var request ListWorkspaceTemplatesRequestObject
+
+	request.Params = params
+
+	handler := func(ctx *fiber.Ctx, request interface{}) (interface{}, error) {
+		return sh.ssi.ListWorkspaceTemplates(ctx.UserContext(), request.(ListWorkspaceTemplatesRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListWorkspaceTemplates")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, err.Error())
+	} else if validResponse, ok := response.(ListWorkspaceTemplatesResponseObject); ok {
+		if err := validResponse.VisitListWorkspaceTemplatesResponse(ctx); err != nil {
+			return fiber.NewError(fiber.StatusBadRequest, err.Error())
+		}
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// CreateWorkspaceTemplate operation middleware
+func (sh *strictHandler) CreateWorkspaceTemplate(ctx *fiber.Ctx) error {
+	var request CreateWorkspaceTemplateRequestObject
+
+	var body CreateWorkspaceTemplateJSONRequestBody
+	if err := ctx.BodyParser(&body); err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, err.Error())
+	}
+	request.Body = &body
+
+	handler := func(ctx *fiber.Ctx, request interface{}) (interface{}, error) {
+		return sh.ssi.CreateWorkspaceTemplate(ctx.UserContext(), request.(CreateWorkspaceTemplateRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CreateWorkspaceTemplate")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, err.Error())
+	} else if validResponse, ok := response.(CreateWorkspaceTemplateResponseObject); ok {
+		if err := validResponse.VisitCreateWorkspaceTemplateResponse(ctx); err != nil {
+			return fiber.NewError(fiber.StatusBadRequest, err.Error())
+		}
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// DeleteWorkspaceTemplate operation middleware
+func (sh *strictHandler) DeleteWorkspaceTemplate(ctx *fiber.Ctx, name WorkspaceTemplateName) error {
+	var request DeleteWorkspaceTemplateRequestObject
+
+	request.Name = name
+
+	handler := func(ctx *fiber.Ctx, request interface{}) (interface{}, error) {
+		return sh.ssi.DeleteWorkspaceTemplate(ctx.UserContext(), request.(DeleteWorkspaceTemplateRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DeleteWorkspaceTemplate")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, err.Error())
+	} else if validResponse, ok := response.(DeleteWorkspaceTemplateResponseObject); ok {
+		if err := validResponse.VisitDeleteWorkspaceTemplateResponse(ctx); err != nil {
+			return fiber.NewError(fiber.StatusBadRequest, err.Error())
+		}
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// GetWorkspaceTemplate operation middleware
+func (sh *strictHandler) GetWorkspaceTemplate(ctx *fiber.Ctx, name WorkspaceTemplateName) error {
+	var request GetWorkspaceTemplateRequestObject
+
+	request.Name = name
+
+	handler := func(ctx *fiber.Ctx, request interface{}) (interface{}, error) {
+		return sh.ssi.GetWorkspaceTemplate(ctx.UserContext(), request.(GetWorkspaceTemplateRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetWorkspaceTemplate")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, err.Error())
+	} else if validResponse, ok := response.(GetWorkspaceTemplateResponseObject); ok {
+		if err := validResponse.VisitGetWorkspaceTemplateResponse(ctx); err != nil {
+			return fiber.NewError(fiber.StatusBadRequest, err.Error())
+		}
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// PutWorkspaceTemplate operation middleware
+func (sh *strictHandler) PutWorkspaceTemplate(ctx *fiber.Ctx, name WorkspaceTemplateName) error {
+	var request PutWorkspaceTemplateRequestObject
+
+	request.Name = name
+
+	var body PutWorkspaceTemplateJSONRequestBody
+	if err := ctx.BodyParser(&body); err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, err.Error())
+	}
+	request.Body = &body
+
+	handler := func(ctx *fiber.Ctx, request interface{}) (interface{}, error) {
+		return sh.ssi.PutWorkspaceTemplate(ctx.UserContext(), request.(PutWorkspaceTemplateRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PutWorkspaceTemplate")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, err.Error())
+	} else if validResponse, ok := response.(PutWorkspaceTemplateResponseObject); ok {
+		if err := validResponse.VisitPutWorkspaceTemplateResponse(ctx); err != nil {
+			return fiber.NewError(fiber.StatusBadRequest, err.Error())
+		}
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// ListWorkspaces operation middleware
+func (sh *strictHandler) ListWorkspaces(ctx *fiber.Ctx, params ListWorkspacesParams) error {
+	var request ListWorkspacesRequestObject
+
+	request.Params = params
+
+	handler := func(ctx *fiber.Ctx, request interface{}) (interface{}, error) {
+		return sh.ssi.ListWorkspaces(ctx.UserContext(), request.(ListWorkspacesRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListWorkspaces")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, err.Error())
+	} else if validResponse, ok := response.(ListWorkspacesResponseObject); ok {
+		if err := validResponse.VisitListWorkspacesResponse(ctx); err != nil {
+			return fiber.NewError(fiber.StatusBadRequest, err.Error())
+		}
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// CreateWorkspace operation middleware
+func (sh *strictHandler) CreateWorkspace(ctx *fiber.Ctx) error {
+	var request CreateWorkspaceRequestObject
+
+	var body CreateWorkspaceJSONRequestBody
+	if err := ctx.BodyParser(&body); err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, err.Error())
+	}
+	request.Body = &body
+
+	handler := func(ctx *fiber.Ctx, request interface{}) (interface{}, error) {
+		return sh.ssi.CreateWorkspace(ctx.UserContext(), request.(CreateWorkspaceRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CreateWorkspace")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, err.Error())
+	} else if validResponse, ok := response.(CreateWorkspaceResponseObject); ok {
+		if err := validResponse.VisitCreateWorkspaceResponse(ctx); err != nil {
+			return fiber.NewError(fiber.StatusBadRequest, err.Error())
+		}
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// DeleteWorkspace operation middleware
+func (sh *strictHandler) DeleteWorkspace(ctx *fiber.Ctx, name WorkspaceName) error {
+	var request DeleteWorkspaceRequestObject
+
+	request.Name = name
+
+	handler := func(ctx *fiber.Ctx, request interface{}) (interface{}, error) {
+		return sh.ssi.DeleteWorkspace(ctx.UserContext(), request.(DeleteWorkspaceRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DeleteWorkspace")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, err.Error())
+	} else if validResponse, ok := response.(DeleteWorkspaceResponseObject); ok {
+		if err := validResponse.VisitDeleteWorkspaceResponse(ctx); err != nil {
+			return fiber.NewError(fiber.StatusBadRequest, err.Error())
+		}
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// GetWorkspace operation middleware
+func (sh *strictHandler) GetWorkspace(ctx *fiber.Ctx, name WorkspaceName) error {
+	var request GetWorkspaceRequestObject
+
+	request.Name = name
+
+	handler := func(ctx *fiber.Ctx, request interface{}) (interface{}, error) {
+		return sh.ssi.GetWorkspace(ctx.UserContext(), request.(GetWorkspaceRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetWorkspace")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, err.Error())
+	} else if validResponse, ok := response.(GetWorkspaceResponseObject); ok {
+		if err := validResponse.VisitGetWorkspaceResponse(ctx); err != nil {
+			return fiber.NewError(fiber.StatusBadRequest, err.Error())
+		}
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// PutWorkspace operation middleware
+func (sh *strictHandler) PutWorkspace(ctx *fiber.Ctx, name WorkspaceName) error {
+	var request PutWorkspaceRequestObject
+
+	request.Name = name
+
+	var body PutWorkspaceJSONRequestBody
+	if err := ctx.BodyParser(&body); err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, err.Error())
+	}
+	request.Body = &body
+
+	handler := func(ctx *fiber.Ctx, request interface{}) (interface{}, error) {
+		return sh.ssi.PutWorkspace(ctx.UserContext(), request.(PutWorkspaceRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PutWorkspace")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, err.Error())
+	} else if validResponse, ok := response.(PutWorkspaceResponseObject); ok {
+		if err := validResponse.VisitPutWorkspaceResponse(ctx); err != nil {
 			return fiber.NewError(fiber.StatusBadRequest, err.Error())
 		}
 	} else if response != nil {

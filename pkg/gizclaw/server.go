@@ -9,8 +9,12 @@ import (
 
 	apitypes "github.com/GizClaw/gizclaw-go/pkg/gizclaw/api/apitypes"
 
+	"github.com/GizClaw/gizclaw-go/pkg/gizclaw/credential"
 	"github.com/GizClaw/gizclaw-go/pkg/gizclaw/firmware"
 	"github.com/GizClaw/gizclaw-go/pkg/gizclaw/gear"
+	"github.com/GizClaw/gizclaw-go/pkg/gizclaw/mmx"
+	"github.com/GizClaw/gizclaw-go/pkg/gizclaw/workspace"
+	"github.com/GizClaw/gizclaw-go/pkg/gizclaw/workspacetemplate"
 	"github.com/GizClaw/gizclaw-go/pkg/giznet"
 	"github.com/GizClaw/gizclaw-go/pkg/store/depotstore"
 	"github.com/GizClaw/gizclaw-go/pkg/store/kv"
@@ -46,7 +50,7 @@ type Server struct {
 	DepotStore         depotstore.Store
 
 	manager     *Manager
-	gearService *GearService
+	peerService *PeerService
 
 	mu          sync.Mutex
 	listener    *giznet.Listener
@@ -106,9 +110,9 @@ func (s *Server) Serve(l *giznet.Listener) error {
 			}
 			return err
 		}
-		svc := s.gearService
+		svc := s.peerService
 		if svc == nil {
-			svc = &GearService{}
+			svc = &PeerService{}
 		}
 		host := &GearPeer{
 			Conn:    conn,
@@ -137,14 +141,14 @@ func (s *Server) PublicKey() giznet.PublicKey {
 	return listener.HostInfo().PublicKey
 }
 
-// GearService returns the initialized gear service, or nil before Serve initializes it.
-func (s *Server) GearService() *GearService {
+// PeerService returns the initialized peer service bundle, or nil before Serve initializes it.
+func (s *Server) PeerService() *PeerService {
 	if s == nil {
 		return nil
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return s.gearService
+	return s.peerService
 }
 
 // Manager returns the initialized peer manager, or nil before Serve initializes it.
@@ -209,7 +213,7 @@ func (s *Server) initRuntime(serverPublicKey string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if s.manager != nil && s.gearService != nil {
+	if s.manager != nil && s.peerService != nil {
 		return nil
 	}
 	if s.GearStore == nil {
@@ -243,13 +247,21 @@ func (s *Server) initRuntime(serverPublicKey string) error {
 			return resolveGearTarget(ctx, gearsServer, publicKey)
 		},
 	}
+	workspaceTemplateServer := &workspacetemplate.Server{Store: s.GearStore}
+	workspaceServer := &workspace.Server{Store: s.GearStore}
+	credentialServer := &credential.Server{Store: s.GearStore}
+	mmxServer := &mmx.Server{Store: s.GearStore}
 
 	s.manager = manager
-	s.gearService = &GearService{
+	s.peerService = &PeerService{
 		peerManager: manager,
 		admin: &adminService{
-			FirmwareAdminService: firmwareServer,
-			GearsAdminService:    gearsServer,
+			CredentialAdminService:        credentialServer,
+			FirmwareAdminService:          firmwareServer,
+			GearsAdminService:             gearsServer,
+			MiniMaxAdminService:           mmxServer,
+			WorkspaceAdminService:         workspaceServer,
+			WorkspaceTemplateAdminService: workspaceTemplateServer,
 		},
 		gear: &gearAPIBundle{
 			FirmwareGearService: firmwareServer,

@@ -4,5 +4,7 @@ generate:
   strict-server: true
   client: true
   models: true
+import-mapping:
+  ./types.json: apitypes github.com/GizClaw/gizclaw-go/pkg/gizclaw/api/apitypes
 output-options:
   skip-prune: true

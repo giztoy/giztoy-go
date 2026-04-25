@@ -30,7 +30,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ServerInfo"
+                  "$ref": "./types.json#/components/schemas/ServerInfo"
                 }
               }
             }
@@ -132,26 +132,6 @@
           },
           "registration": {
             "$ref": "./types.json#/components/schemas/Registration"
-          }
-        }
-      },
-      "ServerInfo": {
-        "type": "object",
-        "required": [
-          "public_key",
-          "server_time",
-          "build_commit"
-        ],
-        "properties": {
-          "public_key": {
-            "type": "string"
-          },
-          "server_time": {
-            "type": "integer",
-            "format": "int64"
-          },
-          "build_commit": {
-            "type": "string"
           }
         }
       }

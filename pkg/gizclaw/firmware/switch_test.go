@@ -2,10 +2,9 @@ package firmware
 
 import (
 	"errors"
+	apitypes "github.com/GizClaw/gizclaw-go/pkg/gizclaw/api/apitypes"
 	"io/fs"
 	"testing"
-
-	"github.com/GizClaw/gizclaw-go/pkg/gizclaw/api/adminservice"
 )
 
 func TestReleaseDepot(t *testing.T) {
@@ -284,7 +283,7 @@ func TestPrepareSwitchErrors(t *testing.T) {
 	})
 }
 
-func parseManifestOrFatal(t *testing.T, data []byte) adminservice.DepotRelease {
+func parseManifestOrFatal(t *testing.T, data []byte) apitypes.DepotRelease {
 	t.Helper()
 	release, err := parseManifest(data)
 	if err != nil {

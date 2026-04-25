@@ -181,19 +181,19 @@ func register(ctx context.Context, c *gizclaw.Client, req serverpublic.Registrat
 	return serverpublic.RegistrationResult{}, responseError(resp.StatusCode(), resp.Body, resp.JSON400, resp.JSON409)
 }
 
-func getServerInfo(ctx context.Context, c *gizclaw.Client) (serverpublic.ServerInfo, error) {
+func getServerInfo(ctx context.Context, c *gizclaw.Client) (apitypes.ServerInfo, error) {
 	api, err := c.ServerPublicClient()
 	if err != nil {
-		return serverpublic.ServerInfo{}, err
+		return apitypes.ServerInfo{}, err
 	}
 	resp, err := api.GetServerInfoWithResponse(ctx)
 	if err != nil {
-		return serverpublic.ServerInfo{}, err
+		return apitypes.ServerInfo{}, err
 	}
 	if resp.JSON200 != nil {
 		return *resp.JSON200, nil
 	}
-	return serverpublic.ServerInfo{}, responseError(resp.StatusCode(), resp.Body, resp.JSON400)
+	return apitypes.ServerInfo{}, responseError(resp.StatusCode(), resp.Body, resp.JSON400)
 }
 
 func getInfo(ctx context.Context, c *gizclaw.Client) (apitypes.DeviceInfo, error) {
@@ -311,7 +311,7 @@ func downloadFirmware(ctx context.Context, c *gizclaw.Client, path string) ([]by
 	return nil, nil, responseError(resp.StatusCode, body)
 }
 
-func listFirmwares(ctx context.Context, c *gizclaw.Client) ([]adminservice.Depot, error) {
+func listFirmwares(ctx context.Context, c *gizclaw.Client) ([]apitypes.Depot, error) {
 	api, err := c.ServerAdminClient()
 	if err != nil {
 		return nil, err
@@ -326,112 +326,377 @@ func listFirmwares(ctx context.Context, c *gizclaw.Client) ([]adminservice.Depot
 	return resp.JSON200.Items, nil
 }
 
-func getFirmwareDepot(ctx context.Context, c *gizclaw.Client, depot string) (adminservice.Depot, error) {
+func getFirmwareDepot(ctx context.Context, c *gizclaw.Client, depot string) (apitypes.Depot, error) {
 	api, err := c.ServerAdminClient()
 	if err != nil {
-		return adminservice.Depot{}, err
+		return apitypes.Depot{}, err
 	}
 	resp, err := api.GetDepotWithResponse(ctx, depot)
 	if err != nil {
-		return adminservice.Depot{}, err
+		return apitypes.Depot{}, err
 	}
 	if resp.JSON200 != nil {
 		return *resp.JSON200, nil
 	}
-	return adminservice.Depot{}, responseError(resp.StatusCode(), resp.Body, resp.JSON404)
+	return apitypes.Depot{}, responseError(resp.StatusCode(), resp.Body, resp.JSON404)
 }
 
-func getFirmwareChannel(ctx context.Context, c *gizclaw.Client, depot string, channel adminservice.Channel) (adminservice.DepotRelease, error) {
+func getFirmwareChannel(ctx context.Context, c *gizclaw.Client, depot string, channel adminservice.Channel) (apitypes.DepotRelease, error) {
 	api, err := c.ServerAdminClient()
 	if err != nil {
-		return adminservice.DepotRelease{}, err
+		return apitypes.DepotRelease{}, err
 	}
 	resp, err := api.GetChannelWithResponse(ctx, depot, channel)
 	if err != nil {
-		return adminservice.DepotRelease{}, err
+		return apitypes.DepotRelease{}, err
 	}
 	if resp.JSON200 != nil {
 		return *resp.JSON200, nil
 	}
-	return adminservice.DepotRelease{}, responseError(resp.StatusCode(), resp.Body, resp.JSON404)
+	return apitypes.DepotRelease{}, responseError(resp.StatusCode(), resp.Body, resp.JSON404)
 }
 
-func putFirmwareInfo(ctx context.Context, c *gizclaw.Client, depot string, info adminservice.DepotInfo) (adminservice.Depot, error) {
+func putFirmwareInfo(ctx context.Context, c *gizclaw.Client, depot string, info apitypes.DepotInfo) (apitypes.Depot, error) {
 	api, err := c.ServerAdminClient()
 	if err != nil {
-		return adminservice.Depot{}, err
+		return apitypes.Depot{}, err
 	}
 	resp, err := api.PutDepotInfoWithResponse(ctx, depot, info)
 	if err != nil {
-		return adminservice.Depot{}, err
+		return apitypes.Depot{}, err
 	}
 	if resp.JSON200 != nil {
 		return *resp.JSON200, nil
 	}
-	return adminservice.Depot{}, responseError(resp.StatusCode(), resp.Body, resp.JSON400, resp.JSON409, resp.JSON500)
+	return apitypes.Depot{}, responseError(resp.StatusCode(), resp.Body, resp.JSON400, resp.JSON409, resp.JSON500)
 }
 
-func uploadFirmware(ctx context.Context, c *gizclaw.Client, depot string, channel adminservice.Channel, data []byte) (adminservice.DepotRelease, error) {
+func uploadFirmware(ctx context.Context, c *gizclaw.Client, depot string, channel adminservice.Channel, data []byte) (apitypes.DepotRelease, error) {
 	api, err := c.ServerAdminClient()
 	if err != nil {
-		return adminservice.DepotRelease{}, err
+		return apitypes.DepotRelease{}, err
 	}
 	resp, err := api.PutChannelWithBodyWithResponse(ctx, depot, channel, "application/octet-stream", bytes.NewReader(data))
 	if err != nil {
-		return adminservice.DepotRelease{}, err
+		return apitypes.DepotRelease{}, err
 	}
 	if resp.JSON200 != nil {
 		return *resp.JSON200, nil
 	}
-	return adminservice.DepotRelease{}, responseError(resp.StatusCode(), resp.Body, resp.JSON409)
+	return apitypes.DepotRelease{}, responseError(resp.StatusCode(), resp.Body, resp.JSON409)
 }
 
-func releaseFirmware(ctx context.Context, c *gizclaw.Client, depot string) (adminservice.Depot, error) {
+func releaseFirmware(ctx context.Context, c *gizclaw.Client, depot string) (apitypes.Depot, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodPut, "http://gizclaw/depots/"+url.PathEscape(depot)+"/@release", nil)
 	if err != nil {
-		return adminservice.Depot{}, err
+		return apitypes.Depot{}, err
 	}
 	resp, err := c.HTTPClient(gizclaw.ServiceAdmin).Do(req)
 	if err != nil {
-		return adminservice.Depot{}, err
+		return apitypes.Depot{}, err
 	}
 	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return adminservice.Depot{}, err
+		return apitypes.Depot{}, err
 	}
 	if resp.StatusCode == http.StatusOK {
-		var out adminservice.Depot
+		var out apitypes.Depot
 		if err := json.Unmarshal(body, &out); err != nil {
-			return adminservice.Depot{}, err
+			return apitypes.Depot{}, err
 		}
 		return out, nil
 	}
-	return adminservice.Depot{}, responseError(resp.StatusCode, body)
+	return apitypes.Depot{}, responseError(resp.StatusCode, body)
 }
 
-func rollbackFirmware(ctx context.Context, c *gizclaw.Client, depot string) (adminservice.Depot, error) {
+func rollbackFirmware(ctx context.Context, c *gizclaw.Client, depot string) (apitypes.Depot, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodPut, "http://gizclaw/depots/"+url.PathEscape(depot)+"/@rollback", nil)
 	if err != nil {
-		return adminservice.Depot{}, err
+		return apitypes.Depot{}, err
 	}
 	resp, err := c.HTTPClient(gizclaw.ServiceAdmin).Do(req)
 	if err != nil {
-		return adminservice.Depot{}, err
+		return apitypes.Depot{}, err
 	}
 	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return adminservice.Depot{}, err
+		return apitypes.Depot{}, err
 	}
 	if resp.StatusCode == http.StatusOK {
-		var out adminservice.Depot
+		var out apitypes.Depot
 		if err := json.Unmarshal(body, &out); err != nil {
-			return adminservice.Depot{}, err
+			return apitypes.Depot{}, err
 		}
 		return out, nil
 	}
-	return adminservice.Depot{}, responseError(resp.StatusCode, body)
+	return apitypes.Depot{}, responseError(resp.StatusCode, body)
+}
+
+func listWorkspaceTemplates(ctx context.Context, c *gizclaw.Client) ([]apitypes.WorkflowTemplateDocument, error) {
+	api, err := c.ServerAdminClient()
+	if err != nil {
+		return nil, err
+	}
+	limit := adminservice.Limit(200)
+	var cursor *adminservice.Cursor
+	items := make([]apitypes.WorkflowTemplateDocument, 0)
+	for {
+		resp, err := api.ListWorkspaceTemplatesWithResponse(ctx, &adminservice.ListWorkspaceTemplatesParams{
+			Cursor: cursor,
+			Limit:  &limit,
+		})
+		if err != nil {
+			return nil, err
+		}
+		if resp.JSON200 == nil {
+			return nil, responseError(resp.StatusCode(), resp.Body, resp.JSON500)
+		}
+		items = append(items, resp.JSON200.Items...)
+		if !resp.JSON200.HasNext || resp.JSON200.NextCursor == nil || *resp.JSON200.NextCursor == "" {
+			return items, nil
+		}
+		next := adminservice.Cursor(*resp.JSON200.NextCursor)
+		cursor = &next
+	}
+}
+
+func createWorkspaceTemplate(ctx context.Context, c *gizclaw.Client, doc apitypes.WorkflowTemplateDocument) (apitypes.WorkflowTemplateDocument, error) {
+	api, err := c.ServerAdminClient()
+	if err != nil {
+		return apitypes.WorkflowTemplateDocument{}, err
+	}
+	resp, err := api.CreateWorkspaceTemplateWithResponse(ctx, doc)
+	if err != nil {
+		return apitypes.WorkflowTemplateDocument{}, err
+	}
+	if resp.JSON200 != nil {
+		return *resp.JSON200, nil
+	}
+	return apitypes.WorkflowTemplateDocument{}, responseError(resp.StatusCode(), resp.Body, resp.JSON400, resp.JSON409, resp.JSON500)
+}
+
+func getWorkspaceTemplate(ctx context.Context, c *gizclaw.Client, name string) (apitypes.WorkflowTemplateDocument, error) {
+	api, err := c.ServerAdminClient()
+	if err != nil {
+		return apitypes.WorkflowTemplateDocument{}, err
+	}
+	resp, err := api.GetWorkspaceTemplateWithResponse(ctx, name)
+	if err != nil {
+		return apitypes.WorkflowTemplateDocument{}, err
+	}
+	if resp.JSON200 != nil {
+		return *resp.JSON200, nil
+	}
+	return apitypes.WorkflowTemplateDocument{}, responseError(resp.StatusCode(), resp.Body, resp.JSON404, resp.JSON500)
+}
+
+func putWorkspaceTemplate(ctx context.Context, c *gizclaw.Client, name string, doc apitypes.WorkflowTemplateDocument) (apitypes.WorkflowTemplateDocument, error) {
+	api, err := c.ServerAdminClient()
+	if err != nil {
+		return apitypes.WorkflowTemplateDocument{}, err
+	}
+	resp, err := api.PutWorkspaceTemplateWithResponse(ctx, name, doc)
+	if err != nil {
+		return apitypes.WorkflowTemplateDocument{}, err
+	}
+	if resp.JSON200 != nil {
+		return *resp.JSON200, nil
+	}
+	return apitypes.WorkflowTemplateDocument{}, responseError(resp.StatusCode(), resp.Body, resp.JSON400, resp.JSON500)
+}
+
+func deleteWorkspaceTemplate(ctx context.Context, c *gizclaw.Client, name string) (apitypes.WorkflowTemplateDocument, error) {
+	api, err := c.ServerAdminClient()
+	if err != nil {
+		return apitypes.WorkflowTemplateDocument{}, err
+	}
+	resp, err := api.DeleteWorkspaceTemplateWithResponse(ctx, name)
+	if err != nil {
+		return apitypes.WorkflowTemplateDocument{}, err
+	}
+	if resp.JSON200 != nil {
+		return *resp.JSON200, nil
+	}
+	return apitypes.WorkflowTemplateDocument{}, responseError(resp.StatusCode(), resp.Body, resp.JSON404, resp.JSON500)
+}
+
+func listWorkspaces(ctx context.Context, c *gizclaw.Client) ([]apitypes.Workspace, error) {
+	api, err := c.ServerAdminClient()
+	if err != nil {
+		return nil, err
+	}
+	limit := adminservice.Limit(200)
+	var cursor *adminservice.Cursor
+	items := make([]apitypes.Workspace, 0)
+	for {
+		resp, err := api.ListWorkspacesWithResponse(ctx, &adminservice.ListWorkspacesParams{
+			Cursor: cursor,
+			Limit:  &limit,
+		})
+		if err != nil {
+			return nil, err
+		}
+		if resp.JSON200 == nil {
+			return nil, responseError(resp.StatusCode(), resp.Body, resp.JSON500)
+		}
+		items = append(items, resp.JSON200.Items...)
+		if !resp.JSON200.HasNext || resp.JSON200.NextCursor == nil || *resp.JSON200.NextCursor == "" {
+			return items, nil
+		}
+		next := adminservice.Cursor(*resp.JSON200.NextCursor)
+		cursor = &next
+	}
+}
+
+func createWorkspace(ctx context.Context, c *gizclaw.Client, body adminservice.WorkspaceUpsert) (apitypes.Workspace, error) {
+	api, err := c.ServerAdminClient()
+	if err != nil {
+		return apitypes.Workspace{}, err
+	}
+	resp, err := api.CreateWorkspaceWithResponse(ctx, body)
+	if err != nil {
+		return apitypes.Workspace{}, err
+	}
+	if resp.JSON200 != nil {
+		return *resp.JSON200, nil
+	}
+	return apitypes.Workspace{}, responseError(resp.StatusCode(), resp.Body, resp.JSON400, resp.JSON409, resp.JSON500)
+}
+
+func getWorkspace(ctx context.Context, c *gizclaw.Client, name string) (apitypes.Workspace, error) {
+	api, err := c.ServerAdminClient()
+	if err != nil {
+		return apitypes.Workspace{}, err
+	}
+	resp, err := api.GetWorkspaceWithResponse(ctx, name)
+	if err != nil {
+		return apitypes.Workspace{}, err
+	}
+	if resp.JSON200 != nil {
+		return *resp.JSON200, nil
+	}
+	return apitypes.Workspace{}, responseError(resp.StatusCode(), resp.Body, resp.JSON404, resp.JSON500)
+}
+
+func putWorkspace(ctx context.Context, c *gizclaw.Client, name string, body adminservice.WorkspaceUpsert) (apitypes.Workspace, error) {
+	api, err := c.ServerAdminClient()
+	if err != nil {
+		return apitypes.Workspace{}, err
+	}
+	resp, err := api.PutWorkspaceWithResponse(ctx, name, body)
+	if err != nil {
+		return apitypes.Workspace{}, err
+	}
+	if resp.JSON200 != nil {
+		return *resp.JSON200, nil
+	}
+	return apitypes.Workspace{}, responseError(resp.StatusCode(), resp.Body, resp.JSON400, resp.JSON500)
+}
+
+func deleteWorkspace(ctx context.Context, c *gizclaw.Client, name string) (apitypes.Workspace, error) {
+	api, err := c.ServerAdminClient()
+	if err != nil {
+		return apitypes.Workspace{}, err
+	}
+	resp, err := api.DeleteWorkspaceWithResponse(ctx, name)
+	if err != nil {
+		return apitypes.Workspace{}, err
+	}
+	if resp.JSON200 != nil {
+		return *resp.JSON200, nil
+	}
+	return apitypes.Workspace{}, responseError(resp.StatusCode(), resp.Body, resp.JSON404, resp.JSON500)
+}
+
+func listCredentials(ctx context.Context, c *gizclaw.Client, provider *apitypes.CredentialProvider) ([]apitypes.Credential, error) {
+	api, err := c.ServerAdminClient()
+	if err != nil {
+		return nil, err
+	}
+	limit := adminservice.Limit(200)
+	var cursor *adminservice.Cursor
+	items := make([]apitypes.Credential, 0)
+	for {
+		resp, err := api.ListCredentialsWithResponse(ctx, &adminservice.ListCredentialsParams{
+			Provider: provider,
+			Cursor:   cursor,
+			Limit:    &limit,
+		})
+		if err != nil {
+			return nil, err
+		}
+		if resp.JSON200 == nil {
+			return nil, responseError(resp.StatusCode(), resp.Body, resp.JSON500)
+		}
+		items = append(items, resp.JSON200.Items...)
+		if !resp.JSON200.HasNext || resp.JSON200.NextCursor == nil || *resp.JSON200.NextCursor == "" {
+			return items, nil
+		}
+		next := adminservice.Cursor(*resp.JSON200.NextCursor)
+		cursor = &next
+	}
+}
+
+func createCredential(ctx context.Context, c *gizclaw.Client, body adminservice.CredentialUpsert) (apitypes.Credential, error) {
+	api, err := c.ServerAdminClient()
+	if err != nil {
+		return apitypes.Credential{}, err
+	}
+	resp, err := api.CreateCredentialWithResponse(ctx, body)
+	if err != nil {
+		return apitypes.Credential{}, err
+	}
+	if resp.JSON200 != nil {
+		return *resp.JSON200, nil
+	}
+	return apitypes.Credential{}, responseError(resp.StatusCode(), resp.Body, resp.JSON400, resp.JSON409, resp.JSON500)
+}
+
+func getCredential(ctx context.Context, c *gizclaw.Client, name string) (apitypes.Credential, error) {
+	api, err := c.ServerAdminClient()
+	if err != nil {
+		return apitypes.Credential{}, err
+	}
+	resp, err := api.GetCredentialWithResponse(ctx, name)
+	if err != nil {
+		return apitypes.Credential{}, err
+	}
+	if resp.JSON200 != nil {
+		return *resp.JSON200, nil
+	}
+	return apitypes.Credential{}, responseError(resp.StatusCode(), resp.Body, resp.JSON404, resp.JSON500)
+}
+
+func putCredential(ctx context.Context, c *gizclaw.Client, name string, body adminservice.CredentialUpsert) (apitypes.Credential, error) {
+	api, err := c.ServerAdminClient()
+	if err != nil {
+		return apitypes.Credential{}, err
+	}
+	resp, err := api.PutCredentialWithResponse(ctx, name, body)
+	if err != nil {
+		return apitypes.Credential{}, err
+	}
+	if resp.JSON200 != nil {
+		return *resp.JSON200, nil
+	}
+	return apitypes.Credential{}, responseError(resp.StatusCode(), resp.Body, resp.JSON400, resp.JSON500)
+}
+
+func deleteCredential(ctx context.Context, c *gizclaw.Client, name string) (apitypes.Credential, error) {
+	api, err := c.ServerAdminClient()
+	if err != nil {
+		return apitypes.Credential{}, err
+	}
+	resp, err := api.DeleteCredentialWithResponse(ctx, name)
+	if err != nil {
+		return apitypes.Credential{}, err
+	}
+	if resp.JSON200 != nil {
+		return *resp.JSON200, nil
+	}
+	return apitypes.Credential{}, responseError(resp.StatusCode(), resp.Body, resp.JSON404, resp.JSON500)
 }
 
 func listGears(ctx context.Context, c *gizclaw.Client) ([]apitypes.Registration, error) {
@@ -711,7 +976,7 @@ func refreshGear(ctx context.Context, c *gizclaw.Client, publicKey string) (admi
 	return adminservice.RefreshResult{}, responseError(resp.StatusCode(), resp.Body, resp.JSON404, resp.JSON409, resp.JSON502)
 }
 
-func buildReleaseTar(t *testing.T, release adminservice.DepotRelease, files map[string][]byte) []byte {
+func buildReleaseTar(t *testing.T, release apitypes.DepotRelease, files map[string][]byte) []byte {
 	t.Helper()
 
 	var buf bytes.Buffer

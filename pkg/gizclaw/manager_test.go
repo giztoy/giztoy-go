@@ -7,7 +7,6 @@ import (
 
 	apitypes "github.com/GizClaw/gizclaw-go/pkg/gizclaw/api/apitypes"
 
-	"github.com/GizClaw/gizclaw-go/pkg/gizclaw/api/peerpublic"
 	"github.com/GizClaw/gizclaw-go/pkg/gizclaw/gear"
 	"github.com/GizClaw/gizclaw-go/pkg/giznet"
 )
@@ -93,14 +92,14 @@ func TestApplyPeerRefreshIdentifiersSkipsUnchangedCollections(t *testing.T) {
 			},
 		},
 	}
-	identifiers := peerpublic.RefreshIdentifiers{
+	identifiers := apitypes.RefreshIdentifiers{
 		Sn: &sn,
-		Imeis: &[]peerpublic.GearIMEI{{
+		Imeis: &[]apitypes.GearIMEI{{
 			Name:   &name,
 			Tac:    "12345678",
 			Serial: "0000001",
 		}},
-		Labels: &[]peerpublic.GearLabel{{
+		Labels: &[]apitypes.GearLabel{{
 			Key:   "batch",
 			Value: "cn-east",
 		}},
@@ -132,13 +131,13 @@ func TestApplyPeerRefreshIdentifiersUpdatesChangedCollections(t *testing.T) {
 			},
 		},
 	}
-	identifiers := peerpublic.RefreshIdentifiers{
-		Imeis: &[]peerpublic.GearIMEI{{
+	identifiers := apitypes.RefreshIdentifiers{
+		Imeis: &[]apitypes.GearIMEI{{
 			Name:   &nextName,
 			Tac:    "87654321",
 			Serial: "0000009",
 		}},
-		Labels: &[]peerpublic.GearLabel{{
+		Labels: &[]apitypes.GearLabel{{
 			Key:   "batch",
 			Value: "cn-west",
 		}},

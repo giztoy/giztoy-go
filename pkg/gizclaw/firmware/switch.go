@@ -3,17 +3,16 @@ package firmware
 import (
 	"errors"
 	"fmt"
+	apitypes "github.com/GizClaw/gizclaw-go/pkg/gizclaw/api/apitypes"
 	"io/fs"
 	"path"
-
-	"github.com/GizClaw/gizclaw-go/pkg/gizclaw/api/adminservice"
 )
 
-func (s *Server) releaseDepot(depot string) (adminservice.Depot, error) {
+func (s *Server) releaseDepot(depot string) (apitypes.Depot, error) {
 	unlock := s.lockDepot(depot)
 	defer unlock()
 	if err := s.validateDepot(depot); err != nil {
-		return adminservice.Depot{}, err
+		return apitypes.Depot{}, err
 	}
 	paths := map[string]string{
 		string(Rollback): s.channelPath(depot, string(Rollback)),
@@ -23,15 +22,15 @@ func (s *Server) releaseDepot(depot string) (adminservice.Depot, error) {
 	}
 	if _, err := s.store().Stat(paths[string(Beta)]); err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
-			return adminservice.Depot{}, fmt.Errorf("%w: %s", errChannelNotFound, Beta)
+			return apitypes.Depot{}, fmt.Errorf("%w: %s", errChannelNotFound, Beta)
 		}
-		return adminservice.Depot{}, err
+		return apitypes.Depot{}, err
 	}
 	if _, err := s.store().Stat(paths[string(Testing)]); err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
-			return adminservice.Depot{}, fmt.Errorf("%w: %s", errChannelNotFound, Testing)
+			return apitypes.Depot{}, fmt.Errorf("%w: %s", errChannelNotFound, Testing)
 		}
-		return adminservice.Depot{}, err
+		return apitypes.Depot{}, err
 	}
 	backups, restore, err := s.prepareSwitch(
 		depot,
@@ -43,7 +42,7 @@ func (s *Server) releaseDepot(depot string) (adminservice.Depot, error) {
 		},
 	)
 	if err != nil {
-		return adminservice.Depot{}, err
+		return apitypes.Depot{}, err
 	}
 	commit := false
 	defer func() {
@@ -53,31 +52,31 @@ func (s *Server) releaseDepot(depot string) (adminservice.Depot, error) {
 	}()
 	for _, channel := range []Channel{Rollback, Stable, Beta} {
 		if err := s.rewriteManifestChannel(depot, channel); err != nil && !errors.Is(err, errChannelNotFound) {
-			return adminservice.Depot{}, err
+			return apitypes.Depot{}, err
 		}
 	}
 	snapshot, err := s.scanDepot(depot)
 	if err != nil {
-		return adminservice.Depot{}, err
+		return apitypes.Depot{}, err
 	}
 	commit = true
 	s.cleanupBackups(backups)
 	return snapshot, nil
 }
 
-func (s *Server) rollbackDepot(depot string) (adminservice.Depot, error) {
+func (s *Server) rollbackDepot(depot string) (apitypes.Depot, error) {
 	unlock := s.lockDepot(depot)
 	defer unlock()
 	if err := s.validateDepot(depot); err != nil {
-		return adminservice.Depot{}, err
+		return apitypes.Depot{}, err
 	}
 	rollbackPath := s.channelPath(depot, string(Rollback))
 	stablePath := s.channelPath(depot, string(Stable))
 	if _, err := s.store().Stat(rollbackPath); err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
-			return adminservice.Depot{}, fmt.Errorf("%w: %s", errChannelNotFound, Rollback)
+			return apitypes.Depot{}, fmt.Errorf("%w: %s", errChannelNotFound, Rollback)
 		}
-		return adminservice.Depot{}, err
+		return apitypes.Depot{}, err
 	}
 	backups, restore, err := s.prepareSwitch(
 		depot,
@@ -91,7 +90,7 @@ func (s *Server) rollbackDepot(depot string) (adminservice.Depot, error) {
 		},
 	)
 	if err != nil {
-		return adminservice.Depot{}, err
+		return apitypes.Depot{}, err
 	}
 	commit := false
 	defer func() {
@@ -100,14 +99,14 @@ func (s *Server) rollbackDepot(depot string) (adminservice.Depot, error) {
 		}
 	}()
 	if err := s.rewriteManifestChannel(depot, Stable); err != nil {
-		return adminservice.Depot{}, err
+		return apitypes.Depot{}, err
 	}
 	if err := s.rewriteManifestChannel(depot, Rollback); err != nil && !errors.Is(err, errChannelNotFound) {
-		return adminservice.Depot{}, err
+		return apitypes.Depot{}, err
 	}
 	snapshot, err := s.scanDepot(depot)
 	if err != nil {
-		return adminservice.Depot{}, err
+		return apitypes.Depot{}, err
 	}
 	commit = true
 	s.cleanupBackups(backups)

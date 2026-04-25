@@ -4,33 +4,8 @@ export type ClientOptions = {
     baseUrl: `${string}://${string}` | (string & {});
 };
 
-export type Channel = string;
-
-export type Depot = {
-    name: string;
-    info: DepotInfo;
-    rollback: DepotRelease;
-    stable: DepotRelease;
-    beta: DepotRelease;
-    testing: DepotRelease;
-};
-
 export type DepotList = {
     items: Array<Depot>;
-};
-
-export type DepotInfo = {
-    files?: Array<DepotInfoFile>;
-};
-
-export type DepotInfoFile = {
-    path: string;
-};
-
-export type DepotRelease = {
-    firmware_semver: string;
-    channel?: string;
-    files?: Array<DepotFile>;
 };
 
 export type RegistrationList = {
@@ -53,15 +28,151 @@ export type ApproveRequest = {
     role: GearRole;
 };
 
+export type CredentialUpsert = {
+    name: CredentialName;
+    provider: CredentialProvider;
+    method: CredentialMethod;
+    description?: string;
+    body: CredentialBody;
+};
+
+export type CredentialList = {
+    has_next: boolean;
+    next_cursor?: string | null;
+    items: Array<Credential>;
+};
+
+export type MiniMaxTenantUpsert = {
+    name: MiniMaxTenantName;
+    app_id: MiniMaxAppId;
+    group_id: MiniMaxGroupId;
+    credential_name: CredentialName;
+    base_url?: string;
+    description?: string;
+};
+
+export type MiniMaxTenantList = {
+    has_next: boolean;
+    next_cursor?: string | null;
+    items: Array<MiniMaxTenant>;
+};
+
+export type VoiceList = {
+    has_next: boolean;
+    next_cursor?: string | null;
+    items: Array<Voice>;
+};
+
+export type VoiceUpsert = {
+    id: VoiceId;
+    source: VoiceSource;
+    provider: VoiceProvider;
+    /**
+     * Upstream provider voice identifier. Present for synced voices.
+     */
+    provider_voice_id?: string;
+    name?: string;
+    description?: string;
+    /**
+     * Provider-specific voice type
+     */
+    provider_voice_type?: string;
+    raw?: {
+        [key: string]: unknown;
+    };
+};
+
+export type MiniMaxSyncVoicesResult = {
+    tenant_name: MiniMaxTenantName;
+    synced_at: string;
+    created_count: number;
+    updated_count: number;
+    deleted_count: number;
+};
+
+export type WorkspaceUpsert = {
+    name: WorkspaceName;
+    workspace_template_name: WorkspaceTemplateName;
+    parameters?: {
+        [key: string]: unknown;
+    };
+};
+
+export type WorkspaceList = {
+    has_next: boolean;
+    next_cursor?: string | null;
+    items: Array<Workspace>;
+};
+
+export type WorkspaceTemplateList = {
+    has_next: boolean;
+    next_cursor?: string | null;
+    items: Array<WorkflowTemplateDocument>;
+};
+
+export type Channel = string;
+
 export type Configuration = {
     certifications?: Array<GearCertification>;
     firmware?: FirmwareConfig;
+};
+
+export type Credential = {
+    name: CredentialName;
+    provider: CredentialProvider;
+    method: CredentialMethod;
+    body: CredentialBody;
+    description?: string;
+    created_at: string;
+    updated_at: string;
+};
+
+export type CredentialBody = {
+    [key: string]: unknown;
+};
+
+/**
+ * Credential authentication method
+ */
+export type CredentialMethod = 'api_key' | 'token' | 'app_id_token';
+
+/**
+ * Credential name
+ */
+export type CredentialName = string;
+
+/**
+ * Credential provider name
+ */
+export type CredentialProvider = string;
+
+export type Depot = {
+    name: string;
+    info: DepotInfo;
+    rollback: DepotRelease;
+    stable: DepotRelease;
+    beta: DepotRelease;
+    testing: DepotRelease;
 };
 
 export type DepotFile = {
     path: string;
     sha256: string;
     md5: string;
+};
+
+export type DepotInfo = {
+    files?: Array<DepotInfoFile>;
+};
+
+export type DepotInfoFile = {
+    path: string;
+};
+
+export type DepotRelease = {
+    firmware_semver: string;
+    channel?: string;
+    files?: Array<DepotFile>;
 };
 
 export type DeviceInfo = {
@@ -136,6 +247,44 @@ export type HardwareInfo = {
     labels?: Array<GearLabel>;
 };
 
+/**
+ * MiniMax app identifier
+ */
+export type MiniMaxAppId = string;
+
+/**
+ * MiniMax group identifier
+ */
+export type MiniMaxGroupId = string;
+
+export type MiniMaxTenant = {
+    name: MiniMaxTenantName;
+    app_id: MiniMaxAppId;
+    group_id: MiniMaxGroupId;
+    credential_name: CredentialName;
+    base_url?: string;
+    description?: string;
+    last_synced_at?: string;
+    created_at: string;
+    updated_at: string;
+};
+
+/**
+ * MiniMax tenant name
+ */
+export type MiniMaxTenantName = string;
+
+export type MultiAgentGraphWorkflowSpec = {
+    [key: string]: unknown;
+};
+
+export type MultiAgentGraphWorkflowTemplate = {
+    apiVersion: 'gizclaw.flowcraft/v1alpha1';
+    kind: 'MultiAgentGraphWorkflowTemplate';
+    metadata: TemplateMetadata;
+    spec: MultiAgentGraphWorkflowSpec;
+};
+
 export type OtaSummary = {
     depot: string;
     channel: string;
@@ -159,13 +308,102 @@ export type Runtime = {
     last_addr?: string;
 };
 
+export type SingleAgentGraphWorkflowSpec = {
+    [key: string]: unknown;
+};
+
+export type SingleAgentGraphWorkflowTemplate = {
+    apiVersion: 'gizclaw.flowcraft/v1alpha1';
+    kind: 'SingleAgentGraphWorkflowTemplate';
+    metadata: TemplateMetadata;
+    spec: SingleAgentGraphWorkflowSpec;
+};
+
+export type TemplateMetadata = {
+    name: string;
+    description?: string;
+};
+
+export type Voice = {
+    id: VoiceId;
+    source: VoiceSource;
+    provider: VoiceProvider;
+    /**
+     * Upstream provider voice identifier. Present for synced voices.
+     */
+    provider_voice_id?: string;
+    name?: string;
+    description?: string;
+    /**
+     * Provider-specific voice type
+     */
+    provider_voice_type?: string;
+    raw?: {
+        [key: string]: unknown;
+    };
+    synced_at?: string;
+    created_at: string;
+    updated_at: string;
+};
+
+/**
+ * Global voice identifier
+ */
+export type VoiceId = string;
+
+export type VoiceProvider = {
+    kind: VoiceProviderKind;
+    name: VoiceProviderName;
+};
+
+/**
+ * Voice provider kind
+ */
+export type VoiceProviderKind = string;
+
+/**
+ * Voice provider instance name
+ */
+export type VoiceProviderName = string;
+
+/**
+ * How the voice entered the global catalog
+ */
+export type VoiceSource = 'sync' | 'manual';
+
+export type WorkflowTemplateDocument = ({
+    kind: 'SingleAgentGraphWorkflowTemplate';
+} & SingleAgentGraphWorkflowTemplate) | ({
+    kind: 'MultiAgentGraphWorkflowTemplate';
+} & MultiAgentGraphWorkflowTemplate);
+
+export type Workspace = {
+    name: WorkspaceName;
+    workspace_template_name: WorkspaceTemplateName;
+    parameters?: {
+        [key: string]: unknown;
+    };
+    created_at: string;
+    updated_at: string;
+};
+
+/**
+ * Workspace name
+ */
+export type WorkspaceName = string;
+
+/**
+ * Workspace template name
+ */
+export type WorkspaceTemplateName = string;
+
 /**
  * Opaque cursor returned by the previous list response
  */
 export type Cursor = string;
 
 /**
- * Maximum number of items to return
+ * Maximum number of items to return. Omitted or non-positive values use the default page size; values above 200 are clamped.
  */
 export type Limit = number;
 
@@ -183,6 +421,51 @@ export type Channel2 = Channel;
  * Gear public key
  */
 export type PublicKey = string;
+
+/**
+ * Workspace template name
+ */
+export type WorkspaceTemplateName2 = WorkspaceTemplateName;
+
+/**
+ * Workspace name
+ */
+export type WorkspaceName2 = WorkspaceName;
+
+/**
+ * Credential name
+ */
+export type CredentialName2 = CredentialName;
+
+/**
+ * Filter credentials by provider
+ */
+export type CredentialProvider2 = CredentialProvider;
+
+/**
+ * MiniMax tenant name
+ */
+export type MiniMaxTenantName2 = MiniMaxTenantName;
+
+/**
+ * Voice identifier
+ */
+export type VoiceId2 = VoiceId;
+
+/**
+ * Filter voices by source
+ */
+export type VoiceSource2 = VoiceSource;
+
+/**
+ * Filter voices by provider kind
+ */
+export type VoiceProviderKind2 = VoiceProviderKind;
+
+/**
+ * Filter voices by provider instance name
+ */
+export type VoiceProviderName2 = VoiceProviderName;
 
 export type ListDepotsData = {
     body?: never;
@@ -421,6 +704,913 @@ export type PutChannelResponses = {
 
 export type PutChannelResponse = PutChannelResponses[keyof PutChannelResponses];
 
+export type ListWorkspaceTemplatesData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Opaque cursor returned by the previous list response
+         */
+        cursor?: string;
+        /**
+         * Maximum number of items to return. Omitted or non-positive values use the default page size; values above 200 are clamped.
+         */
+        limit?: number;
+    };
+    url: '/workspace-templates';
+};
+
+export type ListWorkspaceTemplatesErrors = {
+    /**
+     * Internal error
+     */
+    500: ErrorResponse;
+};
+
+export type ListWorkspaceTemplatesError = ListWorkspaceTemplatesErrors[keyof ListWorkspaceTemplatesErrors];
+
+export type ListWorkspaceTemplatesResponses = {
+    /**
+     * Workspace template list
+     */
+    200: WorkspaceTemplateList;
+};
+
+export type ListWorkspaceTemplatesResponse = ListWorkspaceTemplatesResponses[keyof ListWorkspaceTemplatesResponses];
+
+export type CreateWorkspaceTemplateData = {
+    body: WorkflowTemplateDocument;
+    path?: never;
+    query?: never;
+    url: '/workspace-templates';
+};
+
+export type CreateWorkspaceTemplateErrors = {
+    /**
+     * Invalid template payload
+     */
+    400: ErrorResponse;
+    /**
+     * Template already exists
+     */
+    409: ErrorResponse;
+    /**
+     * Internal error
+     */
+    500: ErrorResponse;
+};
+
+export type CreateWorkspaceTemplateError = CreateWorkspaceTemplateErrors[keyof CreateWorkspaceTemplateErrors];
+
+export type CreateWorkspaceTemplateResponses = {
+    /**
+     * Created workspace template
+     */
+    200: WorkflowTemplateDocument;
+};
+
+export type CreateWorkspaceTemplateResponse = CreateWorkspaceTemplateResponses[keyof CreateWorkspaceTemplateResponses];
+
+export type ListCredentialsData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Filter credentials by provider
+         */
+        provider?: CredentialProvider;
+        /**
+         * Opaque cursor returned by the previous list response
+         */
+        cursor?: string;
+        /**
+         * Maximum number of items to return. Omitted or non-positive values use the default page size; values above 200 are clamped.
+         */
+        limit?: number;
+    };
+    url: '/credentials';
+};
+
+export type ListCredentialsErrors = {
+    /**
+     * Internal error
+     */
+    500: ErrorResponse;
+};
+
+export type ListCredentialsError = ListCredentialsErrors[keyof ListCredentialsErrors];
+
+export type ListCredentialsResponses = {
+    /**
+     * Credential list
+     */
+    200: CredentialList;
+};
+
+export type ListCredentialsResponse = ListCredentialsResponses[keyof ListCredentialsResponses];
+
+export type CreateCredentialData = {
+    body: CredentialUpsert;
+    path?: never;
+    query?: never;
+    url: '/credentials';
+};
+
+export type CreateCredentialErrors = {
+    /**
+     * Invalid credential payload
+     */
+    400: ErrorResponse;
+    /**
+     * Credential already exists
+     */
+    409: ErrorResponse;
+    /**
+     * Internal error
+     */
+    500: ErrorResponse;
+};
+
+export type CreateCredentialError = CreateCredentialErrors[keyof CreateCredentialErrors];
+
+export type CreateCredentialResponses = {
+    /**
+     * Created credential
+     */
+    200: Credential;
+};
+
+export type CreateCredentialResponse = CreateCredentialResponses[keyof CreateCredentialResponses];
+
+export type DeleteCredentialData = {
+    body?: never;
+    path: {
+        /**
+         * Credential name
+         */
+        name: CredentialName;
+    };
+    query?: never;
+    url: '/credentials/{name}';
+};
+
+export type DeleteCredentialErrors = {
+    /**
+     * Credential not found
+     */
+    404: ErrorResponse;
+    /**
+     * Internal error
+     */
+    500: ErrorResponse;
+};
+
+export type DeleteCredentialError = DeleteCredentialErrors[keyof DeleteCredentialErrors];
+
+export type DeleteCredentialResponses = {
+    /**
+     * Deleted credential
+     */
+    200: Credential;
+};
+
+export type DeleteCredentialResponse = DeleteCredentialResponses[keyof DeleteCredentialResponses];
+
+export type GetCredentialData = {
+    body?: never;
+    path: {
+        /**
+         * Credential name
+         */
+        name: CredentialName;
+    };
+    query?: never;
+    url: '/credentials/{name}';
+};
+
+export type GetCredentialErrors = {
+    /**
+     * Credential not found
+     */
+    404: ErrorResponse;
+    /**
+     * Internal error
+     */
+    500: ErrorResponse;
+};
+
+export type GetCredentialError = GetCredentialErrors[keyof GetCredentialErrors];
+
+export type GetCredentialResponses = {
+    /**
+     * Credential metadata
+     */
+    200: Credential;
+};
+
+export type GetCredentialResponse = GetCredentialResponses[keyof GetCredentialResponses];
+
+export type PutCredentialData = {
+    body: CredentialUpsert;
+    path: {
+        /**
+         * Credential name
+         */
+        name: CredentialName;
+    };
+    query?: never;
+    url: '/credentials/{name}';
+};
+
+export type PutCredentialErrors = {
+    /**
+     * Invalid credential payload
+     */
+    400: ErrorResponse;
+    /**
+     * Internal error
+     */
+    500: ErrorResponse;
+};
+
+export type PutCredentialError = PutCredentialErrors[keyof PutCredentialErrors];
+
+export type PutCredentialResponses = {
+    /**
+     * Stored credential
+     */
+    200: Credential;
+};
+
+export type PutCredentialResponse = PutCredentialResponses[keyof PutCredentialResponses];
+
+export type ListMiniMaxTenantsData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Opaque cursor returned by the previous list response
+         */
+        cursor?: string;
+        /**
+         * Maximum number of items to return. Omitted or non-positive values use the default page size; values above 200 are clamped.
+         */
+        limit?: number;
+    };
+    url: '/minimax-tenants';
+};
+
+export type ListMiniMaxTenantsErrors = {
+    /**
+     * Internal error
+     */
+    500: ErrorResponse;
+};
+
+export type ListMiniMaxTenantsError = ListMiniMaxTenantsErrors[keyof ListMiniMaxTenantsErrors];
+
+export type ListMiniMaxTenantsResponses = {
+    /**
+     * MiniMax tenant list
+     */
+    200: MiniMaxTenantList;
+};
+
+export type ListMiniMaxTenantsResponse = ListMiniMaxTenantsResponses[keyof ListMiniMaxTenantsResponses];
+
+export type CreateMiniMaxTenantData = {
+    body: MiniMaxTenantUpsert;
+    path?: never;
+    query?: never;
+    url: '/minimax-tenants';
+};
+
+export type CreateMiniMaxTenantErrors = {
+    /**
+     * Invalid MiniMax tenant payload
+     */
+    400: ErrorResponse;
+    /**
+     * MiniMax tenant already exists
+     */
+    409: ErrorResponse;
+    /**
+     * Internal error
+     */
+    500: ErrorResponse;
+};
+
+export type CreateMiniMaxTenantError = CreateMiniMaxTenantErrors[keyof CreateMiniMaxTenantErrors];
+
+export type CreateMiniMaxTenantResponses = {
+    /**
+     * Created MiniMax tenant
+     */
+    200: MiniMaxTenant;
+};
+
+export type CreateMiniMaxTenantResponse = CreateMiniMaxTenantResponses[keyof CreateMiniMaxTenantResponses];
+
+export type DeleteMiniMaxTenantData = {
+    body?: never;
+    path: {
+        /**
+         * MiniMax tenant name
+         */
+        name: MiniMaxTenantName;
+    };
+    query?: never;
+    url: '/minimax-tenants/{name}';
+};
+
+export type DeleteMiniMaxTenantErrors = {
+    /**
+     * MiniMax tenant not found
+     */
+    404: ErrorResponse;
+    /**
+     * Internal error
+     */
+    500: ErrorResponse;
+};
+
+export type DeleteMiniMaxTenantError = DeleteMiniMaxTenantErrors[keyof DeleteMiniMaxTenantErrors];
+
+export type DeleteMiniMaxTenantResponses = {
+    /**
+     * Deleted MiniMax tenant
+     */
+    200: MiniMaxTenant;
+};
+
+export type DeleteMiniMaxTenantResponse = DeleteMiniMaxTenantResponses[keyof DeleteMiniMaxTenantResponses];
+
+export type GetMiniMaxTenantData = {
+    body?: never;
+    path: {
+        /**
+         * MiniMax tenant name
+         */
+        name: MiniMaxTenantName;
+    };
+    query?: never;
+    url: '/minimax-tenants/{name}';
+};
+
+export type GetMiniMaxTenantErrors = {
+    /**
+     * MiniMax tenant not found
+     */
+    404: ErrorResponse;
+    /**
+     * Internal error
+     */
+    500: ErrorResponse;
+};
+
+export type GetMiniMaxTenantError = GetMiniMaxTenantErrors[keyof GetMiniMaxTenantErrors];
+
+export type GetMiniMaxTenantResponses = {
+    /**
+     * MiniMax tenant
+     */
+    200: MiniMaxTenant;
+};
+
+export type GetMiniMaxTenantResponse = GetMiniMaxTenantResponses[keyof GetMiniMaxTenantResponses];
+
+export type PutMiniMaxTenantData = {
+    body: MiniMaxTenantUpsert;
+    path: {
+        /**
+         * MiniMax tenant name
+         */
+        name: MiniMaxTenantName;
+    };
+    query?: never;
+    url: '/minimax-tenants/{name}';
+};
+
+export type PutMiniMaxTenantErrors = {
+    /**
+     * Invalid MiniMax tenant payload
+     */
+    400: ErrorResponse;
+    /**
+     * Internal error
+     */
+    500: ErrorResponse;
+};
+
+export type PutMiniMaxTenantError = PutMiniMaxTenantErrors[keyof PutMiniMaxTenantErrors];
+
+export type PutMiniMaxTenantResponses = {
+    /**
+     * Stored MiniMax tenant
+     */
+    200: MiniMaxTenant;
+};
+
+export type PutMiniMaxTenantResponse = PutMiniMaxTenantResponses[keyof PutMiniMaxTenantResponses];
+
+export type SyncMiniMaxTenantVoicesData = {
+    body?: never;
+    path: {
+        /**
+         * MiniMax tenant name
+         */
+        name: MiniMaxTenantName;
+    };
+    query?: never;
+    url: '/minimax-tenants/{name}/@sync-voices';
+};
+
+export type SyncMiniMaxTenantVoicesErrors = {
+    /**
+     * Invalid MiniMax tenant configuration
+     */
+    400: ErrorResponse;
+    /**
+     * MiniMax tenant not found
+     */
+    404: ErrorResponse;
+    /**
+     * Internal error
+     */
+    500: ErrorResponse;
+    /**
+     * Upstream MiniMax sync failed
+     */
+    502: ErrorResponse;
+};
+
+export type SyncMiniMaxTenantVoicesError = SyncMiniMaxTenantVoicesErrors[keyof SyncMiniMaxTenantVoicesErrors];
+
+export type SyncMiniMaxTenantVoicesResponses = {
+    /**
+     * MiniMax voice sync result
+     */
+    200: MiniMaxSyncVoicesResult;
+};
+
+export type SyncMiniMaxTenantVoicesResponse = SyncMiniMaxTenantVoicesResponses[keyof SyncMiniMaxTenantVoicesResponses];
+
+export type ListVoicesData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Filter voices by source
+         */
+        source?: VoiceSource;
+        /**
+         * Filter voices by provider kind
+         */
+        providerKind?: VoiceProviderKind;
+        /**
+         * Filter voices by provider instance name
+         */
+        providerName?: VoiceProviderName;
+        /**
+         * Opaque cursor returned by the previous list response
+         */
+        cursor?: string;
+        /**
+         * Maximum number of items to return. Omitted or non-positive values use the default page size; values above 200 are clamped.
+         */
+        limit?: number;
+    };
+    url: '/voices';
+};
+
+export type ListVoicesErrors = {
+    /**
+     * Internal error
+     */
+    500: ErrorResponse;
+};
+
+export type ListVoicesError = ListVoicesErrors[keyof ListVoicesErrors];
+
+export type ListVoicesResponses = {
+    /**
+     * Voice list
+     */
+    200: VoiceList;
+};
+
+export type ListVoicesResponse = ListVoicesResponses[keyof ListVoicesResponses];
+
+export type CreateVoiceData = {
+    body: VoiceUpsert;
+    path?: never;
+    query?: never;
+    url: '/voices';
+};
+
+export type CreateVoiceErrors = {
+    /**
+     * Invalid voice payload
+     */
+    400: ErrorResponse;
+    /**
+     * Voice already exists
+     */
+    409: ErrorResponse;
+    /**
+     * Internal error
+     */
+    500: ErrorResponse;
+};
+
+export type CreateVoiceError = CreateVoiceErrors[keyof CreateVoiceErrors];
+
+export type CreateVoiceResponses = {
+    /**
+     * Created voice
+     */
+    200: Voice;
+};
+
+export type CreateVoiceResponse = CreateVoiceResponses[keyof CreateVoiceResponses];
+
+export type DeleteVoiceData = {
+    body?: never;
+    path: {
+        /**
+         * Voice identifier
+         */
+        id: VoiceId;
+    };
+    query?: never;
+    url: '/voices/{id}';
+};
+
+export type DeleteVoiceErrors = {
+    /**
+     * Voice not found
+     */
+    404: ErrorResponse;
+    /**
+     * Internal error
+     */
+    500: ErrorResponse;
+};
+
+export type DeleteVoiceError = DeleteVoiceErrors[keyof DeleteVoiceErrors];
+
+export type DeleteVoiceResponses = {
+    /**
+     * Deleted voice
+     */
+    200: Voice;
+};
+
+export type DeleteVoiceResponse = DeleteVoiceResponses[keyof DeleteVoiceResponses];
+
+export type GetVoiceData = {
+    body?: never;
+    path: {
+        /**
+         * Voice identifier
+         */
+        id: VoiceId;
+    };
+    query?: never;
+    url: '/voices/{id}';
+};
+
+export type GetVoiceErrors = {
+    /**
+     * Voice not found
+     */
+    404: ErrorResponse;
+    /**
+     * Internal error
+     */
+    500: ErrorResponse;
+};
+
+export type GetVoiceError = GetVoiceErrors[keyof GetVoiceErrors];
+
+export type GetVoiceResponses = {
+    /**
+     * Voice
+     */
+    200: Voice;
+};
+
+export type GetVoiceResponse = GetVoiceResponses[keyof GetVoiceResponses];
+
+export type PutVoiceData = {
+    body: VoiceUpsert;
+    path: {
+        /**
+         * Voice identifier
+         */
+        id: VoiceId;
+    };
+    query?: never;
+    url: '/voices/{id}';
+};
+
+export type PutVoiceErrors = {
+    /**
+     * Invalid voice payload
+     */
+    400: ErrorResponse;
+    /**
+     * Voice cannot be modified because source is sync
+     */
+    409: ErrorResponse;
+    /**
+     * Internal error
+     */
+    500: ErrorResponse;
+};
+
+export type PutVoiceError = PutVoiceErrors[keyof PutVoiceErrors];
+
+export type PutVoiceResponses = {
+    /**
+     * Stored voice
+     */
+    200: Voice;
+};
+
+export type PutVoiceResponse = PutVoiceResponses[keyof PutVoiceResponses];
+
+export type DeleteWorkspaceTemplateData = {
+    body?: never;
+    path: {
+        /**
+         * Workspace template name
+         */
+        name: WorkspaceTemplateName;
+    };
+    query?: never;
+    url: '/workspace-templates/{name}';
+};
+
+export type DeleteWorkspaceTemplateErrors = {
+    /**
+     * Workspace template not found
+     */
+    404: ErrorResponse;
+    /**
+     * Internal error
+     */
+    500: ErrorResponse;
+};
+
+export type DeleteWorkspaceTemplateError = DeleteWorkspaceTemplateErrors[keyof DeleteWorkspaceTemplateErrors];
+
+export type DeleteWorkspaceTemplateResponses = {
+    /**
+     * Deleted workspace template
+     */
+    200: WorkflowTemplateDocument;
+};
+
+export type DeleteWorkspaceTemplateResponse = DeleteWorkspaceTemplateResponses[keyof DeleteWorkspaceTemplateResponses];
+
+export type GetWorkspaceTemplateData = {
+    body?: never;
+    path: {
+        /**
+         * Workspace template name
+         */
+        name: WorkspaceTemplateName;
+    };
+    query?: never;
+    url: '/workspace-templates/{name}';
+};
+
+export type GetWorkspaceTemplateErrors = {
+    /**
+     * Workspace template not found
+     */
+    404: ErrorResponse;
+    /**
+     * Internal error
+     */
+    500: ErrorResponse;
+};
+
+export type GetWorkspaceTemplateError = GetWorkspaceTemplateErrors[keyof GetWorkspaceTemplateErrors];
+
+export type GetWorkspaceTemplateResponses = {
+    /**
+     * Workspace template document
+     */
+    200: WorkflowTemplateDocument;
+};
+
+export type GetWorkspaceTemplateResponse = GetWorkspaceTemplateResponses[keyof GetWorkspaceTemplateResponses];
+
+export type PutWorkspaceTemplateData = {
+    body: WorkflowTemplateDocument;
+    path: {
+        /**
+         * Workspace template name
+         */
+        name: WorkspaceTemplateName;
+    };
+    query?: never;
+    url: '/workspace-templates/{name}';
+};
+
+export type PutWorkspaceTemplateErrors = {
+    /**
+     * Invalid template payload
+     */
+    400: ErrorResponse;
+    /**
+     * Internal error
+     */
+    500: ErrorResponse;
+};
+
+export type PutWorkspaceTemplateError = PutWorkspaceTemplateErrors[keyof PutWorkspaceTemplateErrors];
+
+export type PutWorkspaceTemplateResponses = {
+    /**
+     * Stored workspace template
+     */
+    200: WorkflowTemplateDocument;
+};
+
+export type PutWorkspaceTemplateResponse = PutWorkspaceTemplateResponses[keyof PutWorkspaceTemplateResponses];
+
+export type ListWorkspacesData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Opaque cursor returned by the previous list response
+         */
+        cursor?: string;
+        /**
+         * Maximum number of items to return. Omitted or non-positive values use the default page size; values above 200 are clamped.
+         */
+        limit?: number;
+    };
+    url: '/workspaces';
+};
+
+export type ListWorkspacesErrors = {
+    /**
+     * Internal error
+     */
+    500: ErrorResponse;
+};
+
+export type ListWorkspacesError = ListWorkspacesErrors[keyof ListWorkspacesErrors];
+
+export type ListWorkspacesResponses = {
+    /**
+     * Workspace list
+     */
+    200: WorkspaceList;
+};
+
+export type ListWorkspacesResponse = ListWorkspacesResponses[keyof ListWorkspacesResponses];
+
+export type CreateWorkspaceData = {
+    body: WorkspaceUpsert;
+    path?: never;
+    query?: never;
+    url: '/workspaces';
+};
+
+export type CreateWorkspaceErrors = {
+    /**
+     * Invalid workspace payload
+     */
+    400: ErrorResponse;
+    /**
+     * Workspace already exists
+     */
+    409: ErrorResponse;
+    /**
+     * Internal error
+     */
+    500: ErrorResponse;
+};
+
+export type CreateWorkspaceError = CreateWorkspaceErrors[keyof CreateWorkspaceErrors];
+
+export type CreateWorkspaceResponses = {
+    /**
+     * Created workspace
+     */
+    200: Workspace;
+};
+
+export type CreateWorkspaceResponse = CreateWorkspaceResponses[keyof CreateWorkspaceResponses];
+
+export type DeleteWorkspaceData = {
+    body?: never;
+    path: {
+        /**
+         * Workspace name
+         */
+        name: WorkspaceName;
+    };
+    query?: never;
+    url: '/workspaces/{name}';
+};
+
+export type DeleteWorkspaceErrors = {
+    /**
+     * Workspace not found
+     */
+    404: ErrorResponse;
+    /**
+     * Internal error
+     */
+    500: ErrorResponse;
+};
+
+export type DeleteWorkspaceError = DeleteWorkspaceErrors[keyof DeleteWorkspaceErrors];
+
+export type DeleteWorkspaceResponses = {
+    /**
+     * Deleted workspace
+     */
+    200: Workspace;
+};
+
+export type DeleteWorkspaceResponse = DeleteWorkspaceResponses[keyof DeleteWorkspaceResponses];
+
+export type GetWorkspaceData = {
+    body?: never;
+    path: {
+        /**
+         * Workspace name
+         */
+        name: WorkspaceName;
+    };
+    query?: never;
+    url: '/workspaces/{name}';
+};
+
+export type GetWorkspaceErrors = {
+    /**
+     * Workspace not found
+     */
+    404: ErrorResponse;
+    /**
+     * Internal error
+     */
+    500: ErrorResponse;
+};
+
+export type GetWorkspaceError = GetWorkspaceErrors[keyof GetWorkspaceErrors];
+
+export type GetWorkspaceResponses = {
+    /**
+     * Workspace
+     */
+    200: Workspace;
+};
+
+export type GetWorkspaceResponse = GetWorkspaceResponses[keyof GetWorkspaceResponses];
+
+export type PutWorkspaceData = {
+    body: WorkspaceUpsert;
+    path: {
+        /**
+         * Workspace name
+         */
+        name: WorkspaceName;
+    };
+    query?: never;
+    url: '/workspaces/{name}';
+};
+
+export type PutWorkspaceErrors = {
+    /**
+     * Invalid workspace payload
+     */
+    400: ErrorResponse;
+    /**
+     * Internal error
+     */
+    500: ErrorResponse;
+};
+
+export type PutWorkspaceError = PutWorkspaceErrors[keyof PutWorkspaceErrors];
+
+export type PutWorkspaceResponses = {
+    /**
+     * Stored workspace
+     */
+    200: Workspace;
+};
+
+export type PutWorkspaceResponse = PutWorkspaceResponses[keyof PutWorkspaceResponses];
+
 export type ListGearsData = {
     body?: never;
     path?: never;
@@ -430,7 +1620,7 @@ export type ListGearsData = {
          */
         cursor?: string;
         /**
-         * Maximum number of items to return
+         * Maximum number of items to return. Omitted or non-positive values use the default page size; values above 200 are clamped.
          */
         limit?: number;
     };
@@ -522,7 +1712,7 @@ export type ListByLabelData = {
          */
         cursor?: string;
         /**
-         * Maximum number of items to return
+         * Maximum number of items to return. Omitted or non-positive values use the default page size; values above 200 are clamped.
          */
         limit?: number;
     };
@@ -560,7 +1750,7 @@ export type ListByCertificationData = {
          */
         cursor?: string;
         /**
-         * Maximum number of items to return
+         * Maximum number of items to return. Omitted or non-positive values use the default page size; values above 200 are clamped.
          */
         limit?: number;
     };
@@ -597,7 +1787,7 @@ export type ListByFirmwareData = {
          */
         cursor?: string;
         /**
-         * Maximum number of items to return
+         * Maximum number of items to return. Omitted or non-positive values use the default page size; values above 200 are clamped.
          */
         limit?: number;
     };

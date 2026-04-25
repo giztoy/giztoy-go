@@ -8,8 +8,6 @@ import (
 	"testing"
 
 	apitypes "github.com/GizClaw/gizclaw-go/pkg/gizclaw/api/apitypes"
-
-	"github.com/GizClaw/gizclaw-go/pkg/gizclaw/api/adminservice"
 )
 
 func TestManifestChannelHelpers(t *testing.T) {
@@ -23,9 +21,9 @@ func TestManifestChannelHelpers(t *testing.T) {
 		t.Fatal("isValidChannel() returned unexpected result")
 	}
 
-	depot := adminservice.Depot{}
+	depot := apitypes.Depot{}
 	for _, channel := range []Channel{Rollback, Stable, Beta, Testing} {
-		release := adminservice.DepotRelease{FirmwareSemver: "1.2.3"}
+		release := apitypes.DepotRelease{FirmwareSemver: "1.2.3"}
 		setDepotRelease(&depot, channel, release)
 		got, ok := depotRelease(depot, channel)
 		if !ok || got.FirmwareSemver != "1.2.3" {
@@ -36,7 +34,7 @@ func TestManifestChannelHelpers(t *testing.T) {
 		t.Fatal("depotRelease() should reject invalid channel")
 	}
 
-	if releaseChannel(adminservice.DepotRelease{}) != "" {
+	if releaseChannel(apitypes.DepotRelease{}) != "" {
 		t.Fatal("releaseChannel() expected empty")
 	}
 	if stringPtr("") != nil {
@@ -50,8 +48,8 @@ func TestManifestChannelHelpers(t *testing.T) {
 func TestNormalizeDepotHelpers(t *testing.T) {
 	t.Parallel()
 
-	info := adminservice.DepotInfo{
-		Files: &[]adminservice.DepotInfoFile{{Path: "b.bin"}, {Path: "a.bin"}},
+	info := apitypes.DepotInfo{
+		Files: &[]apitypes.DepotInfoFile{{Path: "b.bin"}, {Path: "a.bin"}},
 	}
 	normalizedInfo := normalizeDepotInfo(info)
 	if (*normalizedInfo.Files)[0].Path != "a.bin" {
@@ -63,7 +61,7 @@ func TestNormalizeDepotHelpers(t *testing.T) {
 		t.Fatal("infoFiles() should return copy")
 	}
 
-	release := adminservice.DepotRelease{
+	release := apitypes.DepotRelease{
 		FirmwareSemver: "1.0.0",
 		Files: &[]apitypes.DepotFile{
 			{Path: "b.bin"},
@@ -79,13 +77,13 @@ func TestNormalizeDepotHelpers(t *testing.T) {
 	if (*normalizedRelease.Files)[0].Path != "a.bin" {
 		t.Fatal("releaseFiles() should return copy")
 	}
-	if normalizeDepotRelease(adminservice.DepotRelease{}).Files != nil {
+	if normalizeDepotRelease(apitypes.DepotRelease{}).Files != nil {
 		t.Fatal("normalizeDepotRelease empty should omit files")
 	}
-	if releaseFiles(adminservice.DepotRelease{}) != nil {
+	if releaseFiles(apitypes.DepotRelease{}) != nil {
 		t.Fatal("releaseFiles empty should be nil")
 	}
-	if normalizeDepotInfo(adminservice.DepotInfo{}).Files != nil {
+	if normalizeDepotInfo(apitypes.DepotInfo{}).Files != nil {
 		t.Fatal("normalizeDepotInfo empty should omit files")
 	}
 }
@@ -143,7 +141,7 @@ func TestInfoAndManifestParsing(t *testing.T) {
 	if _, err := parseManifest([]byte("{")); err == nil {
 		t.Fatal("parseManifest() expected JSON error")
 	}
-	badManifestData, err := json.Marshal(func() adminservice.DepotRelease {
+	badManifestData, err := json.Marshal(func() apitypes.DepotRelease {
 		bad := release
 		bad.Channel = stringPtr("dev")
 		return bad

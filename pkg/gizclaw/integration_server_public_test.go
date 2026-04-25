@@ -85,8 +85,8 @@ func TestIntegrationServerPublicRegisterAndReadBack(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("admin register error: %v", err)
 	}
-	if _, err := putFirmwareInfo(context.Background(), admin, "demo-main", adminservice.DepotInfo{
-		Files: &[]adminservice.DepotInfoFile{{Path: "bundles/firmware.bin"}},
+	if _, err := putFirmwareInfo(context.Background(), admin, "demo-main", apitypes.DepotInfo{
+		Files: &[]apitypes.DepotInfoFile{{Path: "bundles/firmware.bin"}},
 	}); err != nil {
 		t.Fatalf("PutFirmwareInfo error: %v", err)
 	}
@@ -94,7 +94,7 @@ func TestIntegrationServerPublicRegisterAndReadBack(t *testing.T) {
 	payload := []byte("public-firmware")
 	sum256 := sha256.Sum256(payload)
 	sumMD5 := md5.Sum(payload)
-	tarData := buildReleaseTar(t, adminservice.DepotRelease{
+	tarData := buildReleaseTar(t, apitypes.DepotRelease{
 		FirmwareSemver: "1.0.0",
 		Channel:        strPtr("stable"),
 		Files: &[]apitypes.DepotFile{{

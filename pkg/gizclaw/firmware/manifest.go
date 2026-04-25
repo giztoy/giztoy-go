@@ -13,7 +13,6 @@ import (
 
 	apitypes "github.com/GizClaw/gizclaw-go/pkg/gizclaw/api/apitypes"
 
-	"github.com/GizClaw/gizclaw-go/pkg/gizclaw/api/adminservice"
 	"github.com/GizClaw/gizclaw-go/pkg/store/depotstore"
 )
 
@@ -33,7 +32,7 @@ func allChannels() []Channel {
 	return []Channel{Rollback, Stable, Beta, Testing}
 }
 
-func depotRelease(depot adminservice.Depot, channel Channel) (adminservice.DepotRelease, bool) {
+func depotRelease(depot apitypes.Depot, channel Channel) (apitypes.DepotRelease, bool) {
 	switch channel {
 	case Rollback:
 		return depot.Rollback, depot.Rollback.FirmwareSemver != ""
@@ -44,11 +43,11 @@ func depotRelease(depot adminservice.Depot, channel Channel) (adminservice.Depot
 	case Testing:
 		return depot.Testing, depot.Testing.FirmwareSemver != ""
 	default:
-		return adminservice.DepotRelease{}, false
+		return apitypes.DepotRelease{}, false
 	}
 }
 
-func setDepotRelease(depot *adminservice.Depot, channel Channel, release adminservice.DepotRelease) {
+func setDepotRelease(depot *apitypes.Depot, channel Channel, release apitypes.DepotRelease) {
 	switch channel {
 	case Rollback:
 		depot.Rollback = release
@@ -61,16 +60,16 @@ func setDepotRelease(depot *adminservice.Depot, channel Channel, release adminse
 	}
 }
 
-func normalizeDepotInfo(info adminservice.DepotInfo) adminservice.DepotInfo {
+func normalizeDepotInfo(info apitypes.DepotInfo) apitypes.DepotInfo {
 	files := infoFiles(info)
 	if len(files) == 0 {
-		return adminservice.DepotInfo{}
+		return apitypes.DepotInfo{}
 	}
 	sort.Slice(files, func(i, j int) bool { return files[i].Path < files[j].Path })
-	return adminservice.DepotInfo{Files: &files}
+	return apitypes.DepotInfo{Files: &files}
 }
 
-func normalizeDepotRelease(release adminservice.DepotRelease) adminservice.DepotRelease {
+func normalizeDepotRelease(release apitypes.DepotRelease) apitypes.DepotRelease {
 	files := releaseFiles(release)
 	if len(files) > 0 {
 		sort.Slice(files, func(i, j int) bool { return files[i].Path < files[j].Path })
@@ -81,15 +80,15 @@ func normalizeDepotRelease(release adminservice.DepotRelease) adminservice.Depot
 	return release
 }
 
-func infoFiles(info adminservice.DepotInfo) []adminservice.DepotInfoFile {
+func infoFiles(info apitypes.DepotInfo) []apitypes.DepotInfoFile {
 	if info.Files == nil {
 		return nil
 	}
-	out := append([]adminservice.DepotInfoFile(nil), (*info.Files)...)
+	out := append([]apitypes.DepotInfoFile(nil), (*info.Files)...)
 	return out
 }
 
-func releaseFiles(release adminservice.DepotRelease) []apitypes.DepotFile {
+func releaseFiles(release apitypes.DepotRelease) []apitypes.DepotFile {
 	if release.Files == nil {
 		return nil
 	}
@@ -97,7 +96,7 @@ func releaseFiles(release adminservice.DepotRelease) []apitypes.DepotFile {
 	return out
 }
 
-func releaseChannel(release adminservice.DepotRelease) Channel {
+func releaseChannel(release apitypes.DepotRelease) Channel {
 	if release.Channel == nil {
 		return ""
 	}
@@ -112,7 +111,7 @@ func stringPtr(v string) *string {
 	return &out
 }
 
-func sameInfoFiles(info adminservice.DepotInfo, release adminservice.DepotRelease) bool {
+func sameInfoFiles(info apitypes.DepotInfo, release apitypes.DepotRelease) bool {
 	infoList := infoFiles(normalizeDepotInfo(info))
 	releaseList := releaseFiles(normalizeDepotRelease(release))
 	if len(infoList) != len(releaseList) {
@@ -126,18 +125,18 @@ func sameInfoFiles(info adminservice.DepotInfo, release adminservice.DepotReleas
 	return true
 }
 
-func parseInfo(data []byte) (adminservice.DepotInfo, error) {
-	var info adminservice.DepotInfo
+func parseInfo(data []byte) (apitypes.DepotInfo, error) {
+	var info apitypes.DepotInfo
 	if err := json.Unmarshal(data, &info); err != nil {
-		return adminservice.DepotInfo{}, err
+		return apitypes.DepotInfo{}, err
 	}
 	if err := validateDepotInfo(info); err != nil {
-		return adminservice.DepotInfo{}, err
+		return apitypes.DepotInfo{}, err
 	}
 	return normalizeDepotInfo(info), nil
 }
 
-func validateDepotInfo(info adminservice.DepotInfo) error {
+func validateDepotInfo(info apitypes.DepotInfo) error {
 	seen := map[string]struct{}{}
 	for _, file := range infoFiles(info) {
 		if err := validateRelativePath(file.Path); err != nil {
@@ -151,7 +150,7 @@ func validateDepotInfo(info adminservice.DepotInfo) error {
 	return nil
 }
 
-func writeInfo(store depotstore.Store, path string, info adminservice.DepotInfo) error {
+func writeInfo(store depotstore.Store, path string, info apitypes.DepotInfo) error {
 	info = normalizeDepotInfo(info)
 	if err := validateDepotInfo(info); err != nil {
 		return err
@@ -164,18 +163,18 @@ func writeInfo(store depotstore.Store, path string, info adminservice.DepotInfo)
 	return store.WriteFile(path, data)
 }
 
-func parseManifest(data []byte) (adminservice.DepotRelease, error) {
-	var release adminservice.DepotRelease
+func parseManifest(data []byte) (apitypes.DepotRelease, error) {
+	var release apitypes.DepotRelease
 	if err := json.Unmarshal(data, &release); err != nil {
-		return adminservice.DepotRelease{}, err
+		return apitypes.DepotRelease{}, err
 	}
 	if err := validateRelease(release); err != nil {
-		return adminservice.DepotRelease{}, err
+		return apitypes.DepotRelease{}, err
 	}
 	return normalizeDepotRelease(release), nil
 }
 
-func validateRelease(release adminservice.DepotRelease) error {
+func validateRelease(release apitypes.DepotRelease) error {
 	if _, _, _, _, err := parseSemVer(release.FirmwareSemver); err != nil {
 		return fmt.Errorf("invalid firmware_semver %q", release.FirmwareSemver)
 	}
@@ -196,7 +195,7 @@ func validateRelease(release adminservice.DepotRelease) error {
 	return nil
 }
 
-func validateReleaseAgainstFiles(store depotstore.Store, root string, release adminservice.DepotRelease) error {
+func validateReleaseAgainstFiles(store depotstore.Store, root string, release apitypes.DepotRelease) error {
 	if err := validateRelease(release); err != nil {
 		return err
 	}
@@ -218,7 +217,7 @@ func validateReleaseAgainstFiles(store depotstore.Store, root string, release ad
 	return nil
 }
 
-func writeManifest(store depotstore.Store, path string, release adminservice.DepotRelease) error {
+func writeManifest(store depotstore.Store, path string, release apitypes.DepotRelease) error {
 	release = normalizeDepotRelease(release)
 	if err := validateRelease(release); err != nil {
 		return err

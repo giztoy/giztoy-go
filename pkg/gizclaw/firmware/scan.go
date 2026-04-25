@@ -9,8 +9,6 @@ import (
 	"strings"
 
 	apitypes "github.com/GizClaw/gizclaw-go/pkg/gizclaw/api/apitypes"
-
-	"github.com/GizClaw/gizclaw-go/pkg/gizclaw/api/adminservice"
 )
 
 func (s *Server) scanDepotNames() ([]string, error) {
@@ -66,19 +64,19 @@ func (s *Server) scanDepotNames() ([]string, error) {
 	return names, nil
 }
 
-func (s *Server) scanDepot(name string) (adminservice.Depot, error) {
+func (s *Server) scanDepot(name string) (apitypes.Depot, error) {
 	if err := s.validateDepot(name); err != nil {
-		return adminservice.Depot{}, err
+		return apitypes.Depot{}, err
 	}
-	depot := adminservice.Depot{Name: name}
+	depot := apitypes.Depot{Name: name}
 	if data, err := s.store().ReadFile(s.infoPath(name)); err == nil {
 		info, err := parseInfo(data)
 		if err != nil {
-			return adminservice.Depot{}, fmt.Errorf("scan depot info %s: %w", name, err)
+			return apitypes.Depot{}, fmt.Errorf("scan depot info %s: %w", name, err)
 		}
 		depot.Info = normalizeDepotInfo(info)
 	} else if !errors.Is(err, fs.ErrNotExist) {
-		return adminservice.Depot{}, err
+		return apitypes.Depot{}, err
 	}
 	for _, channel := range allChannels() {
 		release, err := s.scanRelease(name, channel)
@@ -86,33 +84,33 @@ func (s *Server) scanDepot(name string) (adminservice.Depot, error) {
 			if errors.Is(err, errChannelNotFound) {
 				continue
 			}
-			return adminservice.Depot{}, err
+			return apitypes.Depot{}, err
 		}
 		setDepotRelease(&depot, channel, release)
 	}
 	if err := validateVersionOrder(depot); err != nil {
-		return adminservice.Depot{}, err
+		return apitypes.Depot{}, err
 	}
 	return depot, nil
 }
 
-func (s *Server) scanRelease(depot string, channel Channel) (adminservice.DepotRelease, error) {
+func (s *Server) scanRelease(depot string, channel Channel) (apitypes.DepotRelease, error) {
 	data, err := s.store().ReadFile(s.manifestPath(depot, string(channel)))
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
-			return adminservice.DepotRelease{}, errChannelNotFound
+			return apitypes.DepotRelease{}, errChannelNotFound
 		}
-		return adminservice.DepotRelease{}, err
+		return apitypes.DepotRelease{}, err
 	}
 	release, err := parseManifest(data)
 	if err != nil {
-		return adminservice.DepotRelease{}, fmt.Errorf("scan manifest %s/%s: %w", depot, channel, err)
+		return apitypes.DepotRelease{}, fmt.Errorf("scan manifest %s/%s: %w", depot, channel, err)
 	}
 	if releaseChannel(release) != channel {
-		return adminservice.DepotRelease{}, fmt.Errorf("scan manifest %s/%s: channel mismatch", depot, channel)
+		return apitypes.DepotRelease{}, fmt.Errorf("scan manifest %s/%s: channel mismatch", depot, channel)
 	}
 	if err := validateReleaseAgainstFiles(s.store(), s.channelPath(depot, string(channel)), release); err != nil {
-		return adminservice.DepotRelease{}, err
+		return apitypes.DepotRelease{}, err
 	}
 	return normalizeDepotRelease(release), nil
 }

@@ -2,7 +2,7 @@
 
 import type { Client, Options as Options2, TDataShape } from './client';
 import { client } from './client.gen';
-import type { ApproveGearData, ApproveGearErrors, ApproveGearResponses, BlockGearData, BlockGearErrors, BlockGearResponses, DeleteGearData, DeleteGearErrors, DeleteGearResponses, GetChannelData, GetChannelErrors, GetChannelResponses, GetDepotData, GetDepotErrors, GetDepotResponses, GetGearConfigData, GetGearConfigErrors, GetGearConfigResponses, GetGearData, GetGearErrors, GetGearInfoData, GetGearInfoErrors, GetGearInfoResponses, GetGearOtaData, GetGearOtaErrors, GetGearOtaResponses, GetGearResponses, GetGearRuntimeData, GetGearRuntimeResponses, ListByCertificationData, ListByCertificationErrors, ListByCertificationResponses, ListByFirmwareData, ListByFirmwareErrors, ListByFirmwareResponses, ListByLabelData, ListByLabelErrors, ListByLabelResponses, ListDepotsData, ListDepotsErrors, ListDepotsResponses, ListGearsData, ListGearsErrors, ListGearsResponses, PutChannelData, PutChannelErrors, PutChannelResponses, PutDepotInfoData, PutDepotInfoErrors, PutDepotInfoResponses, PutGearConfigData, PutGearConfigErrors, PutGearConfigResponses, RefreshGearData, RefreshGearErrors, RefreshGearResponses, ReleaseDepotData, ReleaseDepotErrors, ReleaseDepotResponses, ResolveByImeiData, ResolveByImeiErrors, ResolveByImeiResponses, ResolveBySnData, ResolveBySnErrors, ResolveBySnResponses, RollbackDepotData, RollbackDepotErrors, RollbackDepotResponses } from './types.gen';
+import type { ApproveGearData, ApproveGearErrors, ApproveGearResponses, BlockGearData, BlockGearErrors, BlockGearResponses, CreateCredentialData, CreateCredentialErrors, CreateCredentialResponses, CreateMiniMaxTenantData, CreateMiniMaxTenantErrors, CreateMiniMaxTenantResponses, CreateVoiceData, CreateVoiceErrors, CreateVoiceResponses, CreateWorkspaceData, CreateWorkspaceErrors, CreateWorkspaceResponses, CreateWorkspaceTemplateData, CreateWorkspaceTemplateErrors, CreateWorkspaceTemplateResponses, DeleteCredentialData, DeleteCredentialErrors, DeleteCredentialResponses, DeleteGearData, DeleteGearErrors, DeleteGearResponses, DeleteMiniMaxTenantData, DeleteMiniMaxTenantErrors, DeleteMiniMaxTenantResponses, DeleteVoiceData, DeleteVoiceErrors, DeleteVoiceResponses, DeleteWorkspaceData, DeleteWorkspaceErrors, DeleteWorkspaceResponses, DeleteWorkspaceTemplateData, DeleteWorkspaceTemplateErrors, DeleteWorkspaceTemplateResponses, GetChannelData, GetChannelErrors, GetChannelResponses, GetCredentialData, GetCredentialErrors, GetCredentialResponses, GetDepotData, GetDepotErrors, GetDepotResponses, GetGearConfigData, GetGearConfigErrors, GetGearConfigResponses, GetGearData, GetGearErrors, GetGearInfoData, GetGearInfoErrors, GetGearInfoResponses, GetGearOtaData, GetGearOtaErrors, GetGearOtaResponses, GetGearResponses, GetGearRuntimeData, GetGearRuntimeResponses, GetMiniMaxTenantData, GetMiniMaxTenantErrors, GetMiniMaxTenantResponses, GetVoiceData, GetVoiceErrors, GetVoiceResponses, GetWorkspaceData, GetWorkspaceErrors, GetWorkspaceResponses, GetWorkspaceTemplateData, GetWorkspaceTemplateErrors, GetWorkspaceTemplateResponses, ListByCertificationData, ListByCertificationErrors, ListByCertificationResponses, ListByFirmwareData, ListByFirmwareErrors, ListByFirmwareResponses, ListByLabelData, ListByLabelErrors, ListByLabelResponses, ListCredentialsData, ListCredentialsErrors, ListCredentialsResponses, ListDepotsData, ListDepotsErrors, ListDepotsResponses, ListGearsData, ListGearsErrors, ListGearsResponses, ListMiniMaxTenantsData, ListMiniMaxTenantsErrors, ListMiniMaxTenantsResponses, ListVoicesData, ListVoicesErrors, ListVoicesResponses, ListWorkspacesData, ListWorkspacesErrors, ListWorkspacesResponses, ListWorkspaceTemplatesData, ListWorkspaceTemplatesErrors, ListWorkspaceTemplatesResponses, PutChannelData, PutChannelErrors, PutChannelResponses, PutCredentialData, PutCredentialErrors, PutCredentialResponses, PutDepotInfoData, PutDepotInfoErrors, PutDepotInfoResponses, PutGearConfigData, PutGearConfigErrors, PutGearConfigResponses, PutMiniMaxTenantData, PutMiniMaxTenantErrors, PutMiniMaxTenantResponses, PutVoiceData, PutVoiceErrors, PutVoiceResponses, PutWorkspaceData, PutWorkspaceErrors, PutWorkspaceResponses, PutWorkspaceTemplateData, PutWorkspaceTemplateErrors, PutWorkspaceTemplateResponses, RefreshGearData, RefreshGearErrors, RefreshGearResponses, ReleaseDepotData, ReleaseDepotErrors, ReleaseDepotResponses, ResolveByImeiData, ResolveByImeiErrors, ResolveByImeiResponses, ResolveBySnData, ResolveBySnErrors, ResolveBySnResponses, RollbackDepotData, RollbackDepotErrors, RollbackDepotResponses, SyncMiniMaxTenantVoicesData, SyncMiniMaxTenantVoicesErrors, SyncMiniMaxTenantVoicesResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -64,6 +64,206 @@ export const putChannel = <ThrowOnError extends boolean = false>(options: Option
     ...options,
     headers: {
         'Content-Type': 'application/octet-stream',
+        ...options.headers
+    }
+});
+
+/**
+ * List all workspace templates
+ */
+export const listWorkspaceTemplates = <ThrowOnError extends boolean = false>(options?: Options<ListWorkspaceTemplatesData, ThrowOnError>) => (options?.client ?? client).get<ListWorkspaceTemplatesResponses, ListWorkspaceTemplatesErrors, ThrowOnError>({ url: '/workspace-templates', ...options });
+
+/**
+ * Create a workspace template
+ */
+export const createWorkspaceTemplate = <ThrowOnError extends boolean = false>(options: Options<CreateWorkspaceTemplateData, ThrowOnError>) => (options.client ?? client).post<CreateWorkspaceTemplateResponses, CreateWorkspaceTemplateErrors, ThrowOnError>({
+    url: '/workspace-templates',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * List stored credentials
+ */
+export const listCredentials = <ThrowOnError extends boolean = false>(options?: Options<ListCredentialsData, ThrowOnError>) => (options?.client ?? client).get<ListCredentialsResponses, ListCredentialsErrors, ThrowOnError>({ url: '/credentials', ...options });
+
+/**
+ * Create a credential
+ */
+export const createCredential = <ThrowOnError extends boolean = false>(options: Options<CreateCredentialData, ThrowOnError>) => (options.client ?? client).post<CreateCredentialResponses, CreateCredentialErrors, ThrowOnError>({
+    url: '/credentials',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Delete a credential
+ */
+export const deleteCredential = <ThrowOnError extends boolean = false>(options: Options<DeleteCredentialData, ThrowOnError>) => (options.client ?? client).delete<DeleteCredentialResponses, DeleteCredentialErrors, ThrowOnError>({ url: '/credentials/{name}', ...options });
+
+/**
+ * Get a credential
+ */
+export const getCredential = <ThrowOnError extends boolean = false>(options: Options<GetCredentialData, ThrowOnError>) => (options.client ?? client).get<GetCredentialResponses, GetCredentialErrors, ThrowOnError>({ url: '/credentials/{name}', ...options });
+
+/**
+ * Create or update a credential
+ */
+export const putCredential = <ThrowOnError extends boolean = false>(options: Options<PutCredentialData, ThrowOnError>) => (options.client ?? client).put<PutCredentialResponses, PutCredentialErrors, ThrowOnError>({
+    url: '/credentials/{name}',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * List all MiniMax tenants
+ */
+export const listMiniMaxTenants = <ThrowOnError extends boolean = false>(options?: Options<ListMiniMaxTenantsData, ThrowOnError>) => (options?.client ?? client).get<ListMiniMaxTenantsResponses, ListMiniMaxTenantsErrors, ThrowOnError>({ url: '/minimax-tenants', ...options });
+
+/**
+ * Create a MiniMax tenant
+ */
+export const createMiniMaxTenant = <ThrowOnError extends boolean = false>(options: Options<CreateMiniMaxTenantData, ThrowOnError>) => (options.client ?? client).post<CreateMiniMaxTenantResponses, CreateMiniMaxTenantErrors, ThrowOnError>({
+    url: '/minimax-tenants',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Delete a MiniMax tenant
+ */
+export const deleteMiniMaxTenant = <ThrowOnError extends boolean = false>(options: Options<DeleteMiniMaxTenantData, ThrowOnError>) => (options.client ?? client).delete<DeleteMiniMaxTenantResponses, DeleteMiniMaxTenantErrors, ThrowOnError>({ url: '/minimax-tenants/{name}', ...options });
+
+/**
+ * Get a MiniMax tenant
+ */
+export const getMiniMaxTenant = <ThrowOnError extends boolean = false>(options: Options<GetMiniMaxTenantData, ThrowOnError>) => (options.client ?? client).get<GetMiniMaxTenantResponses, GetMiniMaxTenantErrors, ThrowOnError>({ url: '/minimax-tenants/{name}', ...options });
+
+/**
+ * Create or update a MiniMax tenant
+ */
+export const putMiniMaxTenant = <ThrowOnError extends boolean = false>(options: Options<PutMiniMaxTenantData, ThrowOnError>) => (options.client ?? client).put<PutMiniMaxTenantResponses, PutMiniMaxTenantErrors, ThrowOnError>({
+    url: '/minimax-tenants/{name}',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Sync voices from a MiniMax tenant into the global voice catalog
+ */
+export const syncMiniMaxTenantVoices = <ThrowOnError extends boolean = false>(options: Options<SyncMiniMaxTenantVoicesData, ThrowOnError>) => (options.client ?? client).post<SyncMiniMaxTenantVoicesResponses, SyncMiniMaxTenantVoicesErrors, ThrowOnError>({ url: '/minimax-tenants/{name}/@sync-voices', ...options });
+
+/**
+ * List all voices
+ */
+export const listVoices = <ThrowOnError extends boolean = false>(options?: Options<ListVoicesData, ThrowOnError>) => (options?.client ?? client).get<ListVoicesResponses, ListVoicesErrors, ThrowOnError>({ url: '/voices', ...options });
+
+/**
+ * Create a voice
+ */
+export const createVoice = <ThrowOnError extends boolean = false>(options: Options<CreateVoiceData, ThrowOnError>) => (options.client ?? client).post<CreateVoiceResponses, CreateVoiceErrors, ThrowOnError>({
+    url: '/voices',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Delete a voice
+ */
+export const deleteVoice = <ThrowOnError extends boolean = false>(options: Options<DeleteVoiceData, ThrowOnError>) => (options.client ?? client).delete<DeleteVoiceResponses, DeleteVoiceErrors, ThrowOnError>({ url: '/voices/{id}', ...options });
+
+/**
+ * Get a voice
+ */
+export const getVoice = <ThrowOnError extends boolean = false>(options: Options<GetVoiceData, ThrowOnError>) => (options.client ?? client).get<GetVoiceResponses, GetVoiceErrors, ThrowOnError>({ url: '/voices/{id}', ...options });
+
+/**
+ * Create or update a voice
+ */
+export const putVoice = <ThrowOnError extends boolean = false>(options: Options<PutVoiceData, ThrowOnError>) => (options.client ?? client).put<PutVoiceResponses, PutVoiceErrors, ThrowOnError>({
+    url: '/voices/{id}',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Delete a workspace template
+ */
+export const deleteWorkspaceTemplate = <ThrowOnError extends boolean = false>(options: Options<DeleteWorkspaceTemplateData, ThrowOnError>) => (options.client ?? client).delete<DeleteWorkspaceTemplateResponses, DeleteWorkspaceTemplateErrors, ThrowOnError>({ url: '/workspace-templates/{name}', ...options });
+
+/**
+ * Get a workspace template
+ */
+export const getWorkspaceTemplate = <ThrowOnError extends boolean = false>(options: Options<GetWorkspaceTemplateData, ThrowOnError>) => (options.client ?? client).get<GetWorkspaceTemplateResponses, GetWorkspaceTemplateErrors, ThrowOnError>({ url: '/workspace-templates/{name}', ...options });
+
+/**
+ * Create or update a workspace template
+ */
+export const putWorkspaceTemplate = <ThrowOnError extends boolean = false>(options: Options<PutWorkspaceTemplateData, ThrowOnError>) => (options.client ?? client).put<PutWorkspaceTemplateResponses, PutWorkspaceTemplateErrors, ThrowOnError>({
+    url: '/workspace-templates/{name}',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * List all workspaces
+ */
+export const listWorkspaces = <ThrowOnError extends boolean = false>(options?: Options<ListWorkspacesData, ThrowOnError>) => (options?.client ?? client).get<ListWorkspacesResponses, ListWorkspacesErrors, ThrowOnError>({ url: '/workspaces', ...options });
+
+/**
+ * Create a workspace
+ */
+export const createWorkspace = <ThrowOnError extends boolean = false>(options: Options<CreateWorkspaceData, ThrowOnError>) => (options.client ?? client).post<CreateWorkspaceResponses, CreateWorkspaceErrors, ThrowOnError>({
+    url: '/workspaces',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Delete a workspace
+ */
+export const deleteWorkspace = <ThrowOnError extends boolean = false>(options: Options<DeleteWorkspaceData, ThrowOnError>) => (options.client ?? client).delete<DeleteWorkspaceResponses, DeleteWorkspaceErrors, ThrowOnError>({ url: '/workspaces/{name}', ...options });
+
+/**
+ * Get a workspace
+ */
+export const getWorkspace = <ThrowOnError extends boolean = false>(options: Options<GetWorkspaceData, ThrowOnError>) => (options.client ?? client).get<GetWorkspaceResponses, GetWorkspaceErrors, ThrowOnError>({ url: '/workspaces/{name}', ...options });
+
+/**
+ * Create or update a workspace
+ */
+export const putWorkspace = <ThrowOnError extends boolean = false>(options: Options<PutWorkspaceData, ThrowOnError>) => (options.client ?? client).put<PutWorkspaceResponses, PutWorkspaceErrors, ThrowOnError>({
+    url: '/workspaces/{name}',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
         ...options.headers
     }
 });

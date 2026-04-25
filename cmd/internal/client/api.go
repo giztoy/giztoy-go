@@ -96,19 +96,19 @@ func GetConfig(ctx context.Context, c *gizclaw.Client) (apitypes.Configuration, 
 	return apitypes.Configuration{}, responseError(resp.StatusCode(), resp.Body, resp.JSON404)
 }
 
-func GetServerInfo(ctx context.Context, c *gizclaw.Client) (serverpublic.ServerInfo, error) {
+func GetServerInfo(ctx context.Context, c *gizclaw.Client) (apitypes.ServerInfo, error) {
 	api, err := c.ServerPublicClient()
 	if err != nil {
-		return serverpublic.ServerInfo{}, err
+		return apitypes.ServerInfo{}, err
 	}
 	resp, err := api.GetServerInfoWithResponse(ctx)
 	if err != nil {
-		return serverpublic.ServerInfo{}, err
+		return apitypes.ServerInfo{}, err
 	}
 	if resp.JSON200 != nil {
 		return *resp.JSON200, nil
 	}
-	return serverpublic.ServerInfo{}, responseError(resp.StatusCode(), resp.Body, resp.JSON400)
+	return apitypes.ServerInfo{}, responseError(resp.StatusCode(), resp.Body, resp.JSON400)
 }
 
 func GetInfo(ctx context.Context, c *gizclaw.Client) (apitypes.DeviceInfo, error) {
@@ -207,7 +207,7 @@ func DownloadFirmware(ctx context.Context, c *gizclaw.Client, path string) ([]by
 	return nil, nil, responseError(resp.StatusCode, body)
 }
 
-func ListFirmwares(ctx context.Context, c *gizclaw.Client) ([]adminservice.Depot, error) {
+func ListFirmwares(ctx context.Context, c *gizclaw.Client) ([]apitypes.Depot, error) {
 	api, err := c.ServerAdminClient()
 	if err != nil {
 		return nil, err
@@ -222,112 +222,112 @@ func ListFirmwares(ctx context.Context, c *gizclaw.Client) ([]adminservice.Depot
 	return resp.JSON200.Items, nil
 }
 
-func GetFirmwareDepot(ctx context.Context, c *gizclaw.Client, depot string) (adminservice.Depot, error) {
+func GetFirmwareDepot(ctx context.Context, c *gizclaw.Client, depot string) (apitypes.Depot, error) {
 	api, err := c.ServerAdminClient()
 	if err != nil {
-		return adminservice.Depot{}, err
+		return apitypes.Depot{}, err
 	}
 	resp, err := api.GetDepotWithResponse(ctx, depot)
 	if err != nil {
-		return adminservice.Depot{}, err
+		return apitypes.Depot{}, err
 	}
 	if resp.JSON200 != nil {
 		return *resp.JSON200, nil
 	}
-	return adminservice.Depot{}, responseError(resp.StatusCode(), resp.Body, resp.JSON404)
+	return apitypes.Depot{}, responseError(resp.StatusCode(), resp.Body, resp.JSON404)
 }
 
-func GetFirmwareChannel(ctx context.Context, c *gizclaw.Client, depot string, channel adminservice.Channel) (adminservice.DepotRelease, error) {
+func GetFirmwareChannel(ctx context.Context, c *gizclaw.Client, depot string, channel adminservice.Channel) (apitypes.DepotRelease, error) {
 	api, err := c.ServerAdminClient()
 	if err != nil {
-		return adminservice.DepotRelease{}, err
+		return apitypes.DepotRelease{}, err
 	}
 	resp, err := api.GetChannelWithResponse(ctx, depot, channel)
 	if err != nil {
-		return adminservice.DepotRelease{}, err
+		return apitypes.DepotRelease{}, err
 	}
 	if resp.JSON200 != nil {
 		return *resp.JSON200, nil
 	}
-	return adminservice.DepotRelease{}, responseError(resp.StatusCode(), resp.Body, resp.JSON404)
+	return apitypes.DepotRelease{}, responseError(resp.StatusCode(), resp.Body, resp.JSON404)
 }
 
-func PutFirmwareInfo(ctx context.Context, c *gizclaw.Client, depot string, info adminservice.DepotInfo) (adminservice.Depot, error) {
+func PutFirmwareInfo(ctx context.Context, c *gizclaw.Client, depot string, info apitypes.DepotInfo) (apitypes.Depot, error) {
 	api, err := c.ServerAdminClient()
 	if err != nil {
-		return adminservice.Depot{}, err
+		return apitypes.Depot{}, err
 	}
 	resp, err := api.PutDepotInfoWithResponse(ctx, depot, info)
 	if err != nil {
-		return adminservice.Depot{}, err
+		return apitypes.Depot{}, err
 	}
 	if resp.JSON200 != nil {
 		return *resp.JSON200, nil
 	}
-	return adminservice.Depot{}, responseError(resp.StatusCode(), resp.Body, resp.JSON400, resp.JSON409, resp.JSON500)
+	return apitypes.Depot{}, responseError(resp.StatusCode(), resp.Body, resp.JSON400, resp.JSON409, resp.JSON500)
 }
 
-func UploadFirmware(ctx context.Context, c *gizclaw.Client, depot string, channel adminservice.Channel, data []byte) (adminservice.DepotRelease, error) {
+func UploadFirmware(ctx context.Context, c *gizclaw.Client, depot string, channel adminservice.Channel, data []byte) (apitypes.DepotRelease, error) {
 	api, err := c.ServerAdminClient()
 	if err != nil {
-		return adminservice.DepotRelease{}, err
+		return apitypes.DepotRelease{}, err
 	}
 	resp, err := api.PutChannelWithBodyWithResponse(ctx, depot, channel, "application/octet-stream", bytes.NewReader(data))
 	if err != nil {
-		return adminservice.DepotRelease{}, err
+		return apitypes.DepotRelease{}, err
 	}
 	if resp.JSON200 != nil {
 		return *resp.JSON200, nil
 	}
-	return adminservice.DepotRelease{}, responseError(resp.StatusCode(), resp.Body, resp.JSON409)
+	return apitypes.DepotRelease{}, responseError(resp.StatusCode(), resp.Body, resp.JSON409)
 }
 
-func ReleaseFirmware(ctx context.Context, c *gizclaw.Client, depot string) (adminservice.Depot, error) {
+func ReleaseFirmware(ctx context.Context, c *gizclaw.Client, depot string) (apitypes.Depot, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodPut, "http://gizclaw/depots/"+url.PathEscape(depot)+"/@release", nil)
 	if err != nil {
-		return adminservice.Depot{}, err
+		return apitypes.Depot{}, err
 	}
 	resp, err := c.HTTPClient(gizclaw.ServiceAdmin).Do(req)
 	if err != nil {
-		return adminservice.Depot{}, err
+		return apitypes.Depot{}, err
 	}
 	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return adminservice.Depot{}, err
+		return apitypes.Depot{}, err
 	}
 	if resp.StatusCode == http.StatusOK {
-		var out adminservice.Depot
+		var out apitypes.Depot
 		if err := json.Unmarshal(body, &out); err != nil {
-			return adminservice.Depot{}, err
+			return apitypes.Depot{}, err
 		}
 		return out, nil
 	}
-	return adminservice.Depot{}, responseError(resp.StatusCode, body)
+	return apitypes.Depot{}, responseError(resp.StatusCode, body)
 }
 
-func RollbackFirmware(ctx context.Context, c *gizclaw.Client, depot string) (adminservice.Depot, error) {
+func RollbackFirmware(ctx context.Context, c *gizclaw.Client, depot string) (apitypes.Depot, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodPut, "http://gizclaw/depots/"+url.PathEscape(depot)+"/@rollback", nil)
 	if err != nil {
-		return adminservice.Depot{}, err
+		return apitypes.Depot{}, err
 	}
 	resp, err := c.HTTPClient(gizclaw.ServiceAdmin).Do(req)
 	if err != nil {
-		return adminservice.Depot{}, err
+		return apitypes.Depot{}, err
 	}
 	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return adminservice.Depot{}, err
+		return apitypes.Depot{}, err
 	}
 	if resp.StatusCode == http.StatusOK {
-		var out adminservice.Depot
+		var out apitypes.Depot
 		if err := json.Unmarshal(body, &out); err != nil {
-			return adminservice.Depot{}, err
+			return apitypes.Depot{}, err
 		}
 		return out, nil
 	}
-	return adminservice.Depot{}, responseError(resp.StatusCode, body)
+	return apitypes.Depot{}, responseError(resp.StatusCode, body)
 }
 
 type pagedItems[T any] struct {

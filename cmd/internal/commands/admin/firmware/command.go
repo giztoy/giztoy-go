@@ -3,6 +3,7 @@ package firmwarecmd
 import (
 	"context"
 	"encoding/json"
+	apitypes "github.com/GizClaw/gizclaw-go/pkg/gizclaw/api/apitypes"
 	"os"
 
 	"github.com/GizClaw/gizclaw-go/cmd/internal/client"
@@ -119,7 +120,7 @@ func newPutInfoCmd(ctxName *string) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			var info adminservice.DepotInfo
+			var info apitypes.DepotInfo
 			if err := json.Unmarshal(data, &info); err != nil {
 				return err
 			}

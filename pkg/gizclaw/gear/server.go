@@ -377,7 +377,7 @@ func (s *Server) GetRuntime(ctx context.Context, _ gearservice.GetRuntimeRequest
 
 // GetServerInfo implements `serverpublic.StrictServerInterface.GetServerInfo`.
 func (s *Server) GetServerInfo(_ context.Context, _ serverpublic.GetServerInfoRequestObject) (serverpublic.GetServerInfoResponseObject, error) {
-	return serverpublic.GetServerInfo200JSONResponse(serverpublic.ServerInfo{
+	return serverpublic.GetServerInfo200JSONResponse(apitypes.ServerInfo{
 		BuildCommit: s.BuildCommit,
 		PublicKey:   s.ServerPublicKey,
 		ServerTime:  time.Now().UnixMilli(),

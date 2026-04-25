@@ -15,12 +15,6 @@ export type RegistrationResult = {
     registration: Registration;
 };
 
-export type ServerInfo = {
-    public_key: string;
-    server_time: number;
-    build_commit: string;
-};
-
 export type Configuration = {
     certifications?: Array<GearCertification>;
     firmware?: FirmwareConfig;
@@ -106,6 +100,12 @@ export type Registration = {
     created_at: string;
     updated_at: string;
     approved_at?: string;
+};
+
+export type ServerInfo = {
+    public_key: string;
+    server_time: number;
+    build_commit: string;
 };
 
 export type GetServerInfoData = {

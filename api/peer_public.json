@@ -30,7 +30,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/RefreshInfo"
+                  "$ref": "./types.json#/components/schemas/RefreshInfo"
                 }
               }
             }
@@ -54,7 +54,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/RefreshIdentifiers"
+                  "$ref": "./types.json#/components/schemas/RefreshIdentifiers"
                 }
               }
             }
@@ -78,98 +78,13 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/RefreshVersion"
+                  "$ref": "./types.json#/components/schemas/RefreshVersion"
                 }
               }
             }
           },
           "default": {
             "description": "Unexpected error"
-          }
-        }
-      }
-    }
-  },
-  "components": {
-    "schemas": {
-      "RefreshInfo": {
-        "type": "object",
-        "properties": {
-          "name": {
-            "type": "string"
-          },
-          "manufacturer": {
-            "type": "string"
-          },
-          "model": {
-            "type": "string"
-          },
-          "hardware_revision": {
-            "type": "string"
-          }
-        }
-      },
-      "RefreshIdentifiers": {
-        "type": "object",
-        "properties": {
-          "sn": {
-            "type": "string"
-          },
-          "imeis": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/GearIMEI"
-            }
-          },
-          "labels": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/GearLabel"
-            }
-          }
-        }
-      },
-      "RefreshVersion": {
-        "type": "object",
-        "properties": {
-          "depot": {
-            "type": "string"
-          },
-          "firmware_semver": {
-            "type": "string"
-          }
-        }
-      },
-      "GearIMEI": {
-        "type": "object",
-        "required": [
-          "tac",
-          "serial"
-        ],
-        "properties": {
-          "name": {
-            "type": "string"
-          },
-          "tac": {
-            "type": "string"
-          },
-          "serial": {
-            "type": "string"
-          }
-        }
-      },
-      "GearLabel": {
-        "type": "object",
-        "required": [
-          "key",
-          "value"
-        ],
-        "properties": {
-          "key": {
-            "type": "string"
-          },
-          "value": {
-            "type": "string"
           }
         }
       }

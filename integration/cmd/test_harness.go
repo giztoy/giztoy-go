@@ -15,7 +15,7 @@ import (
 
 	itest "github.com/GizClaw/gizclaw-go/integration/testutil"
 	"github.com/GizClaw/gizclaw-go/pkg/gizclaw"
-	"github.com/GizClaw/gizclaw-go/pkg/gizclaw/api/serverpublic"
+	apitypes "github.com/GizClaw/gizclaw-go/pkg/gizclaw/api/apitypes"
 	"github.com/GizClaw/gizclaw-go/pkg/giznet"
 	"github.com/goccy/go-yaml"
 )
@@ -551,6 +551,6 @@ func probeServerPublicReady(ctx context.Context, client *gizclaw.Client) error {
 		}
 		return fmt.Errorf("missing server info response body")
 	}
-	var _ serverpublic.ServerInfo = *resp.JSON200
+	var _ apitypes.ServerInfo = *resp.JSON200
 	return nil
 }

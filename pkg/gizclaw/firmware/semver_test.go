@@ -2,18 +2,17 @@ package firmware
 
 import (
 	"errors"
+	apitypes "github.com/GizClaw/gizclaw-go/pkg/gizclaw/api/apitypes"
 	"testing"
-
-	"github.com/GizClaw/gizclaw-go/pkg/gizclaw/api/adminservice"
 )
 
 func TestValidateVersionOrder(t *testing.T) {
 	t.Parallel()
 
-	depot := adminservice.Depot{
-		Stable:  adminservice.DepotRelease{FirmwareSemver: "1.0.0"},
-		Beta:    adminservice.DepotRelease{FirmwareSemver: "1.1.0"},
-		Testing: adminservice.DepotRelease{FirmwareSemver: "1.2.0"},
+	depot := apitypes.Depot{
+		Stable:  apitypes.DepotRelease{FirmwareSemver: "1.0.0"},
+		Beta:    apitypes.DepotRelease{FirmwareSemver: "1.1.0"},
+		Testing: apitypes.DepotRelease{FirmwareSemver: "1.2.0"},
 	}
 	if err := validateVersionOrder(depot); err != nil {
 		t.Fatalf("validateVersionOrder() unexpected error: %v", err)

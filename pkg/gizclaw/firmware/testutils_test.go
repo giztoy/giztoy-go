@@ -14,7 +14,6 @@ import (
 
 	apitypes "github.com/GizClaw/gizclaw-go/pkg/gizclaw/api/apitypes"
 
-	"github.com/GizClaw/gizclaw-go/pkg/gizclaw/api/adminservice"
 	"github.com/GizClaw/gizclaw-go/pkg/store/depotstore"
 )
 
@@ -66,14 +65,14 @@ func (e *testEnv) readFile(name string) []byte {
 	return data
 }
 
-func (e *testEnv) writeDepotInfo(depot string, paths ...string) adminservice.DepotInfo {
+func (e *testEnv) writeDepotInfo(depot string, paths ...string) apitypes.DepotInfo {
 	e.t.Helper()
 	info := depotInfo(paths...)
 	e.writeJSON(path.Join(depot, "info.json"), info)
 	return info
 }
 
-func (e *testEnv) writeRelease(depot string, channel Channel, version string, files map[string]string) adminservice.DepotRelease {
+func (e *testEnv) writeRelease(depot string, channel Channel, version string, files map[string]string) apitypes.DepotRelease {
 	e.t.Helper()
 	release := depotReleaseForFiles(channel, version, files)
 	for filePath, content := range files {
@@ -83,15 +82,15 @@ func (e *testEnv) writeRelease(depot string, channel Channel, version string, fi
 	return release
 }
 
-func depotInfo(paths ...string) adminservice.DepotInfo {
-	files := make([]adminservice.DepotInfoFile, 0, len(paths))
+func depotInfo(paths ...string) apitypes.DepotInfo {
+	files := make([]apitypes.DepotInfoFile, 0, len(paths))
 	for _, p := range paths {
-		files = append(files, adminservice.DepotInfoFile{Path: p})
+		files = append(files, apitypes.DepotInfoFile{Path: p})
 	}
-	return adminservice.DepotInfo{Files: &files}
+	return apitypes.DepotInfo{Files: &files}
 }
 
-func depotReleaseForFiles(channel Channel, version string, files map[string]string) adminservice.DepotRelease {
+func depotReleaseForFiles(channel Channel, version string, files map[string]string) apitypes.DepotRelease {
 	paths := make([]string, 0, len(files))
 	for p := range files {
 		paths = append(paths, p)
@@ -107,7 +106,7 @@ func depotReleaseForFiles(channel Channel, version string, files map[string]stri
 			Sha256: shaHex,
 		})
 	}
-	return adminservice.DepotRelease{
+	return apitypes.DepotRelease{
 		Channel:        stringPtr(string(channel)),
 		Files:          &out,
 		FirmwareSemver: version,

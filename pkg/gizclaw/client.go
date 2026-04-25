@@ -354,8 +354,8 @@ func redirectProxyPrefix(target string) func(http.ResponseWriter, *http.Request)
 	}
 }
 
-func gearDeviceToPeerRefreshInfo(in apitypes.DeviceInfo) peerpublic.RefreshInfo {
-	out := peerpublic.RefreshInfo{}
+func gearDeviceToPeerRefreshInfo(in apitypes.DeviceInfo) apitypes.RefreshInfo {
+	out := apitypes.RefreshInfo{}
 	if in.Name != nil {
 		out.Name = in.Name
 	}
@@ -367,8 +367,8 @@ func gearDeviceToPeerRefreshInfo(in apitypes.DeviceInfo) peerpublic.RefreshInfo 
 	return out
 }
 
-func gearToPeerGearIMEI(in apitypes.GearIMEI) peerpublic.GearIMEI {
-	out := peerpublic.GearIMEI{
+func gearToPeerGearIMEI(in apitypes.GearIMEI) apitypes.GearIMEI {
+	out := apitypes.GearIMEI{
 		Tac:    in.Tac,
 		Serial: in.Serial,
 	}
@@ -376,26 +376,26 @@ func gearToPeerGearIMEI(in apitypes.GearIMEI) peerpublic.GearIMEI {
 	return out
 }
 
-func gearToPeerGearLabel(in apitypes.GearLabel) peerpublic.GearLabel {
-	return peerpublic.GearLabel{
+func gearToPeerGearLabel(in apitypes.GearLabel) apitypes.GearLabel {
+	return apitypes.GearLabel{
 		Key:   in.Key,
 		Value: in.Value,
 	}
 }
 
-func gearDeviceToPeerRefreshIdentifiers(in apitypes.DeviceInfo) peerpublic.RefreshIdentifiers {
-	out := peerpublic.RefreshIdentifiers{}
+func gearDeviceToPeerRefreshIdentifiers(in apitypes.DeviceInfo) apitypes.RefreshIdentifiers {
+	out := apitypes.RefreshIdentifiers{}
 	out.Sn = in.Sn
 	if in.Hardware != nil {
 		if in.Hardware.Imeis != nil {
-			items := make([]peerpublic.GearIMEI, len(*in.Hardware.Imeis))
+			items := make([]apitypes.GearIMEI, len(*in.Hardware.Imeis))
 			for i := range *in.Hardware.Imeis {
 				items[i] = gearToPeerGearIMEI((*in.Hardware.Imeis)[i])
 			}
 			out.Imeis = &items
 		}
 		if in.Hardware.Labels != nil {
-			items := make([]peerpublic.GearLabel, len(*in.Hardware.Labels))
+			items := make([]apitypes.GearLabel, len(*in.Hardware.Labels))
 			for i := range *in.Hardware.Labels {
 				items[i] = gearToPeerGearLabel((*in.Hardware.Labels)[i])
 			}
@@ -405,8 +405,8 @@ func gearDeviceToPeerRefreshIdentifiers(in apitypes.DeviceInfo) peerpublic.Refre
 	return out
 }
 
-func gearDeviceToPeerRefreshVersion(in apitypes.DeviceInfo) peerpublic.RefreshVersion {
-	out := peerpublic.RefreshVersion{}
+func gearDeviceToPeerRefreshVersion(in apitypes.DeviceInfo) apitypes.RefreshVersion {
+	out := apitypes.RefreshVersion{}
 	if in.Hardware != nil {
 		out.Depot = in.Hardware.Depot
 		out.FirmwareSemver = in.Hardware.FirmwareSemver

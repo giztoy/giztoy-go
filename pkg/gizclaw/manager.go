@@ -250,7 +250,7 @@ func isPeerDisconnectedError(err error) bool {
 		strings.Contains(msg, "closed network connection")
 }
 
-func applyPeerRefreshInfo(gear *apitypes.Gear, info peerpublic.RefreshInfo, updatedFields *[]string) {
+func applyPeerRefreshInfo(gear *apitypes.Gear, info apitypes.RefreshInfo, updatedFields *[]string) {
 	if gear == nil {
 		return
 	}
@@ -281,7 +281,7 @@ func applyPeerRefreshInfo(gear *apitypes.Gear, info peerpublic.RefreshInfo, upda
 	}
 }
 
-func applyPeerRefreshIdentifiers(gear *apitypes.Gear, identifiers peerpublic.RefreshIdentifiers, updatedFields *[]string) {
+func applyPeerRefreshIdentifiers(gear *apitypes.Gear, identifiers apitypes.RefreshIdentifiers, updatedFields *[]string) {
 	if gear == nil {
 		return
 	}
@@ -307,7 +307,7 @@ func applyPeerRefreshIdentifiers(gear *apitypes.Gear, identifiers peerpublic.Ref
 	}
 }
 
-func applyPeerRefreshVersion(gear *apitypes.Gear, version peerpublic.RefreshVersion, updatedFields *[]string) {
+func applyPeerRefreshVersion(gear *apitypes.Gear, version apitypes.RefreshVersion, updatedFields *[]string) {
 	if gear == nil {
 		return
 	}
@@ -334,7 +334,7 @@ func ensureGearHardware(device *apitypes.DeviceInfo) *apitypes.HardwareInfo {
 	return device.Hardware
 }
 
-func toGearIMEIs(in []peerpublic.GearIMEI) []apitypes.GearIMEI {
+func toGearIMEIs(in []apitypes.GearIMEI) []apitypes.GearIMEI {
 	out := make([]apitypes.GearIMEI, 0, len(in))
 	for _, item := range in {
 		out = append(out, apitypes.GearIMEI{
@@ -346,7 +346,7 @@ func toGearIMEIs(in []peerpublic.GearIMEI) []apitypes.GearIMEI {
 	return out
 }
 
-func toGearLabels(in []peerpublic.GearLabel) []apitypes.GearLabel {
+func toGearLabels(in []apitypes.GearLabel) []apitypes.GearLabel {
 	out := make([]apitypes.GearLabel, 0, len(in))
 	for _, item := range in {
 		out = append(out, apitypes.GearLabel{

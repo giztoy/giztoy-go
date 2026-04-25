@@ -80,7 +80,7 @@ func TestIntegrationRPCReversePingClient(t *testing.T) {
 		}
 		host := &gizclaw.GearPeer{
 			Conn:    conn,
-			Service: ts.server.GearService(),
+			Service: ts.server.PeerService(),
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		ping, err := host.Ping(ctx, "reverse-ping")

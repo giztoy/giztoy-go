@@ -4,8 +4,33 @@
 package apitypes
 
 import (
+	"encoding/json"
+	"errors"
 	"time"
+
+	"github.com/oapi-codegen/runtime"
 )
+
+// Defines values for CredentialMethod.
+const (
+	ApiKey     CredentialMethod = "api_key"
+	AppIdToken CredentialMethod = "app_id_token"
+	Token      CredentialMethod = "token"
+)
+
+// Valid indicates whether the value is a known member of the CredentialMethod enum.
+func (e CredentialMethod) Valid() bool {
+	switch e {
+	case ApiKey:
+		return true
+	case AppIdToken:
+		return true
+	case Token:
+		return true
+	default:
+		return false
+	}
+}
 
 // Defines values for GearCertificationAuthority.
 const (
@@ -106,10 +131,130 @@ func (e GearStatus) Valid() bool {
 	}
 }
 
+// Defines values for MultiAgentGraphWorkflowTemplateApiVersion.
+const (
+	MultiAgentGraphWorkflowTemplateApiVersionGizclawFlowcraftv1alpha1 MultiAgentGraphWorkflowTemplateApiVersion = "gizclaw.flowcraft/v1alpha1"
+)
+
+// Valid indicates whether the value is a known member of the MultiAgentGraphWorkflowTemplateApiVersion enum.
+func (e MultiAgentGraphWorkflowTemplateApiVersion) Valid() bool {
+	switch e {
+	case MultiAgentGraphWorkflowTemplateApiVersionGizclawFlowcraftv1alpha1:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for MultiAgentGraphWorkflowTemplateKind.
+const (
+	MultiAgentGraphWorkflowTemplateKindMultiAgentGraphWorkflowTemplate MultiAgentGraphWorkflowTemplateKind = "MultiAgentGraphWorkflowTemplate"
+)
+
+// Valid indicates whether the value is a known member of the MultiAgentGraphWorkflowTemplateKind enum.
+func (e MultiAgentGraphWorkflowTemplateKind) Valid() bool {
+	switch e {
+	case MultiAgentGraphWorkflowTemplateKindMultiAgentGraphWorkflowTemplate:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SingleAgentGraphWorkflowTemplateApiVersion.
+const (
+	SingleAgentGraphWorkflowTemplateApiVersionGizclawFlowcraftv1alpha1 SingleAgentGraphWorkflowTemplateApiVersion = "gizclaw.flowcraft/v1alpha1"
+)
+
+// Valid indicates whether the value is a known member of the SingleAgentGraphWorkflowTemplateApiVersion enum.
+func (e SingleAgentGraphWorkflowTemplateApiVersion) Valid() bool {
+	switch e {
+	case SingleAgentGraphWorkflowTemplateApiVersionGizclawFlowcraftv1alpha1:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SingleAgentGraphWorkflowTemplateKind.
+const (
+	SingleAgentGraphWorkflowTemplateKindSingleAgentGraphWorkflowTemplate SingleAgentGraphWorkflowTemplateKind = "SingleAgentGraphWorkflowTemplate"
+)
+
+// Valid indicates whether the value is a known member of the SingleAgentGraphWorkflowTemplateKind enum.
+func (e SingleAgentGraphWorkflowTemplateKind) Valid() bool {
+	switch e {
+	case SingleAgentGraphWorkflowTemplateKindSingleAgentGraphWorkflowTemplate:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for VoiceSource.
+const (
+	Manual VoiceSource = "manual"
+	Sync   VoiceSource = "sync"
+)
+
+// Valid indicates whether the value is a known member of the VoiceSource enum.
+func (e VoiceSource) Valid() bool {
+	switch e {
+	case Manual:
+		return true
+	case Sync:
+		return true
+	default:
+		return false
+	}
+}
+
+// Channel defines model for Channel.
+type Channel = string
+
 // Configuration defines model for Configuration.
 type Configuration struct {
 	Certifications *[]GearCertification `json:"certifications,omitempty"`
 	Firmware       *FirmwareConfig      `json:"firmware,omitempty"`
+}
+
+// Credential defines model for Credential.
+type Credential struct {
+	Body        CredentialBody `json:"body"`
+	CreatedAt   time.Time      `json:"created_at"`
+	Description *string        `json:"description,omitempty"`
+
+	// Method Credential authentication method
+	Method CredentialMethod `json:"method"`
+
+	// Name Credential name
+	Name CredentialName `json:"name"`
+
+	// Provider Credential provider name
+	Provider  CredentialProvider `json:"provider"`
+	UpdatedAt time.Time          `json:"updated_at"`
+}
+
+// CredentialBody defines model for CredentialBody.
+type CredentialBody map[string]interface{}
+
+// CredentialMethod Credential authentication method
+type CredentialMethod string
+
+// CredentialName Credential name
+type CredentialName = string
+
+// CredentialProvider Credential provider name
+type CredentialProvider = string
+
+// Depot defines model for Depot.
+type Depot struct {
+	Beta     DepotRelease `json:"beta"`
+	Info     DepotInfo    `json:"info"`
+	Name     string       `json:"name"`
+	Rollback DepotRelease `json:"rollback"`
+	Stable   DepotRelease `json:"stable"`
+	Testing  DepotRelease `json:"testing"`
 }
 
 // DepotFile defines model for DepotFile.
@@ -117,6 +262,23 @@ type DepotFile struct {
 	Md5    string `json:"md5"`
 	Path   string `json:"path"`
 	Sha256 string `json:"sha256"`
+}
+
+// DepotInfo defines model for DepotInfo.
+type DepotInfo struct {
+	Files *[]DepotInfoFile `json:"files,omitempty"`
+}
+
+// DepotInfoFile defines model for DepotInfoFile.
+type DepotInfoFile struct {
+	Path string `json:"path"`
+}
+
+// DepotRelease defines model for DepotRelease.
+type DepotRelease struct {
+	Channel        *string      `json:"channel,omitempty"`
+	Files          *[]DepotFile `json:"files,omitempty"`
+	FirmwareSemver string       `json:"firmware_semver"`
 }
 
 // DeviceInfo defines model for DeviceInfo.
@@ -203,12 +365,79 @@ type HardwareInfo struct {
 	Model            *string      `json:"model,omitempty"`
 }
 
+// MiniMaxAppID MiniMax app identifier
+type MiniMaxAppID = string
+
+// MiniMaxGroupID MiniMax group identifier
+type MiniMaxGroupID = string
+
+// MiniMaxTenant defines model for MiniMaxTenant.
+type MiniMaxTenant struct {
+	// AppId MiniMax app identifier
+	AppId     MiniMaxAppID `json:"app_id"`
+	BaseUrl   *string      `json:"base_url,omitempty"`
+	CreatedAt time.Time    `json:"created_at"`
+
+	// CredentialName Credential name
+	CredentialName CredentialName `json:"credential_name"`
+	Description    *string        `json:"description,omitempty"`
+
+	// GroupId MiniMax group identifier
+	GroupId      MiniMaxGroupID `json:"group_id"`
+	LastSyncedAt *time.Time     `json:"last_synced_at,omitempty"`
+
+	// Name MiniMax tenant name
+	Name      MiniMaxTenantName `json:"name"`
+	UpdatedAt time.Time         `json:"updated_at"`
+}
+
+// MiniMaxTenantName MiniMax tenant name
+type MiniMaxTenantName = string
+
+// MultiAgentGraphWorkflowSpec defines model for MultiAgentGraphWorkflowSpec.
+type MultiAgentGraphWorkflowSpec = map[string]interface{}
+
+// MultiAgentGraphWorkflowTemplate defines model for MultiAgentGraphWorkflowTemplate.
+type MultiAgentGraphWorkflowTemplate struct {
+	ApiVersion MultiAgentGraphWorkflowTemplateApiVersion `json:"apiVersion"`
+	Kind       MultiAgentGraphWorkflowTemplateKind       `json:"kind"`
+	Metadata   TemplateMetadata                          `json:"metadata"`
+	Spec       MultiAgentGraphWorkflowSpec               `json:"spec"`
+}
+
+// MultiAgentGraphWorkflowTemplateApiVersion defines model for MultiAgentGraphWorkflowTemplate.ApiVersion.
+type MultiAgentGraphWorkflowTemplateApiVersion string
+
+// MultiAgentGraphWorkflowTemplateKind defines model for MultiAgentGraphWorkflowTemplate.Kind.
+type MultiAgentGraphWorkflowTemplateKind string
+
 // OTASummary defines model for OTASummary.
 type OTASummary struct {
 	Channel        string      `json:"channel"`
 	Depot          string      `json:"depot"`
 	Files          []DepotFile `json:"files"`
 	FirmwareSemver string      `json:"firmware_semver"`
+}
+
+// RefreshIdentifiers defines model for RefreshIdentifiers.
+type RefreshIdentifiers struct {
+	Imeis  *[]GearIMEI  `json:"imeis,omitempty"`
+	Labels *[]GearLabel `json:"labels,omitempty"`
+	Sn     *string      `json:"sn,omitempty"`
+}
+
+// RefreshInfo defines model for RefreshInfo.
+type RefreshInfo struct {
+	HardwareRevision *string `json:"hardware_revision,omitempty"`
+	Manufacturer     *string `json:"manufacturer,omitempty"`
+	Model            *string `json:"model,omitempty"`
+	Name             *string `json:"name,omitempty"`
+}
+
+// RefreshVersion defines model for RefreshVersion.
+type RefreshVersion struct {
+	Depot          *string `json:"depot,omitempty"`
+	FirmwareSemver *string `json:"firmware_semver,omitempty"`
 }
 
 // Registration defines model for Registration.
@@ -227,4 +456,191 @@ type Runtime struct {
 	LastAddr   *string   `json:"last_addr,omitempty"`
 	LastSeenAt time.Time `json:"last_seen_at"`
 	Online     bool      `json:"online"`
+}
+
+// ServerInfo defines model for ServerInfo.
+type ServerInfo struct {
+	BuildCommit string `json:"build_commit"`
+	PublicKey   string `json:"public_key"`
+	ServerTime  int64  `json:"server_time"`
+}
+
+// SingleAgentGraphWorkflowSpec defines model for SingleAgentGraphWorkflowSpec.
+type SingleAgentGraphWorkflowSpec = map[string]interface{}
+
+// SingleAgentGraphWorkflowTemplate defines model for SingleAgentGraphWorkflowTemplate.
+type SingleAgentGraphWorkflowTemplate struct {
+	ApiVersion SingleAgentGraphWorkflowTemplateApiVersion `json:"apiVersion"`
+	Kind       SingleAgentGraphWorkflowTemplateKind       `json:"kind"`
+	Metadata   TemplateMetadata                           `json:"metadata"`
+	Spec       SingleAgentGraphWorkflowSpec               `json:"spec"`
+}
+
+// SingleAgentGraphWorkflowTemplateApiVersion defines model for SingleAgentGraphWorkflowTemplate.ApiVersion.
+type SingleAgentGraphWorkflowTemplateApiVersion string
+
+// SingleAgentGraphWorkflowTemplateKind defines model for SingleAgentGraphWorkflowTemplate.Kind.
+type SingleAgentGraphWorkflowTemplateKind string
+
+// TemplateMetadata defines model for TemplateMetadata.
+type TemplateMetadata struct {
+	Description *string `json:"description,omitempty"`
+	Name        string  `json:"name"`
+}
+
+// Voice defines model for Voice.
+type Voice struct {
+	CreatedAt   time.Time `json:"created_at"`
+	Description *string   `json:"description,omitempty"`
+
+	// Id Global voice identifier
+	Id       VoiceID       `json:"id"`
+	Name     *string       `json:"name,omitempty"`
+	Provider VoiceProvider `json:"provider"`
+
+	// ProviderVoiceId Upstream provider voice identifier. Present for synced voices.
+	ProviderVoiceId *string `json:"provider_voice_id,omitempty"`
+
+	// ProviderVoiceType Provider-specific voice type
+	ProviderVoiceType *string                 `json:"provider_voice_type,omitempty"`
+	Raw               *map[string]interface{} `json:"raw,omitempty"`
+
+	// Source How the voice entered the global catalog
+	Source    VoiceSource `json:"source"`
+	SyncedAt  *time.Time  `json:"synced_at,omitempty"`
+	UpdatedAt time.Time   `json:"updated_at"`
+}
+
+// VoiceID Global voice identifier
+type VoiceID = string
+
+// VoiceProvider defines model for VoiceProvider.
+type VoiceProvider struct {
+	// Kind Voice provider kind
+	Kind VoiceProviderKind `json:"kind"`
+
+	// Name Voice provider instance name
+	Name VoiceProviderName `json:"name"`
+}
+
+// VoiceProviderKind Voice provider kind
+type VoiceProviderKind = string
+
+// VoiceProviderName Voice provider instance name
+type VoiceProviderName = string
+
+// VoiceSource How the voice entered the global catalog
+type VoiceSource string
+
+// WorkflowTemplateDocument defines model for WorkflowTemplateDocument.
+type WorkflowTemplateDocument struct {
+	union json.RawMessage
+}
+
+// Workspace defines model for Workspace.
+type Workspace struct {
+	CreatedAt time.Time `json:"created_at"`
+
+	// Name Workspace name
+	Name       WorkspaceName           `json:"name"`
+	Parameters *map[string]interface{} `json:"parameters,omitempty"`
+	UpdatedAt  time.Time               `json:"updated_at"`
+
+	// WorkspaceTemplateName Workspace template name
+	WorkspaceTemplateName WorkspaceTemplateName `json:"workspace_template_name"`
+}
+
+// WorkspaceName Workspace name
+type WorkspaceName = string
+
+// WorkspaceTemplateName Workspace template name
+type WorkspaceTemplateName = string
+
+// AsSingleAgentGraphWorkflowTemplate returns the union data inside the WorkflowTemplateDocument as a SingleAgentGraphWorkflowTemplate
+func (t WorkflowTemplateDocument) AsSingleAgentGraphWorkflowTemplate() (SingleAgentGraphWorkflowTemplate, error) {
+	var body SingleAgentGraphWorkflowTemplate
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromSingleAgentGraphWorkflowTemplate overwrites any union data inside the WorkflowTemplateDocument as the provided SingleAgentGraphWorkflowTemplate
+func (t *WorkflowTemplateDocument) FromSingleAgentGraphWorkflowTemplate(v SingleAgentGraphWorkflowTemplate) error {
+	v.Kind = "SingleAgentGraphWorkflowTemplate"
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeSingleAgentGraphWorkflowTemplate performs a merge with any union data inside the WorkflowTemplateDocument, using the provided SingleAgentGraphWorkflowTemplate
+func (t *WorkflowTemplateDocument) MergeSingleAgentGraphWorkflowTemplate(v SingleAgentGraphWorkflowTemplate) error {
+	v.Kind = "SingleAgentGraphWorkflowTemplate"
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsMultiAgentGraphWorkflowTemplate returns the union data inside the WorkflowTemplateDocument as a MultiAgentGraphWorkflowTemplate
+func (t WorkflowTemplateDocument) AsMultiAgentGraphWorkflowTemplate() (MultiAgentGraphWorkflowTemplate, error) {
+	var body MultiAgentGraphWorkflowTemplate
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromMultiAgentGraphWorkflowTemplate overwrites any union data inside the WorkflowTemplateDocument as the provided MultiAgentGraphWorkflowTemplate
+func (t *WorkflowTemplateDocument) FromMultiAgentGraphWorkflowTemplate(v MultiAgentGraphWorkflowTemplate) error {
+	v.Kind = "MultiAgentGraphWorkflowTemplate"
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeMultiAgentGraphWorkflowTemplate performs a merge with any union data inside the WorkflowTemplateDocument, using the provided MultiAgentGraphWorkflowTemplate
+func (t *WorkflowTemplateDocument) MergeMultiAgentGraphWorkflowTemplate(v MultiAgentGraphWorkflowTemplate) error {
+	v.Kind = "MultiAgentGraphWorkflowTemplate"
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+func (t WorkflowTemplateDocument) Discriminator() (string, error) {
+	var discriminator struct {
+		Discriminator string `json:"kind"`
+	}
+	err := json.Unmarshal(t.union, &discriminator)
+	return discriminator.Discriminator, err
+}
+
+func (t WorkflowTemplateDocument) ValueByDiscriminator() (interface{}, error) {
+	discriminator, err := t.Discriminator()
+	if err != nil {
+		return nil, err
+	}
+	switch discriminator {
+	case "MultiAgentGraphWorkflowTemplate":
+		return t.AsMultiAgentGraphWorkflowTemplate()
+	case "SingleAgentGraphWorkflowTemplate":
+		return t.AsSingleAgentGraphWorkflowTemplate()
+	default:
+		return nil, errors.New("unknown discriminator value: " + discriminator)
+	}
+}
+
+func (t WorkflowTemplateDocument) MarshalJSON() ([]byte, error) {
+	b, err := t.union.MarshalJSON()
+	return b, err
+}
+
+func (t *WorkflowTemplateDocument) UnmarshalJSON(b []byte) error {
+	err := t.union.UnmarshalJSON(b)
+	return err
 }

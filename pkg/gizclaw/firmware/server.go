@@ -69,7 +69,7 @@ func (s *Server) ListDepots(_ context.Context, _ adminservice.ListDepotsRequestO
 	if err != nil {
 		return adminservice.ListDepots500JSONResponse(adminError("DIRECTORY_SCAN_FAILED", err.Error())), nil
 	}
-	items := make([]adminservice.Depot, 0, len(names))
+	items := make([]apitypes.Depot, 0, len(names))
 	for _, name := range names {
 		depot, err := s.scanDepot(name)
 		if err != nil {

@@ -31,10 +31,10 @@ const gearPeerMixerFormat = pcm.L16Mono16K
 const gearPeerOpusFrameDuration = 20 * time.Millisecond
 
 // GearPeer is the in-memory runtime peer for one active gear.
-// It wraps the existing GearService bundle and serves one live conn at a time.
+// It wraps the existing PeerService bundle and serves one live conn at a time.
 type GearPeer struct {
 	Conn    *giznet.Conn
-	Service *GearService
+	Service *PeerService
 
 	closeOnce              sync.Once
 	mixer                  *pcm.Mixer
@@ -52,7 +52,7 @@ func (h *GearPeer) CreateAudioTrack(opts ...pcm.TrackOption) (pcm.Track, *pcm.Tr
 	return mx.CreateTrack(opts...)
 }
 
-// serve proxies to the existing GearService implementation for one live conn.
+// serve proxies to the existing PeerService implementation for one live conn.
 func (h *GearPeer) serve() error {
 	if h == nil {
 		return ErrNilGearPeer
