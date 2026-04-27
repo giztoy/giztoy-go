@@ -5,8 +5,10 @@ import { Cpu, Info, RadioTower, Settings2 } from "lucide-react";
 
 import { expectData, toMessage } from "../../packages/components/api";
 import { Badge } from "../../packages/components/badge";
+import { NoticeBanner } from "../../packages/components/banners";
 import { Button } from "../../packages/components/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../packages/components/card";
+import { EmptyState } from "../../packages/components/empty-state";
 import { Skeleton } from "../../packages/components/skeleton";
 import { cn } from "../../packages/components/utils";
 import { getConfig, getInfo, getOta } from "../../packages/gearservice";
@@ -206,32 +208,6 @@ function ActionIcon({ id }: { id: string }): JSX.Element {
     default:
       return <Info className="size-4" />;
   }
-}
-
-function EmptyState({
-  description,
-  title,
-}: {
-  description: string;
-  title: string;
-}): JSX.Element {
-  return (
-    <div className="flex min-h-56 flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-border bg-muted/20 px-6 py-10 text-center">
-      <div className="text-base font-medium">{title}</div>
-      <p className="max-w-md text-sm leading-6 text-muted-foreground">{description}</p>
-    </div>
-  );
-}
-
-function ErrorBanner({ message }: { message: string }): JSX.Element {
-  return <div className="rounded-lg border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">{message}</div>;
-}
-
-function NoticeBanner({ message, tone }: NoticeState): JSX.Element {
-  if (tone === "error") {
-    return <ErrorBanner message={message} />;
-  }
-  return <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{message}</div>;
 }
 
 const root = document.querySelector<HTMLElement>("#app");

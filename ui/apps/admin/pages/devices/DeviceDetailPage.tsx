@@ -21,12 +21,12 @@ import {
   type GearRole,
 } from "../../../../packages/adminservice";
 
-import { DetailBlock } from "../../components/detail-block";
-import { ErrorBanner, NoticeBanner } from "../../components/banners";
-import { EmptyState } from "../../components/empty-state";
-import { FormField } from "../../components/form-field";
-import { PageBreadcrumb } from "../../components/page-breadcrumb";
-import { StatusBadge } from "../../components/status-badge";
+import { DetailBlock } from "../../../../packages/components/detail-block";
+import { ErrorBanner, NoticeBanner } from "../../../../packages/components/banners";
+import { EmptyState } from "../../../../packages/components/empty-state";
+import { FormField } from "../../../../packages/components/form-field";
+import { PageBreadcrumb } from "../../../../packages/components/page-breadcrumb";
+import { StatusBadge } from "../../../../packages/components/status-badge";
 import { useDeviceDetail } from "../../hooks/useDeviceDetail";
 import { deviceTitle, formatDate, formatShortKey } from "../../lib/format";
 

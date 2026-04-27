@@ -4,8 +4,8 @@ import { Link } from "react-router-dom";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../../../packages/components/card";
 
-import { EmptyState } from "../../components/empty-state";
-import { PageBreadcrumb } from "../../components/page-breadcrumb";
+import { EmptyState } from "../../../../packages/components/empty-state";
+import { PageBreadcrumb } from "../../../../packages/components/page-breadcrumb";
 
 function FutureModule({
   description,

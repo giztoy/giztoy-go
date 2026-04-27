@@ -1,0 +1,14 @@
+{
+  "registration_token": "",
+  "device": {
+    "name": "Seeded UI Device",
+    "sn": "ui-device-sn",
+    "hardware": {
+      "manufacturer": "GizClaw",
+      "model": "UI Device Harness",
+      "hardware_revision": "rev-device",
+      "depot": "ui-seed-depot",
+      "firmware_semver": "1.0.0"
+    }
+  }
+}

@@ -8,9 +8,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from ".
 import { expectData } from "../../../../packages/components/api";
 import { listMiniMaxTenants, type MiniMaxTenant } from "../../../../packages/adminservice";
 
-import { ErrorBanner } from "../../components/banners";
-import { EmptyState } from "../../components/empty-state";
-import { PageBreadcrumb } from "../../components/page-breadcrumb";
+import { ErrorBanner } from "../../../../packages/components/banners";
+import { EmptyState } from "../../../../packages/components/empty-state";
+import { PageBreadcrumb } from "../../../../packages/components/page-breadcrumb";
 import { useCursorListPage } from "../../hooks/useCursorListPage";
 import { formatDate, formatValue } from "../../lib/format";
 

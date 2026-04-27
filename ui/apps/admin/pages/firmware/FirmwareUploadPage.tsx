@@ -9,9 +9,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../..
 import { Input } from "../../../../packages/components/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../../packages/components/select";
 
-import { ErrorBanner, NoticeBanner } from "../../components/banners";
-import { FormField } from "../../components/form-field";
-import { PageBreadcrumb } from "../../components/page-breadcrumb";
+import { ErrorBanner, NoticeBanner } from "../../../../packages/components/banners";
+import { FormField } from "../../../../packages/components/form-field";
+import { PageBreadcrumb } from "../../../../packages/components/page-breadcrumb";
 
 const CHANNEL_OPTIONS = ["stable", "beta", "testing"] as const;
 

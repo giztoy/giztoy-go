@@ -11,11 +11,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from ".
 
 import { putDepotInfo, releaseDepot, rollbackDepot, type DepotInfo as AdminDepotInfo } from "../../../../packages/adminservice";
 
-import { ErrorBanner, NoticeBanner } from "../../components/banners";
-import { DetailBlock } from "../../components/detail-block";
-import { EmptyState } from "../../components/empty-state";
-import { FormField } from "../../components/form-field";
-import { PageBreadcrumb } from "../../components/page-breadcrumb";
+import { ErrorBanner, NoticeBanner } from "../../../../packages/components/banners";
+import { DetailBlock } from "../../../../packages/components/detail-block";
+import { EmptyState } from "../../../../packages/components/empty-state";
+import { FormField } from "../../../../packages/components/form-field";
+import { PageBreadcrumb } from "../../../../packages/components/page-breadcrumb";
 import { useDepotDetail } from "../../hooks/useDepotDetail";
 import { canReleaseDepot, canRollbackDepot, depotActionHint } from "../../lib/firmware-helpers";
 import { formatRelease } from "../../lib/format";

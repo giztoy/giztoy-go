@@ -7,8 +7,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../..
 import { Skeleton } from "../../../../packages/components/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../../../packages/components/table";
 
-import { EmptyState } from "../../components/empty-state";
-import { StatusBadge } from "../../components/status-badge";
+import { EmptyState } from "../../../../packages/components/empty-state";
+import { StatusBadge } from "../../../../packages/components/status-badge";
 import { useOverviewData } from "../../hooks/useOverviewData";
 import { formatRelease, formatServerTime, formatShortKey } from "../../lib/format";
 

@@ -1,3 +1,4 @@
+import * as React from "react";
 import { Link } from "react-router-dom";
 
 import {
@@ -7,16 +8,20 @@ import {
   BreadcrumbList,
   BreadcrumbPage,
   BreadcrumbSeparator,
-} from "../../../packages/components/breadcrumb";
+} from "./breadcrumb";
 
 type BreadcrumbEntry = {
   href?: string;
   label: string;
 };
 
-export function PageBreadcrumb({ items }: { items: BreadcrumbEntry[] }): JSX.Element {
-  return (
-    <Breadcrumb>
+interface PageBreadcrumbProps extends React.ComponentPropsWithoutRef<typeof Breadcrumb> {
+  items: BreadcrumbEntry[];
+}
+
+const PageBreadcrumb = React.forwardRef<HTMLElement, PageBreadcrumbProps>(
+  ({ items, ...props }, ref) => (
+    <Breadcrumb ref={ref} {...props}>
       <BreadcrumbList>
         {items.map((item, index) => {
           const isLast = index === items.length - 1;
@@ -36,5 +41,9 @@ export function PageBreadcrumb({ items }: { items: BreadcrumbEntry[] }): JSX.Ele
         })}
       </BreadcrumbList>
     </Breadcrumb>
-  );
-}
+  ),
+);
+PageBreadcrumb.displayName = "PageBreadcrumb";
+
+export { PageBreadcrumb };
+export type { BreadcrumbEntry };

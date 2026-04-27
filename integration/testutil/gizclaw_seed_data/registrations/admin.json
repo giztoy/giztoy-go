@@ -1,0 +1,14 @@
+{
+  "registration_token": "admin_default",
+  "device": {
+    "name": "Seeded UI Admin",
+    "sn": "ui-admin-sn",
+    "hardware": {
+      "manufacturer": "GizClaw",
+      "model": "Admin Harness",
+      "hardware_revision": "rev-admin",
+      "depot": "ui-seed-depot",
+      "firmware_semver": "1.0.0"
+    }
+  }
+}

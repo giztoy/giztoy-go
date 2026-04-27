@@ -11,10 +11,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from ".
 
 import { putChannel } from "../../../../packages/adminservice";
 
-import { ErrorBanner, NoticeBanner } from "../../components/banners";
-import { EmptyState } from "../../components/empty-state";
-import { FormField } from "../../components/form-field";
-import { PageBreadcrumb } from "../../components/page-breadcrumb";
+import { ErrorBanner, NoticeBanner } from "../../../../packages/components/banners";
+import { EmptyState } from "../../../../packages/components/empty-state";
+import { FormField } from "../../../../packages/components/form-field";
+import { PageBreadcrumb } from "../../../../packages/components/page-breadcrumb";
 import { useChannelDetail } from "../../hooks/useChannelDetail";
 import { formatRelease } from "../../lib/format";
 

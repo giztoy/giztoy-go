@@ -1,0 +1,16 @@
+{
+  "apiVersion": "gizclaw.admin/v1alpha1",
+  "kind": "WorkspaceTemplate",
+  "metadata": {
+    "name": "ui-seed-template"
+  },
+  "spec": {
+    "apiVersion": "gizclaw.flowcraft/v1alpha1",
+    "kind": "SingleAgentGraphWorkflowTemplate",
+    "metadata": {
+      "name": "ui-seed-template",
+      "description": "Seeded workspace template for UI real-service tests"
+    },
+    "spec": {}
+  }
+}

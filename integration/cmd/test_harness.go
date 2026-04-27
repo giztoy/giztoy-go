@@ -5,6 +5,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
+	"net"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -55,6 +58,7 @@ type Harness struct {
 	serverCmd       *exec.Cmd
 	serverLog       *os.File
 	serverWaitCh    chan error
+	extraProcesses  []*managedProcess
 }
 
 type Result struct {
@@ -71,6 +75,14 @@ type cliContextConfig struct {
 	} `yaml:"server"`
 }
 
+type managedProcess struct {
+	name    string
+	cmd     *exec.Cmd
+	log     *os.File
+	waitCh  chan error
+	logPath string
+}
+
 func (r Result) MustSucceed(t testing.TB) {
 	t.Helper()
 	if r.Err == nil {
@@ -82,8 +94,22 @@ func (r Result) MustSucceed(t testing.TB) {
 func NewHarness(t testing.TB, story string) *Harness {
 	t.Helper()
 
+	return NewHarnessForRoot(t, "integration/cmd", story)
+}
+
+func NewHarnessForRoot(t testing.TB, storyRoot, story string) *Harness {
+	t.Helper()
+
+	return NewPersistentHarnessForRoot(t, storyRoot, story, "")
+}
+
+func NewPersistentHarnessForRoot(t testing.TB, storyRoot, story, sandboxDir string) *Harness {
+	t.Helper()
+
 	repoRoot := mustRepoRoot(t)
-	sandboxDir := t.TempDir()
+	if sandboxDir == "" {
+		sandboxDir = t.TempDir()
+	}
 	homeDir := filepath.Join(sandboxDir, "home")
 	xdgConfigHome := filepath.Join(sandboxDir, "xdg-config")
 	serverWorkspace := filepath.Join(sandboxDir, "server-workspace")
@@ -97,7 +123,7 @@ func NewHarness(t testing.TB, story string) *Harness {
 	h := &Harness{
 		t:               t,
 		RepoRoot:        repoRoot,
-		StoryDir:        filepath.Join(repoRoot, "integration", "cmd", story),
+		StoryDir:        filepath.Join(repoRoot, storyRoot, story),
 		SandboxDir:      sandboxDir,
 		HomeDir:         homeDir,
 		XDGConfigHome:   xdgConfigHome,
@@ -105,7 +131,7 @@ func NewHarness(t testing.TB, story string) *Harness {
 		LogsDir:         logsDir,
 		BinaryPath:      mustBuildCLI(t, repoRoot),
 	}
-	t.Cleanup(func() { h.stopServer() })
+	t.Cleanup(func() { h.StopAllProcesses() })
 	return h
 }
 
@@ -138,6 +164,15 @@ func (h *Harness) RestartServer() {
 
 func (h *Harness) StopServer() {
 	h.t.Helper()
+	h.stopServer()
+}
+
+func (h *Harness) StopAllProcesses() {
+	h.t.Helper()
+	for i := len(h.extraProcesses) - 1; i >= 0; i-- {
+		h.extraProcesses[i].stop(h.t)
+	}
+	h.extraProcesses = nil
 	h.stopServer()
 }
 
@@ -187,6 +222,33 @@ func (h *Harness) CreateContextWith(name, serverAddr, serverPublicKey string) Re
 		"--server", serverAddr,
 		"--pubkey", serverPublicKey,
 	)
+}
+
+func (h *Harness) EnsureContext(name string) Result {
+	h.t.Helper()
+
+	contextDir := filepath.Join(h.contextRoot(), name)
+	identityPath := filepath.Join(contextDir, "identity.key")
+	if _, err := os.Stat(identityPath); os.IsNotExist(err) {
+		result := h.CreateContext(name)
+		if result.Err != nil {
+			return result
+		}
+	} else if err != nil {
+		return Result{Args: []string{"ensure-context", name}, Err: err, Stderr: err.Error()}
+	}
+
+	cfg := cliContextConfig{}
+	cfg.Server.Address = h.ServerAddr
+	cfg.Server.PublicKey = h.ServerPublicKey
+	data, err := yaml.Marshal(cfg)
+	if err != nil {
+		return Result{Args: []string{"ensure-context", name}, Err: err, Stderr: err.Error()}
+	}
+	if err := os.WriteFile(filepath.Join(contextDir, "config.yaml"), data, 0o644); err != nil {
+		return Result{Args: []string{"ensure-context", name}, Err: err, Stderr: err.Error()}
+	}
+	return h.UseContext(name)
 }
 
 func (h *Harness) RegisterContext(name, token string, extraArgs ...string) Result {
@@ -301,6 +363,46 @@ func (h *Harness) ConnectClientFromContext(name string) *gizclaw.Client {
 		h.t.Fatalf("connect client from context %q: %v", name, err)
 	}
 	return client
+}
+
+func (h *Harness) StartUI(kind, contextName string) string {
+	h.t.Helper()
+
+	listenAddr := freeTCPAddr(h.t)
+	logPath := filepath.Join(h.LogsDir, kind+"-ui.log")
+	logFile, err := os.Create(logPath)
+	if err != nil {
+		h.t.Fatalf("create %s UI log: %v", kind, err)
+	}
+
+	cmd := exec.Command(h.BinaryPath, kind, "--context", contextName, "--listen", listenAddr)
+	cmd.Dir = h.RepoRoot
+	cmd.Env = h.baseEnv()
+	cmd.Stdout = logFile
+	cmd.Stderr = logFile
+	if err := cmd.Start(); err != nil {
+		_ = logFile.Close()
+		h.t.Fatalf("start %s UI: %v", kind, err)
+	}
+
+	process := &managedProcess{
+		name:    kind + "-ui",
+		cmd:     cmd,
+		log:     logFile,
+		waitCh:  make(chan error, 1),
+		logPath: logPath,
+	}
+	go func() {
+		process.waitCh <- cmd.Wait()
+		close(process.waitCh)
+	}()
+	h.extraProcesses = append(h.extraProcesses, process)
+
+	url := "http://" + listenAddr
+	if err := waitForHTTP(url, process); err != nil {
+		h.t.Fatalf("wait for %s UI: %v\nlog: %s", kind, err, logPath)
+	}
+	return url
 }
 
 func (h *Harness) RunCLI(args ...string) Result {
@@ -551,6 +653,73 @@ func (h *Harness) stopServer() {
 			<-h.serverWaitCh
 		}
 	}
+}
+
+func (p *managedProcess) stop(t testing.TB) {
+	t.Helper()
+	defer func() {
+		if p.log != nil {
+			_ = p.log.Close()
+		}
+	}()
+	if p.cmd == nil || p.cmd.Process == nil {
+		return
+	}
+	if p.cmd.ProcessState != nil && p.cmd.ProcessState.Exited() {
+		return
+	}
+	_ = p.cmd.Process.Signal(os.Interrupt)
+	select {
+	case <-p.waitCh:
+	case <-time.After(serverStopTimeout):
+		_ = p.cmd.Process.Kill()
+		<-p.waitCh
+	}
+}
+
+func (p *managedProcess) errorIfExited() error {
+	select {
+	case err, ok := <-p.waitCh:
+		if !ok {
+			return fmt.Errorf("%s exited before readiness", p.name)
+		}
+		if err != nil {
+			return fmt.Errorf("%s exited early: %w", p.name, err)
+		}
+		return fmt.Errorf("%s exited before readiness", p.name)
+	default:
+		return nil
+	}
+}
+
+func waitForHTTP(url string, process *managedProcess) error {
+	client := &http.Client{Timeout: itest.ProbeTimeout}
+	return itest.WaitUntil(itest.ReadyTimeout, func() error {
+		if err := process.errorIfExited(); err != nil {
+			return err
+		}
+		resp, err := client.Get(url)
+		if err != nil {
+			return err
+		}
+		_, _ = io.Copy(io.Discard, resp.Body)
+		_ = resp.Body.Close()
+		if resp.StatusCode != http.StatusOK {
+			return fmt.Errorf("GET %s status %d", url, resp.StatusCode)
+		}
+		return nil
+	})
+}
+
+func freeTCPAddr(t testing.TB) string {
+	t.Helper()
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("allocate TCP addr: %v", err)
+	}
+	addr := listener.Addr().String()
+	_ = listener.Close()
+	return addr
 }
 
 func mustRepoRoot(t testing.TB) string {

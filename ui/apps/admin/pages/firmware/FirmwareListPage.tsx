@@ -6,9 +6,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../..
 import { Skeleton } from "../../../../packages/components/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../../../packages/components/table";
 
-import { EmptyState } from "../../components/empty-state";
-import { ErrorBanner } from "../../components/banners";
-import { PageBreadcrumb } from "../../components/page-breadcrumb";
+import { EmptyState } from "../../../../packages/components/empty-state";
+import { ErrorBanner } from "../../../../packages/components/banners";
+import { PageBreadcrumb } from "../../../../packages/components/page-breadcrumb";
 import { useFirmwareList } from "../../hooks/useFirmwareList";
 import { formatRelease } from "../../lib/format";
 import { canReleaseDepot, canRollbackDepot, depotActionHint } from "../../lib/firmware-helpers";

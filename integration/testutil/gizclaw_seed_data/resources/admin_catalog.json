@@ -1,0 +1,61 @@
+{
+  "apiVersion": "gizclaw.admin/v1alpha1",
+  "kind": "ResourceList",
+  "metadata": {
+    "name": "ui-real-service-catalog"
+  },
+  "spec": {
+    "items": [
+      {
+        "apiVersion": "gizclaw.admin/v1alpha1",
+        "kind": "Credential",
+        "metadata": {
+          "name": "ui-seed-credential"
+        },
+        "spec": {
+          "provider": "minimax",
+          "method": "api_key",
+          "description": "Seeded credential for UI real-service tests",
+          "body": {
+            "api_key": "sk-ui-seed"
+          }
+        }
+      },
+      {
+        "apiVersion": "gizclaw.admin/v1alpha1",
+        "kind": "MiniMaxTenant",
+        "metadata": {
+          "name": "ui-seed-tenant"
+        },
+        "spec": {
+          "app_id": "ui-seed-app",
+          "group_id": "ui-seed-group",
+          "credential_name": "ui-seed-credential",
+          "base_url": "https://example.invalid",
+          "description": "Seeded MiniMax tenant for UI real-service tests"
+        }
+      },
+      {
+        "apiVersion": "gizclaw.admin/v1alpha1",
+        "kind": "Voice",
+        "metadata": {
+          "name": "ui-seed-voice"
+        },
+        "spec": {
+          "source": "manual",
+          "provider": {
+            "kind": "minimax",
+            "name": "ui-seed-tenant"
+          },
+          "name": "Seeded UI Voice",
+          "description": "Seeded voice for UI real-service tests",
+          "provider_voice_id": "provider-ui-seed-voice",
+          "provider_voice_type": "voice_cloning",
+          "raw": {
+            "origin": "integration-seed"
+          }
+        }
+      }
+    ]
+  }
+}

@@ -8,9 +8,9 @@ import { Input } from "../../../../packages/components/input";
 import { Skeleton } from "../../../../packages/components/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../../../packages/components/table";
 
-import { EmptyState } from "../../components/empty-state";
-import { PageBreadcrumb } from "../../components/page-breadcrumb";
-import { StatusBadge } from "../../components/status-badge";
+import { EmptyState } from "../../../../packages/components/empty-state";
+import { PageBreadcrumb } from "../../../../packages/components/page-breadcrumb";
+import { StatusBadge } from "../../../../packages/components/status-badge";
 import { useDevicesPage } from "../../hooks/useDevicesPage";
 import { deviceTitle, formatDate } from "../../lib/format";
 

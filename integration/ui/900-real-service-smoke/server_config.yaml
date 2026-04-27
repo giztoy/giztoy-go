@@ -1,0 +1,16 @@
+listen: "__LISTEN_ADDR__"
+stores:
+  memory:
+    kind: keyvalue
+    backend: memory
+  firmware:
+    kind: filestore
+    backend: filesystem
+    dir: firmware
+gears:
+  store: memory
+  registration-tokens:
+    admin_default:
+      role: admin
+depots:
+  store: firmware

@@ -1,10 +1,12 @@
 ---
+
 name: gizclaw-cli
 version: 1.0.0
 description: "Routes GizClaw CLI tasks to the right command-specific skill and defines shared CLI rules. Use when the user asks generally about gizclaw CLI, or when choosing between context, server, admin, and play commands."
 metadata:
   requires:
-    bins: ["gizclaw"]
+bins: ["gizclaw"]
+
 ---
 
 ## cliHelp: "gizclaw --help"
@@ -19,24 +21,26 @@ switch to the most specific skill below.
 1. Identify the command family from the user's request.
 2. Read the corresponding command-specific skill.
 3. Use the installed `gizclaw` binary. If unavailable inside this repository,
-   use `go run ./cmd/gizclaw`.
+  use `go run ./cmd/gizclaw`.
 4. Run the narrowest relevant `--help` only when exact flags are unclear.
 
 ## Skill Routing
 
-| User intent | Read this skill |
-| --- | --- |
-| Create/list/switch/inspect contexts, ping, server-info | `../gizclaw-context/SKILL.md` |
-| Start foreground server, service install/start/stop, workspace config | `../gizclaw-server/SKILL.md` |
-| Manage registered devices/gears | `../gizclaw-admin-gears/SKILL.md` |
-| Manage firmware depots, channels, release, rollback | `../gizclaw-admin-firmware/SKILL.md` |
-| Apply/show/delete declarative admin resources | `../gizclaw-admin-resources/SKILL.md` |
-| Read provider credentials | `../gizclaw-admin-credentials/SKILL.md` |
-| Read MiniMax tenants | `../gizclaw-admin-minimax-tenants/SKILL.md` |
-| Read global voices | `../gizclaw-admin-voices/SKILL.md` |
-| Read workspace template documents | `../gizclaw-admin-workspace-templates/SKILL.md` |
-| Read workspace instances | `../gizclaw-admin-workspaces/SKILL.md` |
-| Open Play UI | `../gizclaw-play/SKILL.md` |
+
+| User intent                                                           | Read this skill                                 |
+| --------------------------------------------------------------------- | ----------------------------------------------- |
+| Create/list/switch/inspect contexts, ping, server-info                | `../gizclaw-context/SKILL.md`                   |
+| Start foreground server, service install/start/stop, workspace config | `../gizclaw-server/SKILL.md`                    |
+| Manage registered devices/gears                                       | `../gizclaw-admin-gears/SKILL.md`               |
+| Manage firmware depots, channels, release, rollback                   | `../gizclaw-admin-firmware/SKILL.md`            |
+| Apply/show/delete declarative admin resources                         | `../gizclaw-admin-resources/SKILL.md`           |
+| Read provider credentials                                             | `../gizclaw-admin-credentials/SKILL.md`         |
+| Read MiniMax tenants                                                  | `../gizclaw-admin-minimax-tenants/SKILL.md`     |
+| Read global voices                                                    | `../gizclaw-admin-voices/SKILL.md`              |
+| Read workspace template documents                                     | `../gizclaw-admin-workspace-templates/SKILL.md` |
+| Read workspace instances                                              | `../gizclaw-admin-workspaces/SKILL.md`          |
+| Open Play UI                                                          | `../gizclaw-play/SKILL.md`                      |
+
 
 ## Shared Rules
 

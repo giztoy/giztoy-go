@@ -26,4 +26,5 @@ coverage.out
 # Local workspace metadata
 .agents/
 .cursor/
+skills-lock.json
 openteam/

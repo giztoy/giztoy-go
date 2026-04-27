@@ -1,0 +1,14 @@
+{
+  "apiVersion": "gizclaw.admin/v1alpha1",
+  "kind": "Workspace",
+  "metadata": {
+    "name": "ui-seed-workspace"
+  },
+  "spec": {
+    "workspace_template_name": "ui-seed-template",
+    "parameters": {
+      "customer": "ui-real-service",
+      "locale": "en-US"
+    }
+  }
+}

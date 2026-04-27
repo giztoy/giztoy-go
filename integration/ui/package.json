@@ -1,0 +1,16 @@
+{
+  "name": "gizclaw-ui-integration",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "go test ./900-real-service-smoke",
+    "test:list": "playwright test --list",
+    "test:ui": "playwright test --ui",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.59.1",
+    "@types/node": "^24.10.1",
+    "typescript": "^6.0.2"
+  }
+}
