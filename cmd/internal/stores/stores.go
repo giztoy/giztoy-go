@@ -1,8 +1,6 @@
-// Package stores provides a configuration-driven registry that creates and
-// manages store instances (kv, vecstore, graph, sql, fs). Named stores are
-// defined in config.yaml under the top-level "stores:" key and eagerly
-// instantiated in New. The Stores guarantees that each named store is created
-// at most once and provides a single Close to release all resources.
+// Package stores provides a configuration-driven registry for logical stores.
+// Logical stores reference physical backends from cmd/internal/storage and can
+// expose scoped views such as prefixed KV stores.
 package stores
 
 import (
@@ -10,62 +8,109 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"os"
+	"path/filepath"
+	"strings"
 
+	"github.com/GizClaw/gizclaw-go/cmd/internal/storage"
 	"github.com/GizClaw/gizclaw-go/pkg/store/depotstore"
 	"github.com/GizClaw/gizclaw-go/pkg/store/graph"
 	"github.com/GizClaw/gizclaw-go/pkg/store/kv"
 	"github.com/GizClaw/gizclaw-go/pkg/store/vecstore"
-
-	_ "github.com/lib/pq"
-	_ "modernc.org/sqlite"
 )
 
-// Kind constants for the store category.
+// Kind constants for logical store categories.
 const (
-	KindKeyValue = "keyvalue"
-	KindVecStore = "vecstore"
-	KindGraph    = "graph"
-	KindFS       = "filestore"
-	KindSQL      = "sql"
+	KindKeyValue   = storage.KindKeyValue
+	KindVecStore   = storage.KindVecStore
+	KindGraph      = "graph"
+	KindDepotStore = storage.KindDepotStore
+	KindSQL        = storage.KindSQL
+
+	// KindFS is the legacy one-layer firmware store kind.
+	KindFS = storage.KindFS
 )
 
-// Config is the YAML representation of a single named store entry.
+// Config is the YAML representation of a single logical store entry.
 //
 //	stores:
-//	  my-badger:
+//	  gears:
 //	    kind: keyvalue
-//	    backend: badger
-//	    dir: badger-data
+//	    storage: main-kv
+//	    prefix: gears
 type Config struct {
-	Kind    string `yaml:"kind"`
-	Backend string `yaml:"backend"`
-	Dir     string `yaml:"dir"`
-	Store   string `yaml:"store"` // graph backend "kv": reference to a keyvalue store
-	Dim     int    `yaml:"dim"`   // vecstore: vector dimension (reserved)
-	DSN     string `yaml:"dsn"`   // sql: connection string (reserved)
+	Kind          string      `yaml:"kind"`
+	Storage       string      `yaml:"storage"`  // reference to a physical storage backend
+	Prefix        string      `yaml:"prefix"`   // slash-separated logical key prefix for KV stores
+	BaseDir       string      `yaml:"base-dir"` // legacy relative directory under a filesystem-backed depot store
+	DepotFS       *DepotFSRef `yaml:"depot-fs"`
+	LegacyDepotFS *DepotFSRef `yaml:"depot-kvfs"`
+
+	Backend string `yaml:"backend"` // legacy backend field; graph backend is still logical
+	Dir     string `yaml:"dir"`     // legacy physical dir field
+	Store   string `yaml:"store"`   // graph backend "kv": reference to a logical keyvalue store
+	Dim     int    `yaml:"dim"`     // legacy vecstore dimension field
+	DSN     string `yaml:"dsn"`     // legacy sql connection string field
 }
 
-// Stores holds named store instances created eagerly by New.
+type DepotFSRef struct {
+	Filesystem storage.FilesystemRef `yaml:"filesystem"`
+}
+
+// Stores holds named logical store instances created eagerly by NewWithStorage.
 type Stores struct {
-	kvs     map[string]kv.Store
-	vecs    map[string]vecstore.Index
-	graphs  map[string]graph.Graph
-	sqls    map[string]*sql.DB
-	fss     map[string]depotstore.Dir
-	closers []io.Closer
+	storage      *storage.Storage
+	ownsStorage  bool
+	kvs          map[string]kv.Store
+	vecs         map[string]vecstore.Index
+	graphs       map[string]graph.Graph
+	sqls         map[string]*sql.DB
+	depots       map[string]depotstore.Store
+	logicClosers []io.Closer
 }
 
-// New creates a Stores instance and eagerly instantiates every configured
-// store. Dir fields are used as provided. Graph stores are created after all
-// other stores so that kv references are available.
+// New creates a Stores instance from the legacy one-layer config. New callers
+// should use NewWithStorage with a separate physical storage registry.
 func New(configs map[string]Config) (*Stores, error) {
+	physical, err := storage.New(legacyStorageConfigs(configs))
+	if err != nil {
+		return nil, err
+	}
+	s, err := NewWithStorage(physical, legacyStoreConfigs(configs))
+	if err != nil {
+		_ = physical.Close()
+		return nil, err
+	}
+	s.ownsStorage = true
+	return s, nil
+}
+
+// NewWithOwnedStorage creates logical stores and transfers ownership of the
+// provided physical storage registry to the returned Stores.
+func NewWithOwnedStorage(physical *storage.Storage, configs map[string]Config) (*Stores, error) {
+	s, err := NewWithStorage(physical, configs)
+	if err != nil {
+		if physical == nil {
+			return nil, err
+		}
+		return nil, errors.Join(err, physical.Close())
+	}
+	s.ownsStorage = true
+	return s, nil
+}
+
+// NewWithStorage creates logical stores on top of already-opened physical
+// storage backends. The caller owns the physical storage lifecycle.
+func NewWithStorage(physical *storage.Storage, configs map[string]Config) (*Stores, error) {
+	if physical == nil && len(configs) > 0 {
+		return nil, fmt.Errorf("stores: storage registry is nil")
+	}
 	s := &Stores{
-		kvs:    make(map[string]kv.Store),
-		vecs:   make(map[string]vecstore.Index),
-		graphs: make(map[string]graph.Graph),
-		sqls:   make(map[string]*sql.DB),
-		fss:    make(map[string]depotstore.Dir),
+		storage: physical,
+		kvs:     make(map[string]kv.Store),
+		vecs:    make(map[string]vecstore.Index),
+		graphs:  make(map[string]graph.Graph),
+		sqls:    make(map[string]*sql.DB),
+		depots:  make(map[string]depotstore.Store),
 	}
 	ok := false
 	defer func() {
@@ -86,27 +131,24 @@ func New(configs map[string]Config) (*Stores, error) {
 				return nil, err
 			}
 			s.kvs[name] = st
-			s.closers = append(s.closers, st)
 		case KindVecStore:
 			st, err := s.newVecStore(name, cfg)
 			if err != nil {
 				return nil, err
 			}
 			s.vecs[name] = st
-			s.closers = append(s.closers, st)
 		case KindSQL:
 			st, err := s.newSQL(name, cfg)
 			if err != nil {
 				return nil, err
 			}
 			s.sqls[name] = st
-			s.closers = append(s.closers, st)
-		case KindFS:
-			st, err := s.newFS(name, cfg)
+		case KindDepotStore, KindFS:
+			st, err := s.newDepotStore(name, cfg)
 			if err != nil {
 				return nil, err
 			}
-			s.fss[name] = st
+			s.depots[name] = st
 		case KindGraph:
 			graphCfgs = append(graphCfgs, struct {
 				name string
@@ -123,7 +165,7 @@ func New(configs map[string]Config) (*Stores, error) {
 			return nil, err
 		}
 		s.graphs[g.name] = st
-		s.closers = append(s.closers, st)
+		s.logicClosers = append(s.logicClosers, st)
 	}
 
 	ok = true
@@ -166,54 +208,68 @@ func (r *Stores) SQL(name string) (*sql.DB, error) {
 	return s, nil
 }
 
-// FS returns the named depot store.
-func (r *Stores) FS(name string) (depotstore.Dir, error) {
-	s, ok := r.fss[name]
+// DepotStore returns the named depot store.
+func (r *Stores) DepotStore(name string) (depotstore.Store, error) {
+	s, ok := r.depots[name]
 	if !ok {
-		return "", fmt.Errorf("stores: filestore %q not found", name)
+		return nil, fmt.Errorf("stores: depotstore %q not found", name)
 	}
 	return s, nil
 }
 
-// Close releases all created stores in reverse creation order.
+// FS is the legacy accessor for firmware depot stores.
+func (r *Stores) FS(name string) (depotstore.Store, error) {
+	return r.DepotStore(name)
+}
+
+// Close releases logical stores, then any physical storage owned by this
+// registry. Stores created with NewWithStorage do not own physical storage.
 func (r *Stores) Close() error {
 	var errs []error
-	for i := len(r.closers) - 1; i >= 0; i-- {
-		if err := r.closers[i].Close(); err != nil {
+	for i := len(r.logicClosers) - 1; i >= 0; i-- {
+		if err := r.logicClosers[i].Close(); err != nil {
 			errs = append(errs, err)
 		}
 	}
-	r.closers = nil
+	r.logicClosers = nil
+	if r.ownsStorage && r.storage != nil {
+		if err := r.storage.Close(); err != nil {
+			errs = append(errs, err)
+		}
+		r.storage = nil
+	}
 	return errors.Join(errs...)
 }
 
 // --- factory methods ---
 
 func (r *Stores) newKV(name string, cfg Config) (kv.Store, error) {
-	switch cfg.Backend {
-	case "memory":
-		return kv.NewBadgerInMemory(nil)
-	case "badger":
-		if cfg.Dir == "" {
-			return nil, fmt.Errorf("stores: keyvalue %q (badger) requires dir", name)
-		}
-		dir := cfg.Dir
-		if err := os.MkdirAll(dir, 0o755); err != nil {
-			return nil, fmt.Errorf("stores: keyvalue %q mkdir: %w", name, err)
-		}
-		return kv.NewBadger(dir, nil)
-	default:
-		return nil, fmt.Errorf("stores: keyvalue %q unknown backend %q", name, cfg.Backend)
+	if cfg.Storage == "" {
+		return nil, fmt.Errorf("stores: keyvalue %q requires storage reference", name)
 	}
+	base, err := r.storage.KV(cfg.Storage)
+	if err != nil {
+		return nil, fmt.Errorf("stores: keyvalue %q resolve storage %q: %w", name, cfg.Storage, err)
+	}
+	prefix, err := parseKeyPrefix(cfg.Prefix)
+	if err != nil {
+		return nil, fmt.Errorf("stores: keyvalue %q prefix: %w", name, err)
+	}
+	if len(prefix) == 0 {
+		return base, nil
+	}
+	return kv.Prefixed(base, prefix), nil
 }
 
 func (r *Stores) newVecStore(name string, cfg Config) (vecstore.Index, error) {
-	switch cfg.Backend {
-	case "memory":
-		return vecstore.NewMemory(), nil
-	default:
-		return nil, fmt.Errorf("stores: vecstore %q unknown backend %q", name, cfg.Backend)
+	if cfg.Storage == "" {
+		return nil, fmt.Errorf("stores: vecstore %q requires storage reference", name)
 	}
+	st, err := r.storage.VecStore(cfg.Storage)
+	if err != nil {
+		return nil, fmt.Errorf("stores: vecstore %q resolve storage %q: %w", name, cfg.Storage, err)
+	}
+	return st, nil
 }
 
 func (r *Stores) newGraph(name string, cfg Config) (graph.Graph, error) {
@@ -226,42 +282,92 @@ func (r *Stores) newGraph(name string, cfg Config) (graph.Graph, error) {
 		if err != nil {
 			return nil, fmt.Errorf("stores: graph %q resolve kv %q: %w", name, cfg.Store, err)
 		}
-		return graph.NewKVGraph(kvStore, kv.Key{name}), nil
+		prefix, err := parseKeyPrefix(cfg.Prefix)
+		if err != nil {
+			return nil, fmt.Errorf("stores: graph %q prefix: %w", name, err)
+		}
+		if len(prefix) == 0 {
+			prefix = kv.Key{name}
+		}
+		return graph.NewKVGraph(kvStore, prefix), nil
 	default:
 		return nil, fmt.Errorf("stores: graph %q unknown backend %q", name, cfg.Backend)
 	}
 }
 
-func (r *Stores) newFS(name string, cfg Config) (depotstore.Dir, error) {
-	switch cfg.Backend {
-	case "filesystem":
-		if cfg.Dir == "" {
-			return "", fmt.Errorf("stores: filestore %q (filesystem) requires dir", name)
-		}
-		return depotstore.Dir(cfg.Dir), nil
+func (r *Stores) newDepotStore(name string, cfg Config) (depotstore.Store, error) {
+	if cfg.Storage == "" {
+		return nil, fmt.Errorf("stores: depotstore %q requires storage reference", name)
+	}
+	if cfg.Kind == KindFS {
+		return r.newLegacyDepotStore(name, cfg)
+	}
+	driver, err := r.storage.DepotDriver(cfg.Storage)
+	if err != nil {
+		return nil, fmt.Errorf("stores: depotstore %q resolve storage %q: %w", name, cfg.Storage, err)
+	}
+	switch driver {
+	case "depot-fs":
+		return r.newDepotFS(name, cfg)
 	default:
-		return "", fmt.Errorf("stores: filestore %q unknown backend %q", name, cfg.Backend)
+		return nil, fmt.Errorf("stores: depotstore %q unknown driver %q", name, driver)
 	}
 }
 
-func (r *Stores) newSQL(name string, cfg Config) (*sql.DB, error) {
-	if cfg.Backend == "" {
-		return nil, fmt.Errorf("stores: sql %q requires backend (driver name)", name)
-	}
-	dsn := cfg.DSN
-	if cfg.Backend == "sqlite" && dsn == "" && cfg.Dir != "" {
-		dsn = cfg.Dir
-	}
-	if dsn == "" {
-		return nil, fmt.Errorf("stores: sql %q requires dsn", name)
-	}
-	db, err := sql.Open(cfg.Backend, dsn)
+func (r *Stores) newLegacyDepotStore(name string, cfg Config) (depotstore.Store, error) {
+	st, err := r.storage.DepotStore(cfg.Storage)
 	if err != nil {
-		return nil, fmt.Errorf("stores: sql %q open: %w", name, err)
+		return nil, fmt.Errorf("stores: depotstore %q resolve storage %q: %w", name, cfg.Storage, err)
 	}
-	if err := db.Ping(); err != nil {
-		db.Close()
-		return nil, fmt.Errorf("stores: sql %q ping: %w", name, err)
+	if cfg.BaseDir == "" {
+		return st, nil
+	}
+	baseDir, err := cleanRelativeBaseDir(cfg.BaseDir)
+	if err != nil {
+		return nil, fmt.Errorf("stores: depotstore %q base-dir: %w", name, err)
+	}
+	if baseDir == "" {
+		return st, nil
+	}
+	if dir, ok := st.(depotstore.Dir); ok {
+		return depotstore.Dir(filepath.Join(string(dir), baseDir)), nil
+	}
+	return nil, fmt.Errorf("stores: depotstore %q base-dir requires filesystem-backed storage", name)
+}
+
+func (r *Stores) newDepotFS(name string, cfg Config) (depotstore.Store, error) {
+	ref := cfg.DepotFS
+	if ref == nil {
+		ref = cfg.LegacyDepotFS
+	}
+	if ref == nil {
+		return nil, fmt.Errorf("stores: depotstore %q requires depot-fs config", name)
+	}
+	fsRef := ref.Filesystem
+	if fsRef.Storage == "" {
+		return nil, fmt.Errorf("stores: depotstore %q depot-fs.filesystem requires storage reference", name)
+	}
+	files, err := r.storage.Filesystem(fsRef.Storage)
+	if err != nil {
+		return nil, fmt.Errorf("stores: depotstore %q resolve filesystem %q: %w", name, fsRef.Storage, err)
+	}
+	baseDir, err := cleanRelativeBaseDir(fsRef.BaseDir)
+	if err != nil {
+		return nil, fmt.Errorf("stores: depotstore %q filesystem base-dir: %w", name, err)
+	}
+	if baseDir != "" {
+		files = depotstore.Dir(filepath.Join(string(files), baseDir))
+	}
+	return files, nil
+}
+
+func (r *Stores) newSQL(name string, cfg Config) (*sql.DB, error) {
+	if cfg.Storage == "" {
+		return nil, fmt.Errorf("stores: sql %q requires storage reference", name)
+	}
+	db, err := r.storage.SQL(cfg.Storage)
+	if err != nil {
+		return nil, fmt.Errorf("stores: sql %q resolve storage %q: %w", name, cfg.Storage, err)
 	}
 	return db, nil
 }
@@ -272,4 +378,78 @@ func (r *Stores) kvByName(name string) (kv.Store, error) {
 		return nil, fmt.Errorf("stores: kv %q not found", name)
 	}
 	return s, nil
+}
+
+func legacyStorageConfigs(configs map[string]Config) map[string]storage.Config {
+	if len(configs) == 0 {
+		return nil
+	}
+	out := make(map[string]storage.Config, len(configs))
+	for name, cfg := range configs {
+		if cfg.Kind == KindGraph {
+			continue
+		}
+		out[name] = storage.Config{
+			Kind:    cfg.Kind,
+			Backend: cfg.Backend,
+			Dir:     cfg.Dir,
+			Dim:     cfg.Dim,
+			DSN:     cfg.DSN,
+		}
+	}
+	return out
+}
+
+func legacyStoreConfigs(configs map[string]Config) map[string]Config {
+	if len(configs) == 0 {
+		return nil
+	}
+	out := make(map[string]Config, len(configs))
+	for name, cfg := range configs {
+		if cfg.Kind != KindGraph && cfg.Storage == "" {
+			cfg.Storage = name
+		}
+		out[name] = cfg
+	}
+	return out
+}
+
+func parseKeyPrefix(path string) (kv.Key, error) {
+	if path == "" {
+		return nil, nil
+	}
+	path = strings.Trim(path, "/")
+	if path == "" {
+		return nil, nil
+	}
+	parts := strings.Split(path, "/")
+	key := make(kv.Key, 0, len(parts))
+	for _, part := range parts {
+		if part == "" {
+			return nil, fmt.Errorf("empty segment in %q", path)
+		}
+		if strings.Contains(part, ":") {
+			return nil, fmt.Errorf("segment %q contains ':'", part)
+		}
+		key = append(key, part)
+	}
+	return key, nil
+}
+
+func cleanRelativeBaseDir(path string) (string, error) {
+	path = strings.TrimSpace(path)
+	if path == "" {
+		return "", nil
+	}
+	clean := filepath.Clean(path)
+	if clean == "." {
+		return "", nil
+	}
+	if filepath.IsAbs(clean) {
+		return "", fmt.Errorf("%q must be relative", path)
+	}
+	if clean == ".." || strings.HasPrefix(clean, ".."+string(filepath.Separator)) {
+		return "", fmt.Errorf("%q escapes storage root", path)
+	}
+	return clean, nil
 }

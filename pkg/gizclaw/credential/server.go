@@ -15,8 +15,8 @@ import (
 )
 
 var (
-	credentialsRoot           = kv.Key{"credentials", "by-name"}
-	credentialsByProviderRoot = kv.Key{"credentials", "by-provider"}
+	credentialsRoot           = kv.Key{"by-name"}
+	credentialsByProviderRoot = kv.Key{"by-provider"}
 )
 
 const (

@@ -15,8 +15,8 @@ import (
 )
 
 var (
-	workspacesRoot = kv.Key{"workspaces", "by-name"}
-	templatesRoot  = kv.Key{"workspace-templates", "by-name"}
+	workspacesRoot = kv.Key{"by-name"}
+	templatesRoot  = kv.Key{"by-name"}
 )
 
 const (
@@ -25,7 +25,8 @@ const (
 )
 
 type Server struct {
-	Store kv.Store
+	Store         kv.Store
+	TemplateStore kv.Store
 }
 
 type WorkspaceAdminService interface {
@@ -67,7 +68,11 @@ func (s *Server) CreateWorkspace(ctx context.Context, request adminservice.Creat
 	if err != nil {
 		return adminservice.CreateWorkspace400JSONResponse(apitypes.NewErrorResponse("INVALID_WORKSPACE", err.Error())), nil
 	}
-	if err := validateReferences(ctx, store, normalized); err != nil {
+	templateStore, err := s.templateStore()
+	if err != nil {
+		return adminservice.CreateWorkspace500JSONResponse(apitypes.NewErrorResponse("INTERNAL_ERROR", err.Error())), nil
+	}
+	if err := validateReferences(ctx, templateStore, normalized); err != nil {
 		return adminservice.CreateWorkspace400JSONResponse(apitypes.NewErrorResponse("INVALID_WORKSPACE", err.Error())), nil
 	}
 	if _, err := store.Get(ctx, workspaceKey(string(normalized.Name))); err == nil {
@@ -148,7 +153,11 @@ func (s *Server) PutWorkspace(ctx context.Context, request adminservice.PutWorks
 	if err != nil {
 		return adminservice.PutWorkspace400JSONResponse(apitypes.NewErrorResponse("INVALID_WORKSPACE", err.Error())), nil
 	}
-	if err := validateReferences(ctx, store, normalized); err != nil {
+	templateStore, err := s.templateStore()
+	if err != nil {
+		return adminservice.PutWorkspace500JSONResponse(apitypes.NewErrorResponse("INTERNAL_ERROR", err.Error())), nil
+	}
+	if err := validateReferences(ctx, templateStore, normalized); err != nil {
 		return adminservice.PutWorkspace400JSONResponse(apitypes.NewErrorResponse("INVALID_WORKSPACE", err.Error())), nil
 	}
 	previous, err := getWorkspace(ctx, store, name)
@@ -310,6 +319,19 @@ func cloneParameters(parameters *map[string]interface{}) *map[string]interface{}
 func (s *Server) store() (kv.Store, error) {
 	if s == nil || s.Store == nil {
 		return nil, errors.New("workspace store not configured")
+	}
+	return s.Store, nil
+}
+
+func (s *Server) templateStore() (kv.Store, error) {
+	if s == nil {
+		return nil, errors.New("workspace template store not configured")
+	}
+	if s.TemplateStore != nil {
+		return s.TemplateStore, nil
+	}
+	if s.Store == nil {
+		return nil, errors.New("workspace template store not configured")
 	}
 	return s.Store, nil
 }

@@ -19,12 +19,12 @@ import (
 )
 
 var (
-	miniMaxTenantsRoot          = kv.Key{"minimax-tenants", "by-name"}
-	voicesRoot                  = kv.Key{"voices", "by-id"}
-	voicesBySourceRoot          = kv.Key{"voices", "by-source"}
-	voicesByProviderRoot        = kv.Key{"voices", "by-provider"}
-	voicesByProviderVoiceIDRoot = kv.Key{"voices", "by-provider-voice-id"}
-	credentialsRoot             = kv.Key{"credentials", "by-name"}
+	miniMaxTenantsRoot          = kv.Key{"by-name"}
+	voicesRoot                  = kv.Key{"by-id"}
+	voicesBySourceRoot          = kv.Key{"by-source"}
+	voicesByProviderRoot        = kv.Key{"by-provider"}
+	voicesByProviderVoiceIDRoot = kv.Key{"by-provider-voice-id"}
+	credentialsRoot             = kv.Key{"by-name"}
 )
 
 const (
@@ -35,9 +35,12 @@ const (
 )
 
 type Server struct {
-	Store      kv.Store
-	HTTPClient *http.Client
-	Now        func() time.Time
+	Store           kv.Store
+	TenantStore     kv.Store
+	VoiceStore      kv.Store
+	CredentialStore kv.Store
+	HTTPClient      *http.Client
+	Now             func() time.Time
 }
 
 type MiniMaxAdminService interface {
@@ -57,7 +60,7 @@ type MiniMaxAdminService interface {
 var _ MiniMaxAdminService = (*Server)(nil)
 
 func (s *Server) ListMiniMaxTenants(ctx context.Context, request adminservice.ListMiniMaxTenantsRequestObject) (adminservice.ListMiniMaxTenantsResponseObject, error) {
-	store, err := s.store()
+	store, err := s.tenantStore()
 	if err != nil {
 		return adminservice.ListMiniMaxTenants500JSONResponse(apitypes.NewErrorResponse("INTERNAL_ERROR", err.Error())), nil
 	}
@@ -74,7 +77,7 @@ func (s *Server) ListMiniMaxTenants(ctx context.Context, request adminservice.Li
 }
 
 func (s *Server) CreateMiniMaxTenant(ctx context.Context, request adminservice.CreateMiniMaxTenantRequestObject) (adminservice.CreateMiniMaxTenantResponseObject, error) {
-	store, err := s.store()
+	store, err := s.tenantStore()
 	if err != nil {
 		return adminservice.CreateMiniMaxTenant500JSONResponse(apitypes.NewErrorResponse("INTERNAL_ERROR", err.Error())), nil
 	}
@@ -85,7 +88,11 @@ func (s *Server) CreateMiniMaxTenant(ctx context.Context, request adminservice.C
 	if err != nil {
 		return adminservice.CreateMiniMaxTenant400JSONResponse(apitypes.NewErrorResponse("INVALID_MINIMAX_TENANT", err.Error())), nil
 	}
-	if err := validateTenantReferences(ctx, store, tenant); err != nil {
+	credentialStore, err := s.credentialStore()
+	if err != nil {
+		return adminservice.CreateMiniMaxTenant500JSONResponse(apitypes.NewErrorResponse("INTERNAL_ERROR", err.Error())), nil
+	}
+	if err := validateTenantReferences(ctx, credentialStore, tenant); err != nil {
 		return adminservice.CreateMiniMaxTenant400JSONResponse(apitypes.NewErrorResponse("INVALID_MINIMAX_TENANT", err.Error())), nil
 	}
 	if _, err := store.Get(ctx, miniMaxTenantKey(string(tenant.Name))); err == nil {
@@ -103,7 +110,7 @@ func (s *Server) CreateMiniMaxTenant(ctx context.Context, request adminservice.C
 }
 
 func (s *Server) DeleteMiniMaxTenant(ctx context.Context, request adminservice.DeleteMiniMaxTenantRequestObject) (adminservice.DeleteMiniMaxTenantResponseObject, error) {
-	store, err := s.store()
+	store, err := s.tenantStore()
 	if err != nil {
 		return adminservice.DeleteMiniMaxTenant500JSONResponse(apitypes.NewErrorResponse("INTERNAL_ERROR", err.Error())), nil
 	}
@@ -118,7 +125,11 @@ func (s *Server) DeleteMiniMaxTenant(ctx context.Context, request adminservice.D
 		}
 		return adminservice.DeleteMiniMaxTenant500JSONResponse(apitypes.NewErrorResponse("INTERNAL_ERROR", err.Error())), nil
 	}
-	if err := deleteMiniMaxTenantVoices(ctx, store, tenant.Name); err != nil {
+	voiceStore, err := s.voiceStore()
+	if err != nil {
+		return adminservice.DeleteMiniMaxTenant500JSONResponse(apitypes.NewErrorResponse("INTERNAL_ERROR", err.Error())), nil
+	}
+	if err := deleteMiniMaxTenantVoices(ctx, voiceStore, tenant.Name); err != nil {
 		return adminservice.DeleteMiniMaxTenant500JSONResponse(apitypes.NewErrorResponse("INTERNAL_ERROR", err.Error())), nil
 	}
 	if err := store.Delete(ctx, miniMaxTenantKey(string(tenant.Name))); err != nil {
@@ -128,7 +139,7 @@ func (s *Server) DeleteMiniMaxTenant(ctx context.Context, request adminservice.D
 }
 
 func (s *Server) GetMiniMaxTenant(ctx context.Context, request adminservice.GetMiniMaxTenantRequestObject) (adminservice.GetMiniMaxTenantResponseObject, error) {
-	store, err := s.store()
+	store, err := s.tenantStore()
 	if err != nil {
 		return adminservice.GetMiniMaxTenant500JSONResponse(apitypes.NewErrorResponse("INTERNAL_ERROR", err.Error())), nil
 	}
@@ -147,7 +158,7 @@ func (s *Server) GetMiniMaxTenant(ctx context.Context, request adminservice.GetM
 }
 
 func (s *Server) PutMiniMaxTenant(ctx context.Context, request adminservice.PutMiniMaxTenantRequestObject) (adminservice.PutMiniMaxTenantResponseObject, error) {
-	store, err := s.store()
+	store, err := s.tenantStore()
 	if err != nil {
 		return adminservice.PutMiniMaxTenant500JSONResponse(apitypes.NewErrorResponse("INTERNAL_ERROR", err.Error())), nil
 	}
@@ -162,7 +173,11 @@ func (s *Server) PutMiniMaxTenant(ctx context.Context, request adminservice.PutM
 	if err != nil {
 		return adminservice.PutMiniMaxTenant400JSONResponse(apitypes.NewErrorResponse("INVALID_MINIMAX_TENANT", err.Error())), nil
 	}
-	if err := validateTenantReferences(ctx, store, tenant); err != nil {
+	credentialStore, err := s.credentialStore()
+	if err != nil {
+		return adminservice.PutMiniMaxTenant500JSONResponse(apitypes.NewErrorResponse("INTERNAL_ERROR", err.Error())), nil
+	}
+	if err := validateTenantReferences(ctx, credentialStore, tenant); err != nil {
 		return adminservice.PutMiniMaxTenant400JSONResponse(apitypes.NewErrorResponse("INVALID_MINIMAX_TENANT", err.Error())), nil
 	}
 	previous, err := getMiniMaxTenant(ctx, store, name)
@@ -183,7 +198,15 @@ func (s *Server) PutMiniMaxTenant(ctx context.Context, request adminservice.PutM
 }
 
 func (s *Server) SyncMiniMaxTenantVoices(ctx context.Context, request adminservice.SyncMiniMaxTenantVoicesRequestObject) (adminservice.SyncMiniMaxTenantVoicesResponseObject, error) {
-	store, err := s.store()
+	tenantStore, err := s.tenantStore()
+	if err != nil {
+		return adminservice.SyncMiniMaxTenantVoices500JSONResponse(apitypes.NewErrorResponse("INTERNAL_ERROR", err.Error())), nil
+	}
+	voiceStore, err := s.voiceStore()
+	if err != nil {
+		return adminservice.SyncMiniMaxTenantVoices500JSONResponse(apitypes.NewErrorResponse("INTERNAL_ERROR", err.Error())), nil
+	}
+	credentialStore, err := s.credentialStore()
 	if err != nil {
 		return adminservice.SyncMiniMaxTenantVoices500JSONResponse(apitypes.NewErrorResponse("INTERNAL_ERROR", err.Error())), nil
 	}
@@ -191,14 +214,14 @@ func (s *Server) SyncMiniMaxTenantVoices(ctx context.Context, request adminservi
 	if err != nil {
 		return nil, fmt.Errorf("invalid params: %w", err)
 	}
-	tenant, err := getMiniMaxTenant(ctx, store, name)
+	tenant, err := getMiniMaxTenant(ctx, tenantStore, name)
 	if err != nil {
 		if errors.Is(err, kv.ErrNotFound) {
 			return adminservice.SyncMiniMaxTenantVoices404JSONResponse(apitypes.NewErrorResponse("MINIMAX_TENANT_NOT_FOUND", fmt.Sprintf("MiniMax tenant %q not found", name))), nil
 		}
 		return adminservice.SyncMiniMaxTenantVoices500JSONResponse(apitypes.NewErrorResponse("INTERNAL_ERROR", err.Error())), nil
 	}
-	client, err := s.miniMaxClientForTenant(ctx, store, tenant)
+	client, err := s.miniMaxClientForTenant(ctx, credentialStore, tenant)
 	if err != nil {
 		return adminservice.SyncMiniMaxTenantVoices400JSONResponse(apitypes.NewErrorResponse("INVALID_MINIMAX_TENANT", err.Error())), nil
 	}
@@ -207,13 +230,13 @@ func (s *Server) SyncMiniMaxTenantVoices(ctx context.Context, request adminservi
 		return adminservice.SyncMiniMaxTenantVoices502JSONResponse(apitypes.NewErrorResponse("MINIMAX_SYNC_FAILED", err.Error())), nil
 	}
 	now := s.now()
-	createdCount, updatedCount, deletedCount, err := reconcileTenantVoices(ctx, store, tenant, upstream, now)
+	createdCount, updatedCount, deletedCount, err := reconcileTenantVoices(ctx, voiceStore, tenant, upstream, now)
 	if err != nil {
 		return adminservice.SyncMiniMaxTenantVoices500JSONResponse(apitypes.NewErrorResponse("INTERNAL_ERROR", err.Error())), nil
 	}
 	tenant.LastSyncedAt = &now
 	tenant.UpdatedAt = now
-	if err := writeMiniMaxTenant(ctx, store, tenant); err != nil {
+	if err := writeMiniMaxTenant(ctx, tenantStore, tenant); err != nil {
 		return adminservice.SyncMiniMaxTenantVoices500JSONResponse(apitypes.NewErrorResponse("INTERNAL_ERROR", err.Error())), nil
 	}
 	return adminservice.SyncMiniMaxTenantVoices200JSONResponse(adminservice.MiniMaxSyncVoicesResult{
@@ -226,7 +249,7 @@ func (s *Server) SyncMiniMaxTenantVoices(ctx context.Context, request adminservi
 }
 
 func (s *Server) CreateVoice(ctx context.Context, request adminservice.CreateVoiceRequestObject) (adminservice.CreateVoiceResponseObject, error) {
-	store, err := s.store()
+	store, err := s.voiceStore()
 	if err != nil {
 		return adminservice.CreateVoice500JSONResponse(apitypes.NewErrorResponse("INTERNAL_ERROR", err.Error())), nil
 	}
@@ -252,7 +275,7 @@ func (s *Server) CreateVoice(ctx context.Context, request adminservice.CreateVoi
 }
 
 func (s *Server) ListVoices(ctx context.Context, request adminservice.ListVoicesRequestObject) (adminservice.ListVoicesResponseObject, error) {
-	store, err := s.store()
+	store, err := s.voiceStore()
 	if err != nil {
 		return adminservice.ListVoices500JSONResponse(apitypes.NewErrorResponse("INTERNAL_ERROR", err.Error())), nil
 	}
@@ -288,7 +311,7 @@ func (s *Server) ListVoices(ctx context.Context, request adminservice.ListVoices
 }
 
 func (s *Server) DeleteVoice(ctx context.Context, request adminservice.DeleteVoiceRequestObject) (adminservice.DeleteVoiceResponseObject, error) {
-	store, err := s.store()
+	store, err := s.voiceStore()
 	if err != nil {
 		return adminservice.DeleteVoice500JSONResponse(apitypes.NewErrorResponse("INTERNAL_ERROR", err.Error())), nil
 	}
@@ -310,7 +333,7 @@ func (s *Server) DeleteVoice(ctx context.Context, request adminservice.DeleteVoi
 }
 
 func (s *Server) GetVoice(ctx context.Context, request adminservice.GetVoiceRequestObject) (adminservice.GetVoiceResponseObject, error) {
-	store, err := s.store()
+	store, err := s.voiceStore()
 	if err != nil {
 		return adminservice.GetVoice500JSONResponse(apitypes.NewErrorResponse("INTERNAL_ERROR", err.Error())), nil
 	}
@@ -329,7 +352,7 @@ func (s *Server) GetVoice(ctx context.Context, request adminservice.GetVoiceRequ
 }
 
 func (s *Server) PutVoice(ctx context.Context, request adminservice.PutVoiceRequestObject) (adminservice.PutVoiceResponseObject, error) {
-	store, err := s.store()
+	store, err := s.voiceStore()
 	if err != nil {
 		return adminservice.PutVoice500JSONResponse(apitypes.NewErrorResponse("INTERNAL_ERROR", err.Error())), nil
 	}
@@ -1199,9 +1222,41 @@ func (s *Server) now() time.Time {
 	return time.Now().UTC()
 }
 
-func (s *Server) store() (kv.Store, error) {
-	if s == nil || s.Store == nil {
-		return nil, errors.New("MiniMax store not configured")
+func (s *Server) tenantStore() (kv.Store, error) {
+	if s == nil {
+		return nil, errors.New("MiniMax tenant store not configured")
+	}
+	if s.TenantStore != nil {
+		return s.TenantStore, nil
+	}
+	if s.Store == nil {
+		return nil, errors.New("MiniMax tenant store not configured")
+	}
+	return s.Store, nil
+}
+
+func (s *Server) voiceStore() (kv.Store, error) {
+	if s == nil {
+		return nil, errors.New("MiniMax voice store not configured")
+	}
+	if s.VoiceStore != nil {
+		return s.VoiceStore, nil
+	}
+	if s.Store == nil {
+		return nil, errors.New("MiniMax voice store not configured")
+	}
+	return s.Store, nil
+}
+
+func (s *Server) credentialStore() (kv.Store, error) {
+	if s == nil {
+		return nil, errors.New("MiniMax credential store not configured")
+	}
+	if s.CredentialStore != nil {
+		return s.CredentialStore, nil
+	}
+	if s.Store == nil {
+		return nil, errors.New("MiniMax credential store not configured")
 	}
 	return s.Store, nil
 }

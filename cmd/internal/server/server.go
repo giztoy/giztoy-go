@@ -2,10 +2,10 @@ package server
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/GizClaw/gizclaw-go/pkg/gizclaw/api/apitypes"
 
+	"github.com/GizClaw/gizclaw-go/cmd/internal/storage"
 	"github.com/GizClaw/gizclaw-go/cmd/internal/stores"
 	"github.com/GizClaw/gizclaw-go/pkg/gizclaw"
 )
@@ -18,7 +18,7 @@ func New(cfg Config) (*gizclaw.Server, error) {
 	if err != nil {
 		return nil, err
 	}
-	ss, err := stores.New(cfg.Stores)
+	ss, err := newStoreRegistry(cfg)
 	if err != nil {
 		return nil, fmt.Errorf("server: stores: %w", err)
 	}
@@ -29,24 +29,67 @@ func New(cfg Config) (*gizclaw.Server, error) {
 		return nil, fmt.Errorf("server: gears store: %w", err)
 	}
 
-	fwStore, err := ss.FS(cfg.Depots.Store)
+	fwStore, err := ss.DepotStore(cfg.Depots.Store)
 	if err != nil {
 		_ = ss.Close()
 		return nil, fmt.Errorf("server: firmware store: %w", err)
 	}
-	if err := os.MkdirAll(string(fwStore), 0o755); err != nil {
-		_ = ss.Close()
-		return nil, fmt.Errorf("server: firmware dir: %w", err)
-	}
 
-	return &gizclaw.Server{
+	srv := &gizclaw.Server{
 		KeyPair:            cfg.KeyPair,
 		GearStore:          gearsKV,
 		RegistrationTokens: registrationTokenRoles(cfg.Gears.RegistrationTokens),
 		BuildCommit:        BuildCommit,
 		ServerPublicKey:    cfg.KeyPair.Public.String(),
 		DepotStore:         fwStore,
-	}, nil
+		StoreCloser:        ss,
+	}
+	if len(cfg.Storage) > 0 {
+		if srv.CredentialStore, err = ss.KV(cfg.Credentials.Store); err != nil {
+			_ = ss.Close()
+			return nil, fmt.Errorf("server: credentials store: %w", err)
+		}
+		if srv.MiniMaxCredentialStore, err = ss.KV(cfg.MiniMax.CredentialsStore); err != nil {
+			_ = ss.Close()
+			return nil, fmt.Errorf("server: minimax credentials store: %w", err)
+		}
+		if srv.MiniMaxTenantStore, err = ss.KV(cfg.MiniMax.TenantsStore); err != nil {
+			_ = ss.Close()
+			return nil, fmt.Errorf("server: minimax tenants store: %w", err)
+		}
+		if srv.VoiceStore, err = ss.KV(cfg.MiniMax.VoicesStore); err != nil {
+			_ = ss.Close()
+			return nil, fmt.Errorf("server: voices store: %w", err)
+		}
+		if srv.WorkspaceStore, err = ss.KV(cfg.Workspaces.Store); err != nil {
+			_ = ss.Close()
+			return nil, fmt.Errorf("server: workspaces store: %w", err)
+		}
+		if srv.WorkspaceTemplateStore, err = ss.KV(cfg.Workspaces.TemplatesStore); err != nil {
+			_ = ss.Close()
+			return nil, fmt.Errorf("server: workspace template reference store: %w", err)
+		}
+		if srv.TemplateStore, err = ss.KV(cfg.WorkspaceTemplates.Store); err != nil {
+			_ = ss.Close()
+			return nil, fmt.Errorf("server: workspace templates store: %w", err)
+		}
+	}
+	return srv, nil
+}
+
+func newStoreRegistry(cfg Config) (*stores.Stores, error) {
+	if len(cfg.Storage) == 0 {
+		return stores.New(cfg.Stores)
+	}
+	physical, err := storage.New(cfg.Storage)
+	if err != nil {
+		return nil, err
+	}
+	ss, err := stores.NewWithOwnedStorage(physical, cfg.Stores)
+	if err != nil {
+		return nil, err
+	}
+	return ss, nil
 }
 
 func registrationTokenRoles(tokens map[string]RegistrationTokenConfig) map[string]apitypes.GearRole {

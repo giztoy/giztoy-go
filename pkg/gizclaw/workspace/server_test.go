@@ -252,6 +252,33 @@ func TestServerWorkspaceConflictAndMissingDelete(t *testing.T) {
 	}
 }
 
+func TestServerStoreHelpers(t *testing.T) {
+	t.Parallel()
+
+	var nilServer *Server
+	if _, err := nilServer.store(); err == nil {
+		t.Fatal("nil server store() error = nil")
+	}
+	if _, err := nilServer.templateStore(); err == nil {
+		t.Fatal("nil server templateStore() error = nil")
+	}
+	if _, err := (&Server{}).templateStore(); err == nil {
+		t.Fatal("empty server templateStore() error = nil")
+	}
+
+	base := kv.NewMemory(nil)
+	srv := &Server{Store: base}
+	if got, err := srv.templateStore(); err != nil || got != base {
+		t.Fatalf("templateStore fallback = %v, %v", got, err)
+	}
+
+	templates := kv.NewMemory(nil)
+	srv.TemplateStore = templates
+	if got, err := srv.templateStore(); err != nil || got != templates {
+		t.Fatalf("templateStore explicit = %v, %v", got, err)
+	}
+}
+
 func newTestServer(t *testing.T) *Server {
 	t.Helper()
 
@@ -260,13 +287,20 @@ func newTestServer(t *testing.T) *Server {
 		t.Fatalf("NewBadgerInMemory() error = %v", err)
 	}
 	t.Cleanup(func() { _ = store.Close() })
-	return &Server{Store: store}
+	return &Server{
+		Store:         kv.Prefixed(store, kv.Key{"workspaces"}),
+		TemplateStore: kv.Prefixed(store, kv.Key{"workspace-templates"}),
+	}
 }
 
 func seedTemplate(t *testing.T, srv *Server, name string) {
 	t.Helper()
 
-	if err := srv.Store.Set(context.Background(), templateReferenceKey(name), []byte(`{}`)); err != nil {
+	store, err := srv.templateStore()
+	if err != nil {
+		t.Fatalf("template store: %v", err)
+	}
+	if err := store.Set(context.Background(), templateReferenceKey(name), []byte(`{}`)); err != nil {
 		t.Fatalf("seed template %q: %v", name, err)
 	}
 }

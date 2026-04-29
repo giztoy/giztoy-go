@@ -13,6 +13,7 @@ import (
 
 	"github.com/GizClaw/gizclaw-go/cmd/internal/identity"
 	"github.com/GizClaw/gizclaw-go/cmd/internal/service"
+	"github.com/GizClaw/gizclaw-go/cmd/internal/storage"
 	"github.com/GizClaw/gizclaw-go/cmd/internal/stores"
 	"github.com/GizClaw/gizclaw-go/pkg/giznet"
 )
@@ -54,8 +55,38 @@ func prepareWorkspaceConfig(workspace string) (Config, error) {
 	cfg := mergeFileConfig(Config{
 		KeyPair: keyPair,
 	}, fileCfg)
+	cfg.Storage = resolveWorkspaceStorageConfigs(root, cfg.Storage)
 	cfg.Stores = resolveWorkspaceStoreConfigs(root, cfg.Stores)
 	return prepareConfig(cfg)
+}
+
+func resolveWorkspaceStorageConfigs(root string, cfgs map[string]storage.Config) map[string]storage.Config {
+	if len(cfgs) == 0 {
+		return nil
+	}
+
+	resolved := make(map[string]storage.Config, len(cfgs))
+	for name, cfg := range cfgs {
+		cfg.Dir = resolveWorkspaceDir(root, cfg.Dir)
+		if cfg.Badger != nil {
+			cfg.Badger.Dir = resolveWorkspaceDir(root, cfg.Badger.Dir)
+		}
+		if cfg.FS != nil {
+			cfg.FS.Dir = resolveWorkspaceDir(root, cfg.FS.Dir)
+		}
+		if cfg.SQLite != nil {
+			cfg.SQLite.Dir = resolveWorkspaceDir(root, cfg.SQLite.Dir)
+		}
+		resolved[name] = cfg
+	}
+	return resolved
+}
+
+func resolveWorkspaceDir(root, dir string) string {
+	if dir == "" || filepath.IsAbs(dir) {
+		return dir
+	}
+	return filepath.Join(root, dir)
 }
 
 func resolveWorkspaceStoreConfigs(root string, cfgs map[string]stores.Config) map[string]stores.Config {
@@ -99,6 +130,7 @@ func ServeContext(ctx context.Context, workspace string, opts ServeOptions) erro
 	if err != nil {
 		return err
 	}
+	defer srv.Close()
 	releasePID, err := acquireWorkspacePID(root, opts.Force)
 	if err != nil {
 		return err

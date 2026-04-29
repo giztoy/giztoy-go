@@ -1,16 +1,62 @@
 listen: "__LISTEN_ADDR__"
-stores:
+storage:
   memory:
     kind: keyvalue
-    backend: memory
+    memory: {}
+  local-files:
+    kind: filesystem
+    fs:
+      dir: .
+  firmware-depot:
+    kind: depotstore
+    depot-fs: {}
+stores:
+  gears:
+    kind: keyvalue
+    storage: memory
+    prefix: gears
+  credentials:
+    kind: keyvalue
+    storage: memory
+    prefix: credentials
+  minimax-tenants:
+    kind: keyvalue
+    storage: memory
+    prefix: minimax-tenants
+  voices:
+    kind: keyvalue
+    storage: memory
+    prefix: voices
+  workspaces:
+    kind: keyvalue
+    storage: memory
+    prefix: workspaces
+  workspace-templates:
+    kind: keyvalue
+    storage: memory
+    prefix: workspace-templates
   firmware:
-    kind: filestore
-    backend: filesystem
-    dir: firmware
+    kind: depotstore
+    storage: firmware-depot
+    depot-fs:
+      filesystem:
+        storage: local-files
+        base-dir: firmware
 gears:
-  store: memory
+  store: gears
   registration-tokens:
     admin_default:
       role: admin
+credentials:
+  store: credentials
+minimax:
+  tenants-store: minimax-tenants
+  voices-store: voices
+  credentials-store: credentials
+workspaces:
+  store: workspaces
+  templates-store: workspace-templates
+workspace-templates:
+  store: workspace-templates
 depots:
   store: firmware

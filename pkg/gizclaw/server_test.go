@@ -13,6 +13,15 @@ import (
 	"github.com/GizClaw/gizclaw-go/pkg/store/depotstore"
 )
 
+type countCloser struct {
+	calls int
+}
+
+func (c *countCloser) Close() error {
+	c.calls++
+	return nil
+}
+
 func TestServerListenAndServeRequiresGearStore(t *testing.T) {
 	keyPair, err := giznet.GenerateKeyPair()
 	if err != nil {
@@ -94,6 +103,24 @@ func TestServerPublicKeyAndPeerServiceAccessors(t *testing.T) {
 	server.setListener(listener)
 	if got := server.PublicKey(); got != listener.HostInfo().PublicKey {
 		t.Fatalf("PublicKey() from listener = %v, want %v", got, listener.HostInfo().PublicKey)
+	}
+}
+
+func TestServerCloseClosesStoreCloser(t *testing.T) {
+	closer := &countCloser{}
+	server := &Server{StoreCloser: closer}
+
+	if err := server.Close(); err != nil {
+		t.Fatalf("Close: %v", err)
+	}
+	if closer.calls != 1 {
+		t.Fatalf("StoreCloser calls = %d, want 1", closer.calls)
+	}
+	if err := server.Close(); err != nil {
+		t.Fatalf("Close second: %v", err)
+	}
+	if closer.calls != 1 {
+		t.Fatalf("StoreCloser calls after second close = %d, want 1", closer.calls)
 	}
 }
 

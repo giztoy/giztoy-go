@@ -5,9 +5,12 @@ import (
 	"database/sql"
 	"database/sql/driver"
 	"errors"
+	"os"
 	"path/filepath"
 	"testing"
 
+	physicalstorage "github.com/GizClaw/gizclaw-go/cmd/internal/storage"
+	"github.com/GizClaw/gizclaw-go/pkg/store/depotstore"
 	"github.com/GizClaw/gizclaw-go/pkg/store/graph"
 	"github.com/GizClaw/gizclaw-go/pkg/store/kv"
 	"github.com/goccy/go-yaml"
@@ -69,6 +72,15 @@ func resolveTestConfigs(baseDir string, configs map[string]Config) map[string]Co
 	return resolved
 }
 
+func depotDir(t *testing.T, store depotstore.Store) string {
+	t.Helper()
+	dir, ok := store.(depotstore.Dir)
+	if !ok {
+		t.Fatalf("store type = %T, want depotstore.Dir", store)
+	}
+	return string(dir)
+}
+
 // --- New ---
 
 func TestNewNilConfigs(t *testing.T) {
@@ -87,6 +99,14 @@ func TestNewUnknownKind(t *testing.T) {
 		"x": {Kind: "nosql", Backend: "magic"},
 	}); err == nil {
 		t.Fatal("expected error for unknown kind")
+	}
+}
+
+func TestNewWithStorageRequiresRegistry(t *testing.T) {
+	if _, err := NewWithStorage(nil, map[string]Config{
+		"kv": {Kind: KindKeyValue, Storage: "main"},
+	}); err == nil {
+		t.Fatal("expected error for nil storage registry")
 	}
 }
 
@@ -138,6 +158,76 @@ stores:
 	}
 	if s != s2 {
 		t.Fatal("expected same instance on second call")
+	}
+}
+
+func TestKVWithStoragePrefix(t *testing.T) {
+	physical, err := physicalstorage.New(map[string]physicalstorage.Config{
+		"main": {Kind: physicalstorage.KindKeyValue, Backend: "memory"},
+	})
+	if err != nil {
+		t.Fatalf("storage.New: %v", err)
+	}
+	defer physical.Close()
+
+	reg, err := NewWithStorage(physical, map[string]Config{
+		"gears":       {Kind: KindKeyValue, Storage: "main", Prefix: "gears"},
+		"credentials": {Kind: KindKeyValue, Storage: "main", Prefix: "credentials/by-name"},
+	})
+	if err != nil {
+		t.Fatalf("NewWithStorage: %v", err)
+	}
+	defer reg.Close()
+
+	gears, err := reg.KV("gears")
+	if err != nil {
+		t.Fatalf("KV(gears): %v", err)
+	}
+	credentials, err := reg.KV("credentials")
+	if err != nil {
+		t.Fatalf("KV(credentials): %v", err)
+	}
+	ctx := context.Background()
+	if err := gears.Set(ctx, kv.Key{"abc"}, []byte("gear")); err != nil {
+		t.Fatalf("Set gear: %v", err)
+	}
+	if err := credentials.Set(ctx, kv.Key{"mini-max"}, []byte("secret")); err != nil {
+		t.Fatalf("Set credential: %v", err)
+	}
+
+	base, err := physical.KV("main")
+	if err != nil {
+		t.Fatalf("storage KV(main): %v", err)
+	}
+	if got, err := base.Get(ctx, kv.Key{"gears", "abc"}); err != nil || string(got) != "gear" {
+		t.Fatalf("base gear = %q, %v", got, err)
+	}
+	if got, err := base.Get(ctx, kv.Key{"credentials", "by-name", "mini-max"}); err != nil || string(got) != "secret" {
+		t.Fatalf("base credential = %q, %v", got, err)
+	}
+	if _, err := credentials.Get(ctx, kv.Key{"abc"}); !errors.Is(err, kv.ErrNotFound) {
+		t.Fatalf("credentials should not see gear key, got %v", err)
+	}
+}
+
+func TestKVWithStorageInvalidPrefix(t *testing.T) {
+	physical, err := physicalstorage.New(map[string]physicalstorage.Config{
+		"main": {Kind: physicalstorage.KindKeyValue, Backend: "memory"},
+	})
+	if err != nil {
+		t.Fatalf("storage.New: %v", err)
+	}
+	defer physical.Close()
+
+	if _, err := NewWithStorage(physical, map[string]Config{
+		"bad": {Kind: KindKeyValue, Storage: "main", Prefix: "bad:prefix"},
+	}); err == nil {
+		t.Fatal("expected error for invalid prefix")
+	}
+	if _, err := NewWithStorage(physical, map[string]Config{
+		"bad": {Kind: KindKeyValue, Storage: "main", Prefix: "bad//prefix"},
+	}); err == nil {
+		t.Fatal("expected error for empty prefix segment")
 	}
 }
 
@@ -203,6 +293,22 @@ stores:
 	}
 	if _, err := reg.KV("fs"); err == nil {
 		t.Fatal("expected error for wrong kind lookup")
+	}
+}
+
+func TestKVWithStorageWrongKindReference(t *testing.T) {
+	physical, err := physicalstorage.New(map[string]physicalstorage.Config{
+		"fw": {Kind: physicalstorage.KindFS, Backend: "filesystem", Dir: t.TempDir()},
+	})
+	if err != nil {
+		t.Fatalf("storage.New: %v", err)
+	}
+	defer physical.Close()
+
+	if _, err := NewWithStorage(physical, map[string]Config{
+		"kv": {Kind: KindKeyValue, Storage: "fw"},
+	}); err == nil {
+		t.Fatal("expected error for keyvalue store referencing filestore storage")
 	}
 }
 
@@ -386,8 +492,8 @@ stores:
 		t.Fatalf("FS(fw): %v", err)
 	}
 	want := filepath.Join(dir, "firmware")
-	if string(s) != want {
-		t.Fatalf("Root = %q, want %q", string(s), want)
+	if got := depotDir(t, s); got != want {
+		t.Fatalf("Root = %q, want %q", got, want)
 	}
 
 	s2, err := reg.FS("fw")
@@ -396,6 +502,78 @@ stores:
 	}
 	if s != s2 {
 		t.Fatal("expected same instance")
+	}
+}
+
+func TestFSWithStorageBaseDir(t *testing.T) {
+	root := t.TempDir()
+	physical, err := physicalstorage.New(map[string]physicalstorage.Config{
+		"files": {Kind: physicalstorage.KindFilesystem, FS: &physicalstorage.FSConfig{Dir: root}},
+		"depot": {
+			Kind:    physicalstorage.KindDepotStore,
+			DepotFS: &physicalstorage.DepotFSConfig{},
+		},
+	})
+	if err != nil {
+		t.Fatalf("storage.New: %v", err)
+	}
+	defer physical.Close()
+
+	reg, err := NewWithStorage(physical, map[string]Config{
+		"firmware": {
+			Kind:    KindDepotStore,
+			Storage: "depot",
+			DepotFS: &DepotFSRef{
+				Filesystem: physicalstorage.FilesystemRef{Storage: "files", BaseDir: "firmware/releases"},
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("NewWithStorage: %v", err)
+	}
+	defer reg.Close()
+
+	firmware, err := reg.FS("firmware")
+	if err != nil {
+		t.Fatalf("FS(firmware): %v", err)
+	}
+	if err := firmware.WriteFile("demo/manifest.json", []byte("manifest")); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+	wantPath := filepath.Join(root, "firmware", "releases", "demo", "manifest.json")
+	if _, err := os.Stat(wantPath); err != nil {
+		t.Fatalf("stat %q: %v", wantPath, err)
+	}
+}
+
+func TestFSWithStorageRejectsInvalidBaseDir(t *testing.T) {
+	tests := []string{"/tmp/firmware", "../firmware", "firmware/../../secrets"}
+	for _, baseDir := range tests {
+		t.Run(baseDir, func(t *testing.T) {
+			physical, err := physicalstorage.New(map[string]physicalstorage.Config{
+				"files": {Kind: physicalstorage.KindFilesystem, FS: &physicalstorage.FSConfig{Dir: t.TempDir()}},
+				"depot": {
+					Kind:    physicalstorage.KindDepotStore,
+					DepotFS: &physicalstorage.DepotFSConfig{},
+				},
+			})
+			if err != nil {
+				t.Fatalf("storage.New: %v", err)
+			}
+			defer physical.Close()
+			_, err = NewWithStorage(physical, map[string]Config{
+				"firmware": {
+					Kind:    KindDepotStore,
+					Storage: "depot",
+					DepotFS: &DepotFSRef{
+						Filesystem: physicalstorage.FilesystemRef{Storage: "files", BaseDir: baseDir},
+					},
+				},
+			})
+			if err == nil {
+				t.Fatal("expected error for invalid base-dir")
+			}
+		})
 	}
 }
 
@@ -548,6 +726,56 @@ stores:
 	if err := reg.Close(); err != nil {
 		t.Fatalf("Close: %v", err)
 	}
+}
+
+func TestNewWithOwnedStorageClosesPhysicalRegistry(t *testing.T) {
+	physical, err := physicalstorage.New(map[string]physicalstorage.Config{
+		"memory": {Kind: physicalstorage.KindKeyValue, Memory: &physicalstorage.MemoryConfig{}},
+	})
+	if err != nil {
+		t.Fatalf("storage.New: %v", err)
+	}
+
+	reg, err := NewWithOwnedStorage(physical, map[string]Config{
+		"kv": {Kind: KindKeyValue, Storage: "memory"},
+	})
+	if err != nil {
+		t.Fatalf("NewWithOwnedStorage: %v", err)
+	}
+	if !reg.ownsStorage {
+		t.Fatal("expected registry to own physical storage")
+	}
+	if err := reg.Close(); err != nil {
+		t.Fatalf("Close: %v", err)
+	}
+	if reg.storage != nil {
+		t.Fatal("expected Close to release physical storage reference")
+	}
+}
+
+func TestNewWithOwnedStorageClosesPhysicalOnError(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "kv")
+	physical, err := physicalstorage.New(map[string]physicalstorage.Config{
+		"badger": {Kind: physicalstorage.KindKeyValue, Badger: &physicalstorage.BadgerConfig{Dir: dir}},
+	})
+	if err != nil {
+		t.Fatalf("storage.New: %v", err)
+	}
+
+	_, err = NewWithOwnedStorage(physical, map[string]Config{
+		"kv": {Kind: KindKeyValue, Storage: "badger", Prefix: "bad:prefix"},
+	})
+	if err == nil {
+		t.Fatal("expected NewWithOwnedStorage error")
+	}
+
+	reopened, err := physicalstorage.New(map[string]physicalstorage.Config{
+		"badger": {Kind: physicalstorage.KindKeyValue, Badger: &physicalstorage.BadgerConfig{Dir: dir}},
+	})
+	if err != nil {
+		t.Fatalf("storage should be closed after constructor error, reopen: %v", err)
+	}
+	defer reopened.Close()
 }
 
 func TestCloseEmpty(t *testing.T) {

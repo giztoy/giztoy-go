@@ -1,12 +1,16 @@
 package server
 
 import (
+	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/GizClaw/gizclaw-go/cmd/internal/service"
+	"github.com/GizClaw/gizclaw-go/cmd/internal/storage"
 	"github.com/GizClaw/gizclaw-go/cmd/internal/stores"
 )
 
@@ -14,14 +18,64 @@ func TestPrepareWorkspaceConfigLoadsWorkspaceConfig(t *testing.T) {
 	workspace := t.TempDir()
 	if err := os.WriteFile(filepath.Join(workspace, workspaceConfigFile), []byte(`
 listen: "127.0.0.1:39001"
-stores:
-  mem:
+storage:
+  memory:
     kind: keyvalue
-    backend: memory
+    memory: {}
+  local-files:
+    kind: filesystem
+    fs:
+      dir: .
+  firmware-depot:
+    kind: depotstore
+    depot-fs: {}
+stores:
+  gears:
+    kind: keyvalue
+    storage: memory
+    prefix: gears
+  credentials:
+    kind: keyvalue
+    storage: memory
+    prefix: credentials
+  minimax-tenants:
+    kind: keyvalue
+    storage: memory
+    prefix: minimax-tenants
+  voices:
+    kind: keyvalue
+    storage: memory
+    prefix: voices
+  workspaces:
+    kind: keyvalue
+    storage: memory
+    prefix: workspaces
+  workspace-templates:
+    kind: keyvalue
+    storage: memory
+    prefix: workspace-templates
+  firmware:
+    kind: depotstore
+    storage: firmware-depot
+    depot-fs:
+      filesystem:
+        storage: local-files
+        base-dir: firmware
 gears:
-  store: mem
+  store: gears
+credentials:
+  store: credentials
+minimax:
+  tenants-store: minimax-tenants
+  voices-store: voices
+  credentials-store: credentials
+workspaces:
+  store: workspaces
+  templates-store: workspace-templates
+workspace-templates:
+  store: workspace-templates
 depots:
-  store: mem
+  store: firmware
 `), 0o644); err != nil {
 		t.Fatalf("WriteFile error = %v", err)
 	}
@@ -36,8 +90,11 @@ depots:
 	if cfg.ListenAddr != "127.0.0.1:39001" {
 		t.Fatalf("ListenAddr = %q", cfg.ListenAddr)
 	}
-	if got := cfg.Stores["mem"].Dir; got != "" {
+	if got := cfg.Storage["memory"].Dir; got != "" {
 		t.Fatalf("memory store dir = %q", got)
+	}
+	if got := cfg.Storage["local-files"].FS.Dir; got != workspace {
+		t.Fatalf("local-files dir = %q", got)
 	}
 }
 
@@ -75,12 +132,37 @@ func TestPrepareWorkspaceConfigLoadError(t *testing.T) {
 func TestPrepareWorkspaceConfigResolvesRelativeStoreDirs(t *testing.T) {
 	workspace := t.TempDir()
 	if err := os.WriteFile(filepath.Join(workspace, workspaceConfigFile), []byte(`
+storage:
+  memory:
+    kind: keyvalue
+    memory: {}
+  fw-files:
+    kind: filesystem
+    fs:
+      dir: .
+  fw:
+    kind: depotstore
+    depot-fs: {}
 stores:
   fw:
-    kind: filestore
-    backend: filesystem
-    dir: firmware
+    kind: depotstore
+    storage: fw
+    depot-fs:
+      filesystem:
+        storage: fw-files
+        base-dir: firmware
 gears:
+  store: fw
+credentials:
+  store: fw
+minimax:
+  tenants-store: fw
+  voices-store: fw
+  credentials-store: fw
+workspaces:
+  store: fw
+  templates-store: fw
+workspace-templates:
   store: fw
 depots:
   store: fw
@@ -92,8 +174,11 @@ depots:
 	if err != nil {
 		t.Fatalf("prepareWorkspaceConfig error = %v", err)
 	}
-	if got := cfg.Stores["fw"].Dir; got != filepath.Join(workspace, "firmware") {
+	if got := cfg.Storage["fw-files"].FS.Dir; got != workspace {
 		t.Fatalf("fw dir = %q", got)
+	}
+	if got := cfg.Stores["fw"].DepotFS.Filesystem.BaseDir; got != "firmware" {
+		t.Fatalf("fw base-dir = %q", got)
 	}
 }
 
@@ -125,15 +210,25 @@ func TestResolveWorkspaceStoreConfigsPreservesAbsoluteDirs(t *testing.T) {
 	root := t.TempDir()
 	absoluteDir := filepath.Join(t.TempDir(), "firmware")
 
-	got := resolveWorkspaceStoreConfigs(root, map[string]stores.Config{
+	gotStorage := resolveWorkspaceStorageConfigs(root, map[string]storage.Config{
+		"fw": {
+			Kind: storage.KindFilesystem,
+			FS:   &storage.FSConfig{Dir: absoluteDir},
+		},
+	})
+	if gotStorage["fw"].FS.Dir != absoluteDir {
+		t.Fatalf("fw storage dir = %q, want %q", gotStorage["fw"].FS.Dir, absoluteDir)
+	}
+
+	gotStores := resolveWorkspaceStoreConfigs(root, map[string]stores.Config{
 		"fw": {
 			Kind:    stores.KindFS,
 			Backend: "filesystem",
 			Dir:     absoluteDir,
 		},
 	})
-	if got["fw"].Dir != absoluteDir {
-		t.Fatalf("fw dir = %q, want %q", got["fw"].Dir, absoluteDir)
+	if gotStores["fw"].Dir != absoluteDir {
+		t.Fatalf("fw legacy store dir = %q, want %q", gotStores["fw"].Dir, absoluteDir)
 	}
 }
 
@@ -163,6 +258,89 @@ depots:
 	if err == nil {
 		t.Fatal("Serve should fail when New cannot build stores")
 	}
+}
+
+func TestServeContextClosesStoresWhenPIDAcquireFails(t *testing.T) {
+	workspace := t.TempDir()
+	if err := os.WriteFile(filepath.Join(workspace, workspaceConfigFile), []byte(`
+storage:
+  main-kv:
+    kind: keyvalue
+    badger:
+      dir: data/kv
+  local-files:
+    kind: filesystem
+    fs:
+      dir: .
+  firmware-depot:
+    kind: depotstore
+    depot-fs: {}
+stores:
+  gears:
+    kind: keyvalue
+    storage: main-kv
+    prefix: gears
+  credentials:
+    kind: keyvalue
+    storage: main-kv
+    prefix: credentials
+  minimax-tenants:
+    kind: keyvalue
+    storage: main-kv
+    prefix: minimax-tenants
+  voices:
+    kind: keyvalue
+    storage: main-kv
+    prefix: voices
+  workspaces:
+    kind: keyvalue
+    storage: main-kv
+    prefix: workspaces
+  workspace-templates:
+    kind: keyvalue
+    storage: main-kv
+    prefix: workspace-templates
+  firmware:
+    kind: depotstore
+    storage: firmware-depot
+    depot-fs:
+      filesystem:
+        storage: local-files
+        base-dir: firmware
+gears:
+  store: gears
+credentials:
+  store: credentials
+minimax:
+  tenants-store: minimax-tenants
+  voices-store: voices
+  credentials-store: credentials
+workspaces:
+  store: workspaces
+  templates-store: workspace-templates
+workspace-templates:
+  store: workspace-templates
+depots:
+  store: firmware
+`), 0o644); err != nil {
+		t.Fatalf("WriteFile config error = %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(workspace, workspacePIDFile), []byte(fmt.Sprintf("%d\n", os.Getpid())), 0o644); err != nil {
+		t.Fatalf("WriteFile pid error = %v", err)
+	}
+
+	err := ServeContext(context.Background(), workspace, ServeOptions{})
+	if err == nil || !strings.Contains(err.Error(), "already running") {
+		t.Fatalf("ServeContext() err = %v", err)
+	}
+
+	reopened, err := storage.New(map[string]storage.Config{
+		"main-kv": {Kind: storage.KindKeyValue, Badger: &storage.BadgerConfig{Dir: filepath.Join(workspace, "data", "kv")}},
+	})
+	if err != nil {
+		t.Fatalf("storage should be closed after PID error, reopen: %v", err)
+	}
+	defer reopened.Close()
 }
 
 func TestServeRejectsServiceManagedWorkspace(t *testing.T) {
@@ -202,6 +380,53 @@ func TestHandleExistingWorkspacePIDForceRemovesStale(t *testing.T) {
 	}
 	if _, err := os.Stat(pidPath); !os.IsNotExist(err) {
 		t.Fatalf("pid file should be removed, stat err = %v", err)
+	}
+}
+
+func TestAcquireWorkspacePIDRejectsRunningPID(t *testing.T) {
+	workspace := t.TempDir()
+	pidPath := filepath.Join(workspace, workspacePIDFile)
+	if err := os.WriteFile(pidPath, []byte(fmt.Sprintf("%d\n", os.Getpid())), 0o644); err != nil {
+		t.Fatalf("WriteFile error = %v", err)
+	}
+
+	_, err := acquireWorkspacePID(workspace, false)
+	if err == nil || !strings.Contains(err.Error(), "already running") {
+		t.Fatalf("acquireWorkspacePID() err = %v", err)
+	}
+}
+
+func TestHandleExistingWorkspacePIDForceRemovesUnreadablePID(t *testing.T) {
+	workspace := t.TempDir()
+	pidPath := filepath.Join(workspace, workspacePIDFile)
+	if err := os.WriteFile(pidPath, []byte("not-a-pid\n"), 0o644); err != nil {
+		t.Fatalf("WriteFile error = %v", err)
+	}
+
+	if err := handleExistingWorkspacePID(pidPath, true); err != nil {
+		t.Fatalf("handleExistingWorkspacePID(force invalid) error = %v", err)
+	}
+	if _, err := os.Stat(pidPath); !os.IsNotExist(err) {
+		t.Fatalf("pid file should be removed, stat err = %v", err)
+	}
+}
+
+func TestReadWorkspacePIDRejectsInvalidPID(t *testing.T) {
+	pidPath := filepath.Join(t.TempDir(), workspacePIDFile)
+	if err := os.WriteFile(pidPath, []byte("0\n"), 0o644); err != nil {
+		t.Fatalf("WriteFile error = %v", err)
+	}
+	if _, err := readWorkspacePID(pidPath); err == nil {
+		t.Fatal("readWorkspacePID invalid pid error = nil")
+	}
+}
+
+func TestProcessRunningAndWaitForProcessExitForMissingPID(t *testing.T) {
+	if processRunning(0) {
+		t.Fatal("processRunning(0) = true")
+	}
+	if err := waitForProcessExit(999999, time.Millisecond); err != nil {
+		t.Fatalf("waitForProcessExit(missing) error = %v", err)
 	}
 }
 

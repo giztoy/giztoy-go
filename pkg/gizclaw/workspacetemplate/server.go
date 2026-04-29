@@ -14,7 +14,7 @@ import (
 	"github.com/GizClaw/gizclaw-go/pkg/store/kv"
 )
 
-var templatesRoot = kv.Key{"workspace-templates", "by-name"}
+var templatesRoot = kv.Key{"by-name"}
 
 const (
 	defaultListLimit = 50

@@ -75,10 +75,10 @@ func TestIndexEntriesAndKeys(t *testing.T) {
 	if len(keys) != 7 {
 		t.Fatalf("keys len = %d", len(keys))
 	}
-	if snKey(sn).String() != "gears:by-sn:sn-index" {
+	if snKey(sn).String() != "by-sn:sn-index" {
 		t.Fatalf("snKey = %s", snKey(sn).String())
 	}
-	if firmwareKey(depot, stable, gear.PublicKey).String() != "gears:by-firmware-depot:depot-index:stable:peer-index" {
+	if firmwareKey(depot, stable, gear.PublicKey).String() != "by-firmware-depot:depot-index:stable:peer-index" {
 		t.Fatalf("firmwareKey = %s", firmwareKey(depot, stable, gear.PublicKey).String())
 	}
 }

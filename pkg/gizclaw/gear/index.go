@@ -123,26 +123,24 @@ func dedupeCertifications(items []apitypes.GearCertification) []apitypes.GearCer
 	return out
 }
 
-var gearsRoot = kv.Key{"gears"}
-
 func gearKey(publicKey string) kv.Key {
-	return append(append(kv.Key{}, gearsRoot...), "by-pubkey", publicKey)
+	return kv.Key{"by-pubkey", publicKey}
 }
 
 func gearsPrefix() kv.Key {
-	return append(append(kv.Key{}, gearsRoot...), "by-pubkey")
+	return kv.Key{"by-pubkey"}
 }
 
 func snKey(sn string) kv.Key {
-	return append(append(kv.Key{}, gearsRoot...), "by-sn", escapeIndexSegment(sn))
+	return kv.Key{"by-sn", escapeIndexSegment(sn)}
 }
 
 func imeiKey(tac, serial string) kv.Key {
-	return append(append(kv.Key{}, gearsRoot...), "by-imei", escapeIndexSegment(tac), escapeIndexSegment(serial))
+	return kv.Key{"by-imei", escapeIndexSegment(tac), escapeIndexSegment(serial)}
 }
 
 func certificationPrefix(certType apitypes.GearCertificationType, authority apitypes.GearCertificationAuthority, id string) kv.Key {
-	return append(append(kv.Key{}, gearsRoot...), "by-certification", string(certType), string(authority), escapeIndexSegment(id))
+	return kv.Key{"by-certification", string(certType), string(authority), escapeIndexSegment(id)}
 }
 
 func certificationKey(item apitypes.GearCertification, publicKey string) kv.Key {
@@ -150,7 +148,7 @@ func certificationKey(item apitypes.GearCertification, publicKey string) kv.Key 
 }
 
 func labelPrefix(key, value string) kv.Key {
-	return append(append(kv.Key{}, gearsRoot...), "by-label", escapeIndexSegment(key), escapeIndexSegment(value))
+	return kv.Key{"by-label", escapeIndexSegment(key), escapeIndexSegment(value)}
 }
 
 func labelKey(item apitypes.GearLabel, publicKey string) kv.Key {
@@ -158,7 +156,7 @@ func labelKey(item apitypes.GearLabel, publicKey string) kv.Key {
 }
 
 func firmwarePrefix(depot string, channel apitypes.GearFirmwareChannel) kv.Key {
-	return append(append(kv.Key{}, gearsRoot...), "by-firmware-depot", escapeIndexSegment(depot), string(channel))
+	return kv.Key{"by-firmware-depot", escapeIndexSegment(depot), string(channel)}
 }
 
 func firmwareKey(depot string, channel apitypes.GearFirmwareChannel, publicKey string) kv.Key {
@@ -166,7 +164,7 @@ func firmwareKey(depot string, channel apitypes.GearFirmwareChannel, publicKey s
 }
 
 func rolePrefix(role apitypes.GearRole) kv.Key {
-	return append(append(kv.Key{}, gearsRoot...), "by-role", string(role))
+	return kv.Key{"by-role", string(role)}
 }
 
 func roleKey(role apitypes.GearRole, publicKey string) kv.Key {
@@ -174,7 +172,7 @@ func roleKey(role apitypes.GearRole, publicKey string) kv.Key {
 }
 
 func statusPrefix(status apitypes.GearStatus) kv.Key {
-	return append(append(kv.Key{}, gearsRoot...), "by-status", string(status))
+	return kv.Key{"by-status", string(status)}
 }
 
 func statusKey(status apitypes.GearStatus, publicKey string) kv.Key {

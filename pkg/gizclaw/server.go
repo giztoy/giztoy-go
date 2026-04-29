@@ -44,11 +44,19 @@ func (AllowAll) AllowPeerService(giznet.PublicKey, uint64) bool {
 type Server struct {
 	KeyPair *giznet.KeyPair
 
-	GearStore          kv.Store
-	RegistrationTokens map[string]apitypes.GearRole
-	BuildCommit        string
-	ServerPublicKey    string
-	DepotStore         depotstore.Store
+	GearStore              kv.Store
+	CredentialStore        kv.Store
+	MiniMaxCredentialStore kv.Store
+	MiniMaxTenantStore     kv.Store
+	VoiceStore             kv.Store
+	WorkspaceStore         kv.Store
+	TemplateStore          kv.Store
+	WorkspaceTemplateStore kv.Store
+	RegistrationTokens     map[string]apitypes.GearRole
+	BuildCommit            string
+	ServerPublicKey        string
+	DepotStore             depotstore.Store
+	StoreCloser            interface{ Close() error }
 
 	manager     *Manager
 	peerService *PeerService
@@ -169,11 +177,17 @@ func (s *Server) Close() error {
 	s.mu.Lock()
 	listener := s.listener
 	s.listener = nil
+	storeCloser := s.StoreCloser
+	s.StoreCloser = nil
 	s.mu.Unlock()
-	if listener == nil {
-		return nil
+	var errs []error
+	if listener != nil {
+		errs = append(errs, listener.Close())
 	}
-	return listener.Close()
+	if storeCloser != nil {
+		errs = append(errs, storeCloser.Close())
+	}
+	return errors.Join(errs...)
 }
 
 func (s *Server) allowPeerService(pk giznet.PublicKey, service uint64) bool {
@@ -233,8 +247,27 @@ func (s *Server) initRuntime(serverPublicKey string) error {
 		return fmt.Errorf("gizclaw: empty server public key")
 	}
 
+	legacySharedStore := s.CredentialStore == nil &&
+		s.MiniMaxTenantStore == nil &&
+		s.VoiceStore == nil &&
+		s.MiniMaxCredentialStore == nil &&
+		s.WorkspaceStore == nil &&
+		s.TemplateStore == nil &&
+		s.WorkspaceTemplateStore == nil
+	gearStore := s.GearStore
+	if legacySharedStore {
+		gearStore = kv.Prefixed(s.GearStore, kv.Key{"gears"})
+	}
+	credentialStore := moduleStore(s.CredentialStore, s.GearStore, "credentials")
+	miniMaxCredentialStore := moduleStore(s.MiniMaxCredentialStore, credentialStore, "")
+	miniMaxTenantStore := moduleStore(s.MiniMaxTenantStore, s.GearStore, "minimax-tenants")
+	voiceStore := moduleStore(s.VoiceStore, s.GearStore, "voices")
+	workspaceStore := moduleStore(s.WorkspaceStore, s.GearStore, "workspaces")
+	templateStore := moduleStore(s.TemplateStore, s.GearStore, "workspace-templates")
+	workspaceTemplateStore := moduleStore(s.WorkspaceTemplateStore, templateStore, "")
+
 	gearsServer := &gear.Server{
-		Store:              s.GearStore,
+		Store:              gearStore,
 		RegistrationTokens: s.RegistrationTokens,
 		BuildCommit:        s.BuildCommit,
 		ServerPublicKey:    serverPublicKey,
@@ -248,10 +281,14 @@ func (s *Server) initRuntime(serverPublicKey string) error {
 			return resolveGearTarget(ctx, gearsServer, publicKey)
 		},
 	}
-	workspaceTemplateServer := &workspacetemplate.Server{Store: s.GearStore}
-	workspaceServer := &workspace.Server{Store: s.GearStore}
-	credentialServer := &credential.Server{Store: s.GearStore}
-	mmxServer := &mmx.Server{Store: s.GearStore}
+	workspaceTemplateServer := &workspacetemplate.Server{Store: templateStore}
+	workspaceServer := &workspace.Server{Store: workspaceStore, TemplateStore: workspaceTemplateStore}
+	credentialServer := &credential.Server{Store: credentialStore}
+	mmxServer := &mmx.Server{
+		TenantStore:     miniMaxTenantStore,
+		VoiceStore:      voiceStore,
+		CredentialStore: miniMaxCredentialStore,
+	}
 	resourceManager := resourcemanager.New(resourcemanager.Services{
 		Credentials:        credentialServer,
 		Gears:              gearsServer,
@@ -281,6 +318,19 @@ func (s *Server) initRuntime(serverPublicKey string) error {
 		},
 	}
 	return nil
+}
+
+func moduleStore(configured, fallback kv.Store, defaultPrefix string) kv.Store {
+	if configured != nil {
+		return configured
+	}
+	if fallback == nil {
+		return nil
+	}
+	if defaultPrefix == "" {
+		return fallback
+	}
+	return kv.Prefixed(fallback, kv.Key{defaultPrefix})
 }
 
 func resolveGearTarget(ctx context.Context, gearsServer *gear.Server, publicKey string) (string, firmware.Channel, error) {

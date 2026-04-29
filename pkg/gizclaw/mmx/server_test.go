@@ -112,7 +112,11 @@ func TestServerMiniMaxTenantsCRUD(t *testing.T) {
 		SyncedAt:        timePtr(created.CreatedAt),
 		UpdatedAt:       created.CreatedAt,
 	}
-	if err := writeVoice(ctx, srv.Store, voice, nil); err != nil {
+	voiceStore, err := srv.voiceStore()
+	if err != nil {
+		t.Fatalf("voiceStore() error = %v", err)
+	}
+	if err := writeVoice(ctx, voiceStore, voice, nil); err != nil {
 		t.Fatalf("writeVoice() error = %v", err)
 	}
 	manualVoice := apitypes.Voice{
@@ -125,7 +129,7 @@ func TestServerMiniMaxTenantsCRUD(t *testing.T) {
 		Source:    apitypes.VoiceSourceManual,
 		UpdatedAt: created.CreatedAt,
 	}
-	if err := writeVoice(ctx, srv.Store, manualVoice, nil); err != nil {
+	if err := writeVoice(ctx, voiceStore, manualVoice, nil); err != nil {
 		t.Fatalf("writeVoice(manual) error = %v", err)
 	}
 
@@ -136,10 +140,10 @@ func TestServerMiniMaxTenantsCRUD(t *testing.T) {
 	if _, ok := deleteResp.(adminservice.DeleteMiniMaxTenant200JSONResponse); !ok {
 		t.Fatalf("DeleteMiniMaxTenant() response = %#v", deleteResp)
 	}
-	if _, err := getVoice(ctx, srv.Store, string(voice.Id)); err != kv.ErrNotFound {
+	if _, err := getVoice(ctx, voiceStore, string(voice.Id)); err != kv.ErrNotFound {
 		t.Fatalf("getVoice() after tenant delete err = %v, want kv.ErrNotFound", err)
 	}
-	if _, err := getVoice(ctx, srv.Store, string(manualVoice.Id)); err != nil {
+	if _, err := getVoice(ctx, voiceStore, string(manualVoice.Id)); err != nil {
 		t.Fatalf("manual voice after tenant delete err = %v, want nil", err)
 	}
 }
@@ -459,7 +463,11 @@ func TestServerVoicesRejectSyncWritesButAllowDelete(t *testing.T) {
 		SyncedAt:          timePtr(now),
 		UpdatedAt:         now,
 	}
-	if err := writeVoice(ctx, srv.Store, syncVoice, nil); err != nil {
+	voiceStore, err := srv.voiceStore()
+	if err != nil {
+		t.Fatalf("voiceStore() error = %v", err)
+	}
+	if err := writeVoice(ctx, voiceStore, syncVoice, nil); err != nil {
 		t.Fatalf("writeVoice(sync) error = %v", err)
 	}
 
@@ -487,7 +495,7 @@ func TestServerVoicesRejectSyncWritesButAllowDelete(t *testing.T) {
 	if _, ok := deleteResp.(adminservice.DeleteVoice200JSONResponse); !ok {
 		t.Fatalf("DeleteVoice(sync) response = %#v", deleteResp)
 	}
-	if _, err := getVoice(ctx, srv.Store, string(syncVoice.Id)); err != kv.ErrNotFound {
+	if _, err := getVoice(ctx, voiceStore, string(syncVoice.Id)); err != kv.ErrNotFound {
 		t.Fatalf("getVoice(sync after delete) err = %v, want kv.ErrNotFound", err)
 	}
 }
@@ -605,7 +613,11 @@ func TestServerMiniMaxCredentialValidation(t *testing.T) {
 		CreatedAt: srv.now(),
 		UpdatedAt: srv.now(),
 	})
-	if _, err := srv.miniMaxClientForTenant(ctx, srv.Store, tenant); err == nil {
+	credentialStore, err := srv.credentialStore()
+	if err != nil {
+		t.Fatalf("credentialStore() error = %v", err)
+	}
+	if _, err := srv.miniMaxClientForTenant(ctx, credentialStore, tenant); err == nil {
 		t.Fatalf("miniMaxClientForTenant(openai provider) error = nil, want error")
 	}
 
@@ -617,7 +629,7 @@ func TestServerMiniMaxCredentialValidation(t *testing.T) {
 		CreatedAt: srv.now(),
 		UpdatedAt: srv.now(),
 	})
-	if _, err := srv.miniMaxClientForTenant(ctx, srv.Store, tenant); err == nil {
+	if _, err := srv.miniMaxClientForTenant(ctx, credentialStore, tenant); err == nil {
 		t.Fatalf("miniMaxClientForTenant(missing api key) error = nil, want error")
 	}
 
@@ -692,6 +704,58 @@ func TestServerMiniMaxStoreNotConfigured(t *testing.T) {
 	}
 	if _, ok := createVoiceResp.(adminservice.CreateVoice500JSONResponse); !ok {
 		t.Fatalf("CreateVoice() response = %#v", createVoiceResp)
+	}
+}
+
+func TestServerMiniMaxStoreHelpers(t *testing.T) {
+	t.Parallel()
+
+	var nilServer *Server
+	if _, err := nilServer.tenantStore(); err == nil {
+		t.Fatal("nil server tenantStore() error = nil")
+	}
+	if _, err := nilServer.voiceStore(); err == nil {
+		t.Fatal("nil server voiceStore() error = nil")
+	}
+	if _, err := nilServer.credentialStore(); err == nil {
+		t.Fatal("nil server credentialStore() error = nil")
+	}
+	if _, err := (&Server{}).tenantStore(); err == nil {
+		t.Fatal("empty server tenantStore() error = nil")
+	}
+	if _, err := (&Server{}).voiceStore(); err == nil {
+		t.Fatal("empty server voiceStore() error = nil")
+	}
+	if _, err := (&Server{}).credentialStore(); err == nil {
+		t.Fatal("empty server credentialStore() error = nil")
+	}
+
+	base := kv.NewMemory(nil)
+	srv := &Server{Store: base}
+	if got, err := srv.tenantStore(); err != nil || got != base {
+		t.Fatalf("tenantStore fallback = %v, %v", got, err)
+	}
+	if got, err := srv.voiceStore(); err != nil || got != base {
+		t.Fatalf("voiceStore fallback = %v, %v", got, err)
+	}
+	if got, err := srv.credentialStore(); err != nil || got != base {
+		t.Fatalf("credentialStore fallback = %v, %v", got, err)
+	}
+
+	tenantStore := kv.NewMemory(nil)
+	voiceStore := kv.NewMemory(nil)
+	credentialStore := kv.NewMemory(nil)
+	srv.TenantStore = tenantStore
+	srv.VoiceStore = voiceStore
+	srv.CredentialStore = credentialStore
+	if got, err := srv.tenantStore(); err != nil || got != tenantStore {
+		t.Fatalf("tenantStore explicit = %v, %v", got, err)
+	}
+	if got, err := srv.voiceStore(); err != nil || got != voiceStore {
+		t.Fatalf("voiceStore explicit = %v, %v", got, err)
+	}
+	if got, err := srv.credentialStore(); err != nil || got != credentialStore {
+		t.Fatalf("credentialStore explicit = %v, %v", got, err)
 	}
 }
 
@@ -908,7 +972,11 @@ func TestServerSyncMiniMaxTenantVoicesReconcile(t *testing.T) {
 		Source:    apitypes.VoiceSourceManual,
 		UpdatedAt: srv.now(),
 	}
-	if err := writeVoice(ctx, srv.Store, manualVoice, nil); err != nil {
+	voiceStore, err := srv.voiceStore()
+	if err != nil {
+		t.Fatalf("voiceStore() error = %v", err)
+	}
+	if err := writeVoice(ctx, voiceStore, manualVoice, nil); err != nil {
 		t.Fatalf("writeVoice(manual) error = %v", err)
 	}
 
@@ -1075,7 +1143,9 @@ func newTestServer(t *testing.T) *Server {
 
 	fixed := time.Date(2026, 4, 22, 12, 0, 0, 0, time.UTC)
 	return &Server{
-		Store: store,
+		TenantStore:     kv.Prefixed(store, kv.Key{"minimax-tenants"}),
+		VoiceStore:      kv.Prefixed(store, kv.Key{"voices"}),
+		CredentialStore: kv.Prefixed(store, kv.Key{"credentials"}),
 		Now: func() time.Time {
 			return fixed
 		},
@@ -1089,7 +1159,11 @@ func seedCredential(t *testing.T, srv *Server, credential apitypes.Credential) {
 	if err != nil {
 		t.Fatalf("json.Marshal(credential) error = %v", err)
 	}
-	if err := srv.Store.Set(context.Background(), credentialKey(string(credential.Name)), data); err != nil {
+	store, err := srv.credentialStore()
+	if err != nil {
+		t.Fatalf("credentialStore() error = %v", err)
+	}
+	if err := store.Set(context.Background(), credentialKey(string(credential.Name)), data); err != nil {
 		t.Fatalf("Store.Set(credential) error = %v", err)
 	}
 }
