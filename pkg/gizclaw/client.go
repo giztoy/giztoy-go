@@ -37,6 +37,9 @@ type Client struct {
 	listener *giznet.Listener
 	conn     *giznet.Conn
 	serverPK giznet.PublicKey
+
+	packetMu          sync.RWMutex
+	packetSubscribers map[byte]map[chan []byte]struct{}
 }
 
 // DialAndServe establishes the peer connection and serves peer public handlers.
@@ -304,7 +307,88 @@ func (c *Client) dispatchRPC(_ context.Context, req *rpc.RPCRequest) (*rpc.RPCRe
 }
 
 func (c *Client) servePackets() error {
-	return nil
+	if c == nil {
+		return fmt.Errorf("gizclaw: nil client")
+	}
+	buf := make([]byte, 64*1024)
+	for {
+		conn := c.PeerConn()
+		if conn == nil {
+			return nil
+		}
+		protocol, n, err := conn.Read(buf)
+		if err != nil {
+			if isPeerPacketReadClosed(err) {
+				return nil
+			}
+			return err
+		}
+		c.dispatchPeerPacket(protocol, buf[:n])
+	}
+}
+
+func isPeerPacketReadClosed(err error) bool {
+	return errors.Is(err, io.EOF) ||
+		errors.Is(err, net.ErrClosed) ||
+		errors.Is(err, giznet.ErrConnClosed) ||
+		errors.Is(err, giznet.ErrUDPClosed) ||
+		errors.Is(err, giznet.ErrServiceMuxClosed)
+}
+
+func (c *Client) subscribePeerPackets(protocol byte, buffer int) (<-chan []byte, func()) {
+	if buffer < 1 {
+		buffer = 1
+	}
+	ch := make(chan []byte, buffer)
+
+	c.packetMu.Lock()
+	if c.packetSubscribers == nil {
+		c.packetSubscribers = make(map[byte]map[chan []byte]struct{})
+	}
+	if c.packetSubscribers[protocol] == nil {
+		c.packetSubscribers[protocol] = make(map[chan []byte]struct{})
+	}
+	c.packetSubscribers[protocol][ch] = struct{}{}
+	c.packetMu.Unlock()
+
+	var once sync.Once
+	unsubscribe := func() {
+		once.Do(func() {
+			c.packetMu.Lock()
+			if subscribers := c.packetSubscribers[protocol]; subscribers != nil {
+				delete(subscribers, ch)
+				if len(subscribers) == 0 {
+					delete(c.packetSubscribers, protocol)
+				}
+			}
+			c.packetMu.Unlock()
+		})
+	}
+	return ch, unsubscribe
+}
+
+func (c *Client) dispatchPeerPacket(protocol byte, payload []byte) {
+	c.packetMu.RLock()
+	subscribers := c.packetSubscribers[protocol]
+	if len(subscribers) == 0 {
+		c.packetMu.RUnlock()
+		return
+	}
+	targets := make([]chan []byte, 0, len(subscribers))
+	for ch := range subscribers {
+		targets = append(targets, ch)
+	}
+	c.packetMu.RUnlock()
+
+	packet := append([]byte(nil), payload...)
+	for _, ch := range targets {
+		select {
+		case ch <- packet:
+		default:
+			// Direct media packets are realtime; stale consumers should drop
+			// rather than backpressure the peer packet loop.
+		}
+	}
 }
 
 // ProxyHandler exposes the local reverse-proxy routes for remote server APIs.

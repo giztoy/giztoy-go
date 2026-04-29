@@ -1,5 +1,5 @@
-// User story: As a maintainer, I can run one smoke path that proves Admin and
-// Play both talk to the same running GizClaw service and seeded data set.
+// User story: As a maintainer, I can run one smoke path that proves Admin still
+// talks to the real service while Play renders the dial surface.
 package ui_test
 
 import (
@@ -15,8 +15,7 @@ func realServiceSmokeStories() []Story {
 			page.ExpectText(SeedDepotName)
 
 			page.GotoPlay("/")
-			page.ClickRole("button", "Run Device Info")
-			page.ExpectText("Seeded UI Device")
+			page.ExpectText("Start Video Call")
 		},
 	}}
 }

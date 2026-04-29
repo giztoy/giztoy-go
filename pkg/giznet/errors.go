@@ -16,5 +16,6 @@ var (
 	ErrPeerNotFound      = core.ErrPeerNotFound
 	ErrUDPClosed         = core.ErrClosed
 	ErrAcceptQueueClosed = core.ErrAcceptQueueClosed
+	ErrServiceMuxClosed  = core.ErrServiceMuxClosed
 	ErrKCPMustUseStream  = core.ErrKCPMustUseStream
 )
