@@ -1,0 +1,5 @@
+package: openaiservice
+generate:
+  fiber-server: true
+  strict-server: true
+  models: true

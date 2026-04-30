@@ -6,7 +6,7 @@ interfaces, and shared API types under `pkg/gizclaw/api/`.
 
 ## Layout
 
-- `admin_service.json`, `gear_service.json`, `server_public.json`,
+- `admin_service.json`, `gear_service.json`, `openai_service.json`, `server_public.json`,
   `peer_public.json`,
   `event_types.json`, and `rpc_types.json` define API surfaces or shared
   protocol documents.
@@ -23,6 +23,7 @@ Generated Go code lives outside this directory:
 - `pkg/gizclaw/api/adminservice/generated.go`
 - `pkg/gizclaw/api/apitypes/generated.go`
 - `pkg/gizclaw/api/gearservice/generated.go`
+- `pkg/gizclaw/api/openaiservice/generated.go`
 - `pkg/gizclaw/api/peerpublic/generated.go`
 - `pkg/gizclaw/api/rpc/generated.go`
 - `pkg/gizclaw/api/serverpublic/generated.go`
@@ -36,6 +37,7 @@ Common commands:
 go generate ./pkg/gizclaw/api/adminservice
 go generate ./pkg/gizclaw/api/apitypes
 go generate ./pkg/gizclaw/api/gearservice
+go generate ./pkg/gizclaw/api/openaiservice
 go generate ./pkg/gizclaw/api/peerpublic
 go generate ./pkg/gizclaw/api/rpc
 go generate ./pkg/gizclaw/api/serverpublic
