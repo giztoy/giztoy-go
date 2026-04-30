@@ -1,7 +1,7 @@
 package core
 
 import (
-	"log"
+	"log/slog"
 	"net"
 	"sync"
 	"time"
@@ -384,7 +384,7 @@ func (c *Conn) flushPendingPackets() {
 
 	for _, pkt := range packets {
 		if err := c.sendPayload(pkt, false); err != nil {
-			log.Printf("net: failed to flush pending packet: %v", err)
+			slog.Warn("net: failed to flush pending packet", "error", err)
 		}
 	}
 }
@@ -535,7 +535,7 @@ func (c *Conn) handleTransportMessage(msg *noise.TransportMessage) (byte, []byte
 		if now.Sub(sessionCreated) > RekeyOnRecvThreshold {
 			go func() {
 				if err := c.initiateRekey(); err != nil {
-					log.Printf("net: background rekey on receive failed: %v", err)
+					slog.Warn("net: background rekey on receive failed", "error", err)
 				}
 			}()
 		}
