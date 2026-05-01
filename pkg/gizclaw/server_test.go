@@ -140,6 +140,15 @@ func TestServerAllowPeerServiceDefaults(t *testing.T) {
 	if server.allowPeerService(giznet.PublicKey{}, ServiceAdmin) {
 		t.Fatal("server should not allow admin before manager is initialized")
 	}
+
+	keyPair, err := giznet.GenerateKeyPair()
+	if err != nil {
+		t.Fatalf("GenerateKeyPair error = %v", err)
+	}
+	server.AdminPublicKey = keyPair.Public.String()
+	if !server.allowPeerService(keyPair.Public, ServiceAdmin) {
+		t.Fatal("configured admin public key should allow admin before manager is initialized")
+	}
 }
 
 func TestResolveGearTarget(t *testing.T) {
@@ -151,7 +160,7 @@ func TestResolveGearTarget(t *testing.T) {
 		t.Helper()
 		if _, err := gearsServer.SaveGear(ctx, apitypes.Gear{
 			PublicKey:     publicKey,
-			Role:          apitypes.GearRoleDevice,
+			Role:          apitypes.GearRoleGear,
 			Status:        apitypes.GearStatusActive,
 			Device:        device,
 			Configuration: config,

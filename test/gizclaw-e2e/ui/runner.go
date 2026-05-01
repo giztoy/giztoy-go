@@ -3,7 +3,6 @@ package ui_test
 import (
 	"bytes"
 	"context"
-	"crypto/rand"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -11,10 +10,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
-	"os"
 	"path"
-	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -22,13 +18,11 @@ import (
 	"github.com/GizClaw/gizclaw-go/pkg/gizclaw"
 	"github.com/GizClaw/gizclaw-go/pkg/gizclaw/api/adminservice"
 	"github.com/GizClaw/gizclaw-go/pkg/gizclaw/api/apitypes"
-	"github.com/GizClaw/gizclaw-go/pkg/gizclaw/api/gearservice"
-	"github.com/GizClaw/gizclaw-go/pkg/giznet"
 	adminui "github.com/GizClaw/gizclaw-go/ui/apps/admin"
 	playui "github.com/GizClaw/gizclaw-go/ui/apps/play"
-	"github.com/goccy/go-yaml"
 	"github.com/playwright-community/playwright-go"
 
+	clitest "github.com/GizClaw/gizclaw-go/test/gizclaw-e2e/cmd"
 	itest "github.com/GizClaw/gizclaw-go/test/gizclaw-e2e/testutil"
 )
 
@@ -71,22 +65,6 @@ type Suite struct {
 type browserRunner struct {
 	browser playwright.Browser
 	pw      *playwright.Playwright
-}
-
-type cliContext struct {
-	Name      string
-	KeyPair   *giznet.KeyPair
-	Server    serverConfig
-	ServerKey giznet.PublicKey
-}
-
-type serverConfig struct {
-	Address   string `yaml:"address"`
-	PublicKey string `yaml:"public-key"`
-}
-
-type contextConfig struct {
-	Server serverConfig `yaml:"server"`
 }
 
 func RunStories(t *testing.T, stories []Story) {
@@ -259,40 +237,41 @@ func (p *Page) gotoURL(baseURL, routePath string) {
 func startSeededUI(t testing.TB) Seed {
 	t.Helper()
 
-	adminCtx := loadCurrentCLIContext(t)
-	adminClient := startExternalClient(t, adminCtx)
+	h := clitest.NewHarness(t, "200-server-config-boot")
+	h.StartServerFromFixture("server_config.yaml")
+
+	h.CreateContext("admin").MustSucceed(t)
+	adminClient := h.ConnectClientFromContext("admin")
 	t.Cleanup(func() { _ = adminClient.Close() })
 
 	adminSeed, err := itest.LoadRegistrationSeed("admin")
 	if err != nil {
 		t.Fatalf("load admin registration seed: %v", err)
 	}
-	registerGear(t, adminClient, adminCtx.KeyPair.Public.String(), itest.RegistrationRequest(adminCtx.KeyPair.Public.String(), adminSeed))
+	putGearInfo(t, adminClient, h.ContextPublicKey("admin"), adminSeed.Device)
 
 	adminAPI, err := adminClient.ServerAdminClient()
 	if err != nil {
-		t.Fatalf("create admin API client: %v; current gizclaw context must be an admin for the running service", err)
+		t.Fatalf("create admin API client for seeded UI service: %v", err)
 	}
 
-	workspaceRoot := filepath.Join(mustRepoRoot(t), "test", "gizclaw-e2e", ".workspace", "ui-real-service")
-	deviceCtx := loadOrCreateExternalContext(t, workspaceRoot, "device-a", adminCtx.Server)
-	actionDeviceCtx := loadOrCreateExternalContext(t, workspaceRoot, "device-actions-a", adminCtx.Server)
-	deleteDeviceCtx := loadOrCreateExternalContext(t, workspaceRoot, "device-delete-a", adminCtx.Server)
-
-	deviceClient := startExternalClient(t, deviceCtx)
+	h.CreateContext("device-a").MustSucceed(t)
+	h.CreateContext("device-actions-a").MustSucceed(t)
+	h.CreateContext("device-delete-a").MustSucceed(t)
+	deviceClient := h.ConnectClientFromContext("device-a")
 	t.Cleanup(func() { _ = deviceClient.Close() })
-	actionDeviceClient := startExternalClient(t, actionDeviceCtx)
+	actionDeviceClient := h.ConnectClientFromContext("device-actions-a")
 	t.Cleanup(func() { _ = actionDeviceClient.Close() })
-	deleteDeviceClient := startExternalClient(t, deleteDeviceCtx)
+	deleteDeviceClient := h.ConnectClientFromContext("device-delete-a")
 	t.Cleanup(func() { _ = deleteDeviceClient.Close() })
 
 	deviceSeed, err := itest.LoadRegistrationSeed("device")
 	if err != nil {
 		t.Fatalf("load device registration seed: %v", err)
 	}
-	registerGear(t, deviceClient, deviceCtx.KeyPair.Public.String(), itest.RegistrationRequest(deviceCtx.KeyPair.Public.String(), deviceSeed))
-	registerGear(t, actionDeviceClient, actionDeviceCtx.KeyPair.Public.String(), itest.RegistrationRequest(actionDeviceCtx.KeyPair.Public.String(), deviceSeed))
-	registerGear(t, deleteDeviceClient, deleteDeviceCtx.KeyPair.Public.String(), itest.RegistrationRequest(deleteDeviceCtx.KeyPair.Public.String(), deviceSeed))
+	putGearInfo(t, deviceClient, h.ContextPublicKey("device-a"), deviceSeed.Device)
+	putGearInfo(t, actionDeviceClient, h.ContextPublicKey("device-actions-a"), deviceSeed.Device)
+	putGearInfo(t, deleteDeviceClient, h.ContextPublicKey("device-delete-a"), deviceSeed.Device)
 
 	seedCtx, cancel := context.WithTimeout(context.Background(), itest.ReadyTimeout)
 	defer cancel()
@@ -306,7 +285,11 @@ func startSeededUI(t testing.TB) Seed {
 		t.Fatalf("apply firmware seed: %v", err)
 	}
 	applyFirmwareReleaseSeed(t, seedCtx, adminAPI, "beta", "1.0.1")
-	for _, publicKey := range []string{deviceCtx.KeyPair.Public.String(), actionDeviceCtx.KeyPair.Public.String(), deleteDeviceCtx.KeyPair.Public.String()} {
+	for _, publicKey := range []string{
+		h.ContextPublicKey("device-a"),
+		h.ContextPublicKey("device-actions-a"),
+		h.ContextPublicKey("device-delete-a"),
+	} {
 		approveGear(t, seedCtx, adminAPI, publicKey)
 		if err := itest.ApplyDeviceConfigSeed(seedCtx, adminAPI, publicKey); err != nil {
 			t.Fatalf("apply device config seed for %q: %v", publicKey, err)
@@ -317,13 +300,13 @@ func startSeededUI(t testing.TB) Seed {
 		AdminURL:              startTestUI(t, "admin", adminClient, adminui.FS()),
 		PlayURL:               startTestUI(t, "play", deviceClient, playui.FS()),
 		ErrorPlayURL:          startErrorTestUI(t, "play-error", playui.FS()),
-		DevicePublicKey:       deviceCtx.KeyPair.Public.String(),
-		ActionDevicePublicKey: actionDeviceCtx.KeyPair.Public.String(),
-		DeleteDevicePublicKey: deleteDeviceCtx.KeyPair.Public.String(),
+		DevicePublicKey:       h.ContextPublicKey("device-a"),
+		ActionDevicePublicKey: h.ContextPublicKey("device-actions-a"),
+		DeleteDevicePublicKey: h.ContextPublicKey("device-delete-a"),
 	}
 }
 
-func registerGear(t testing.TB, client *gizclaw.Client, publicKey string, request gearservice.RegistrationRequest) {
+func putGearInfo(t testing.TB, client *gizclaw.Client, publicKey string, info apitypes.DeviceInfo) {
 	t.Helper()
 
 	api, err := client.GearServiceClient()
@@ -332,20 +315,20 @@ func registerGear(t testing.TB, client *gizclaw.Client, publicKey string, reques
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), itest.ReadyTimeout)
 	defer cancel()
-	resp, err := api.RegisterGearWithResponse(ctx, request)
+	resp, err := api.PutInfoWithResponse(ctx, info)
 	if err != nil {
-		t.Fatalf("register %q: %v", publicKey, err)
+		t.Fatalf("put info %q: %v", publicKey, err)
 	}
-	if resp.JSON200 != nil || resp.StatusCode() == http.StatusConflict {
+	if resp.JSON200 != nil {
 		return
 	}
-	t.Fatalf("register %q got status %d: %s", publicKey, resp.StatusCode(), strings.TrimSpace(string(resp.Body)))
+	t.Fatalf("put info %q got status %d: %s", publicKey, resp.StatusCode(), strings.TrimSpace(string(resp.Body)))
 }
 
 func approveGear(t testing.TB, ctx context.Context, api *adminservice.ClientWithResponses, publicKey string) {
 	t.Helper()
 
-	resp, err := api.ApproveGearWithResponse(ctx, publicKey, adminservice.ApproveRequest{Role: apitypes.GearRoleDevice})
+	resp, err := api.ApproveGearWithResponse(ctx, publicKey, adminservice.ApproveRequest{Role: apitypes.GearRoleGear})
 	if err != nil {
 		t.Fatalf("approve %q: %v", publicKey, err)
 	}
@@ -460,151 +443,6 @@ func (r *browserRunner) close(t testing.TB) {
 	}
 }
 
-func startExternalClient(t testing.TB, cliCtx cliContext) *gizclaw.Client {
-	t.Helper()
-
-	client := &gizclaw.Client{KeyPair: cliCtx.KeyPair}
-	errCh := make(chan error, 1)
-	go func() {
-		errCh <- client.DialAndServe(cliCtx.ServerKey, cliCtx.Server.Address)
-	}()
-
-	if err := itest.WaitUntil(5*time.Second, func() error {
-		select {
-		case err := <-errCh:
-			return fmt.Errorf("connect to running gizclaw service at %s: %w", cliCtx.Server.Address, err)
-		default:
-		}
-		if client.PeerConn() != nil {
-			return nil
-		}
-		return fmt.Errorf("waiting for gizclaw service connection at %s", cliCtx.Server.Address)
-	}); err != nil {
-		t.Fatalf("%v\nStart the service before running UI e2e tests.", err)
-	}
-	return client
-}
-
-func loadCurrentCLIContext(t testing.TB) cliContext {
-	t.Helper()
-
-	root := configDir(t)
-	link := filepath.Join(root, "current")
-	target, err := os.Readlink(link)
-	if err != nil {
-		t.Fatalf("load current gizclaw context: %v; run 'gizclaw context create' and 'gizclaw service start' first", err)
-	}
-	if !filepath.IsAbs(target) {
-		target = filepath.Join(root, target)
-	}
-	return loadCLIContext(t, target)
-}
-
-func loadOrCreateExternalContext(t testing.TB, workspaceRoot, name string, server serverConfig) cliContext {
-	t.Helper()
-
-	dir := filepath.Join(workspaceRoot, "contexts", name)
-	if err := os.MkdirAll(dir, 0o700); err != nil {
-		t.Fatalf("create UI e2e context dir: %v", err)
-	}
-
-	configPath := filepath.Join(dir, "config.yaml")
-	if _, err := os.Stat(configPath); os.IsNotExist(err) {
-		data, err := yaml.Marshal(contextConfig{Server: server})
-		if err != nil {
-			t.Fatalf("marshal UI e2e context config: %v", err)
-		}
-		if err := os.WriteFile(configPath, data, 0o644); err != nil {
-			t.Fatalf("write UI e2e context config: %v", err)
-		}
-	} else if err != nil {
-		t.Fatalf("stat UI e2e context config: %v", err)
-	}
-
-	keyPath := filepath.Join(dir, "identity.key")
-	if _, err := loadOrGenerateKeyPair(keyPath); err != nil {
-		t.Fatalf("load UI e2e identity %q: %v", name, err)
-	}
-	return loadCLIContext(t, dir)
-}
-
-func loadCLIContext(t testing.TB, dir string) cliContext {
-	t.Helper()
-
-	data, err := os.ReadFile(filepath.Join(dir, "config.yaml"))
-	if err != nil {
-		t.Fatalf("read gizclaw context config %q: %v", dir, err)
-	}
-	var cfg contextConfig
-	if err := yaml.Unmarshal(data, &cfg); err != nil {
-		t.Fatalf("parse gizclaw context config %q: %v", dir, err)
-	}
-	keyPair, err := loadOrGenerateKeyPair(filepath.Join(dir, "identity.key"))
-	if err != nil {
-		t.Fatalf("load gizclaw context identity %q: %v", dir, err)
-	}
-	serverKey, err := giznet.KeyFromHex(cfg.Server.PublicKey)
-	if err != nil {
-		t.Fatalf("parse gizclaw server public key: %v", err)
-	}
-	return cliContext{
-		Name:      filepath.Base(filepath.Clean(dir)),
-		KeyPair:   keyPair,
-		Server:    cfg.Server,
-		ServerKey: serverKey,
-	}
-}
-
-func loadOrGenerateKeyPair(keyPath string) (*giznet.KeyPair, error) {
-	data, err := os.ReadFile(keyPath)
-	if err == nil {
-		if len(data) != giznet.KeySize {
-			return nil, fmt.Errorf("invalid key size: got %d, want %d", len(data), giznet.KeySize)
-		}
-		var key giznet.Key
-		copy(key[:], data)
-		return giznet.NewKeyPair(key)
-	}
-	if !os.IsNotExist(err) {
-		return nil, err
-	}
-
-	var key giznet.Key
-	if _, err := io.ReadFull(rand.Reader, key[:]); err != nil {
-		return nil, err
-	}
-	keyPair, err := giznet.NewKeyPair(key)
-	if err != nil {
-		return nil, err
-	}
-	if err := os.MkdirAll(filepath.Dir(keyPath), 0o700); err != nil {
-		return nil, err
-	}
-	if err := os.WriteFile(keyPath, keyPair.Private[:], 0o600); err != nil {
-		return nil, err
-	}
-	return keyPair, nil
-}
-
-func configDir(t testing.TB) string {
-	t.Helper()
-	if runtime.GOOS != "windows" {
-		if xdg := os.Getenv("XDG_CONFIG_HOME"); xdg != "" {
-			return filepath.Join(xdg, "gizclaw")
-		}
-		home, err := os.UserHomeDir()
-		if err != nil {
-			t.Fatalf("resolve home dir: %v", err)
-		}
-		return filepath.Join(home, ".config", "gizclaw")
-	}
-	dir, err := os.UserConfigDir()
-	if err != nil {
-		t.Fatalf("resolve user config dir: %v", err)
-	}
-	return filepath.Join(dir, "gizclaw")
-}
-
 func joinURL(t testing.TB, baseURL, routePath string) string {
 	t.Helper()
 
@@ -616,18 +454,4 @@ func joinURL(t testing.TB, baseURL, routePath string) string {
 	parsed.RawQuery = ""
 	parsed.Fragment = ""
 	return parsed.String()
-}
-
-func mustRepoRoot(t testing.TB) string {
-	t.Helper()
-
-	_, file, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("resolve UI test helper path")
-	}
-	root := filepath.Clean(filepath.Join(filepath.Dir(file), "..", "..", ".."))
-	if _, err := os.Stat(filepath.Join(root, "go.mod")); err != nil {
-		t.Fatalf("resolve repo root %q: %v", root, err)
-	}
-	return root
 }

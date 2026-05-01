@@ -17,7 +17,7 @@ func adminSidebarNavigationStories() []Story {
 				path    string
 			}{
 				{label: "Overview", heading: "Dashboard", path: "/overview"},
-				{label: "Devices", heading: "Devices", path: "/devices"},
+				{label: "Peers", heading: "Peers", path: "/peers"},
 				{label: "Firmware", heading: "Depots", path: "/firmware"},
 				{label: "Credentials", heading: "Credentials", path: "/providers/credentials"},
 				{label: "MiniMax Tenants", heading: "MiniMax Tenants", path: "/providers/minimax-tenants"},

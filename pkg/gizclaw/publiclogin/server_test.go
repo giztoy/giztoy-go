@@ -112,7 +112,7 @@ func TestLoginAssertionRejectsExpiredAndMalformedTokens(t *testing.T) {
 func TestSessionAuthenticateRejectsExpiredAndMissingBearer(t *testing.T) {
 	manager := NewSessionManager(kv.NewMemory(nil))
 	expiresAt := time.Now().Add(20 * time.Millisecond)
-	body := []byte(fmt.Sprintf(`{"public_key":"peer","expires_at":%d}`, expiresAt.UnixMilli()))
+	body := []byte(fmt.Sprintf(`{"public_key":"server","expires_at":%d}`, expiresAt.UnixMilli()))
 	if err := manager.Store.BatchSet(context.Background(), []kv.Entry{
 		{Key: sessionKey("expired"), Value: body, Deadline: expiresAt},
 	}); err != nil {

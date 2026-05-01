@@ -15,12 +15,10 @@ func TestRepeatCommandAfterPartialStateUserStory(t *testing.T) {
 	first := h.RegisterContext("device-a", "--sn", "device-a")
 	first.MustSucceed(t)
 
-	second := h.RegisterContext("device-a", "--sn", "device-a")
-	if second.Err == nil {
-		t.Fatalf("expected second register to fail:\nstdout:\n%s\nstderr:\n%s", second.Stdout, second.Stderr)
-	}
-	if !strings.Contains(second.Stderr+second.Stdout, "already") && !strings.Contains(second.Stderr+second.Stdout, "exists") {
-		t.Fatalf("unexpected duplicate registration error:\nstdout:\n%s\nstderr:\n%s", second.Stdout, second.Stderr)
+	second := h.RegisterContext("device-a", "--sn", "device-a-retry")
+	second.MustSucceed(t)
+	if !strings.Contains(second.Stdout, `"sn":"device-a-retry"`) {
+		t.Fatalf("second register should update auto-registered device info:\n%s", second.Stdout)
 	}
 
 	if _, err := h.RunCLIUntilSuccess("ping", "--context", "device-a"); err != nil {

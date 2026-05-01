@@ -471,6 +471,13 @@ func TestIntegrationPeerServiceServeConnClientCloseUnblocksAndMarksPeerOffline(t
 		if _, ok := server.manager.ActivePeer(clientKey.Public.String()); !ok {
 			return fmt.Errorf("peer not marked online yet")
 		}
+		gear, loadErr := server.manager.Gears.LoadGear(context.Background(), clientKey.Public.String())
+		if loadErr != nil {
+			return fmt.Errorf("auto-created gear not ready: %w", loadErr)
+		}
+		if gear.Role != apitypes.GearRoleUnspecified || gear.Status != apitypes.GearStatusActive {
+			return fmt.Errorf("auto-created gear = %+v", gear)
+		}
 
 		req, reqErr := http.NewRequestWithContext(context.Background(), http.MethodGet, "http://gizclaw/server-info", nil)
 		if reqErr != nil {

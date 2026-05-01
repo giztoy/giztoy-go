@@ -413,7 +413,7 @@ func TestGetGearOTAHandler(t *testing.T) {
 		env.srv.ResolveGearTarget = func(ctx context.Context, publicKey string) (string, Channel, error) {
 			return "", "", nil
 		}
-		resp, err := env.srv.GetGearOTA(ctx, adminservice.GetGearOTARequestObject{PublicKey: "peer"})
+		resp, err := env.srv.GetGearOTA(ctx, adminservice.GetGearOTARequestObject{PublicKey: "server"})
 		if err != nil {
 			t.Fatalf("GetGearOTA() unexpected error: %v", err)
 		}
@@ -429,7 +429,7 @@ func TestGetGearOTAHandler(t *testing.T) {
 		env.srv.ResolveGearTarget = func(ctx context.Context, publicKey string) (string, Channel, error) {
 			return "depot", Stable, nil
 		}
-		resp, err := env.srv.GetGearOTA(ctx, adminservice.GetGearOTARequestObject{PublicKey: "peer"})
+		resp, err := env.srv.GetGearOTA(ctx, adminservice.GetGearOTARequestObject{PublicKey: "server"})
 		if err != nil {
 			t.Fatalf("GetGearOTA() unexpected error: %v", err)
 		}
@@ -444,7 +444,7 @@ func TestGetGearOTAHandler(t *testing.T) {
 		env.srv.ResolveGearTarget = func(ctx context.Context, publicKey string) (string, Channel, error) {
 			return "", "", errors.New("boom")
 		}
-		resp, err := env.srv.GetGearOTA(ctx, adminservice.GetGearOTARequestObject{PublicKey: "peer"})
+		resp, err := env.srv.GetGearOTA(ctx, adminservice.GetGearOTARequestObject{PublicKey: "server"})
 		if err != nil {
 			t.Fatalf("GetGearOTA() unexpected error: %v", err)
 		}
@@ -456,7 +456,7 @@ func TestGetGearOTAHandler(t *testing.T) {
 		env.srv.ResolveGearTarget = func(ctx context.Context, publicKey string) (string, Channel, error) {
 			return "depot", Beta, nil
 		}
-		resp, err = env.srv.GetGearOTA(ctx, adminservice.GetGearOTARequestObject{PublicKey: "peer"})
+		resp, err = env.srv.GetGearOTA(ctx, adminservice.GetGearOTARequestObject{PublicKey: "server"})
 		if err != nil {
 			t.Fatalf("GetGearOTA() unexpected error: %v", err)
 		}
@@ -502,7 +502,7 @@ func TestServerPublicGetOTA(t *testing.T) {
 		env.srv.ResolveGearTarget = func(ctx context.Context, publicKey string) (string, Channel, error) {
 			return "", "", errors.New("boom")
 		}
-		ctx := gearservice.WithCallerPublicKey(context.Background(), "peer")
+		ctx := gearservice.WithCallerPublicKey(context.Background(), "server")
 		resp, err := env.srv.GetOTA(ctx, gearservice.GetOTARequestObject{})
 		if err != nil {
 			t.Fatalf("GetOTA() unexpected error: %v", err)
@@ -517,12 +517,12 @@ func TestServerPublicGetOTA(t *testing.T) {
 		env := newTestEnv(t)
 		env.writeRelease("depot", Stable, "1.2.3", map[string]string{"bundles/fw.bin": "firmware"})
 		env.srv.ResolveGearTarget = func(ctx context.Context, publicKey string) (string, Channel, error) {
-			if publicKey != "peer" {
+			if publicKey != "server" {
 				t.Fatalf("publicKey = %q", publicKey)
 			}
 			return "depot", Stable, nil
 		}
-		ctx := gearservice.WithCallerPublicKey(context.Background(), "peer")
+		ctx := gearservice.WithCallerPublicKey(context.Background(), "server")
 		resp, err := env.srv.GetOTA(ctx, gearservice.GetOTARequestObject{})
 		if err != nil {
 			t.Fatalf("GetOTA() unexpected error: %v", err)
@@ -558,7 +558,7 @@ func TestServerPublicDownloadFirmware(t *testing.T) {
 		env.srv.ResolveGearTarget = func(ctx context.Context, publicKey string) (string, Channel, error) {
 			return "depot", Stable, nil
 		}
-		ctx := gearservice.WithCallerPublicKey(context.Background(), "peer")
+		ctx := gearservice.WithCallerPublicKey(context.Background(), "server")
 		resp, err := env.srv.DownloadFirmware(ctx, gearservice.DownloadFirmwareRequestObject{Path: "%"})
 		if err != nil {
 			t.Fatalf("DownloadFirmware() unexpected error: %v", err)
@@ -575,7 +575,7 @@ func TestServerPublicDownloadFirmware(t *testing.T) {
 		env.srv.ResolveGearTarget = func(ctx context.Context, publicKey string) (string, Channel, error) {
 			return "depot", Stable, nil
 		}
-		ctx := gearservice.WithCallerPublicKey(context.Background(), "peer")
+		ctx := gearservice.WithCallerPublicKey(context.Background(), "server")
 		resp, err := env.srv.DownloadFirmware(ctx, gearservice.DownloadFirmwareRequestObject{Path: "../fw.bin"})
 		if err != nil {
 			t.Fatalf("DownloadFirmware() unexpected error: %v", err)
@@ -592,7 +592,7 @@ func TestServerPublicDownloadFirmware(t *testing.T) {
 		env.srv.ResolveGearTarget = func(ctx context.Context, publicKey string) (string, Channel, error) {
 			return "depot", Stable, nil
 		}
-		ctx := gearservice.WithCallerPublicKey(context.Background(), "peer")
+		ctx := gearservice.WithCallerPublicKey(context.Background(), "server")
 		resp, err := env.srv.DownloadFirmware(ctx, gearservice.DownloadFirmwareRequestObject{Path: "missing.bin"})
 		if err != nil {
 			t.Fatalf("DownloadFirmware() unexpected error: %v", err)
@@ -616,7 +616,7 @@ func TestServerPublicDownloadFirmware(t *testing.T) {
 				return "depot", Stable, nil
 			},
 		}
-		ctx := gearservice.WithCallerPublicKey(context.Background(), "peer")
+		ctx := gearservice.WithCallerPublicKey(context.Background(), "server")
 		resp, err := srv.DownloadFirmware(ctx, gearservice.DownloadFirmwareRequestObject{Path: "bundles/fw.bin"})
 		if err != nil {
 			t.Fatalf("DownloadFirmware() unexpected error: %v", err)
@@ -631,12 +631,12 @@ func TestServerPublicDownloadFirmware(t *testing.T) {
 		env := newTestEnv(t)
 		env.writeRelease("depot", Stable, "1.2.3", map[string]string{"bundles/fw.bin": "firmware"})
 		env.srv.ResolveGearTarget = func(ctx context.Context, publicKey string) (string, Channel, error) {
-			if publicKey != "peer" {
+			if publicKey != "server" {
 				t.Fatalf("publicKey = %q", publicKey)
 			}
 			return "depot", Stable, nil
 		}
-		ctx := gearservice.WithCallerPublicKey(context.Background(), "peer")
+		ctx := gearservice.WithCallerPublicKey(context.Background(), "server")
 		resp, err := env.srv.DownloadFirmware(ctx, gearservice.DownloadFirmwareRequestObject{Path: "bundles/fw.bin"})
 		if err != nil {
 			t.Fatalf("DownloadFirmware() unexpected error: %v", err)
@@ -676,7 +676,7 @@ func TestResolveCallerTarget(t *testing.T) {
 	env.srv.ResolveGearTarget = func(ctx context.Context, publicKey string) (string, Channel, error) {
 		return "", "", nil
 	}
-	ctx := gearservice.WithCallerPublicKey(context.Background(), "peer")
+	ctx := gearservice.WithCallerPublicKey(context.Background(), "server")
 	if _, _, err := env.srv.resolveCallerTarget(ctx); err == nil {
 		t.Fatal("resolveCallerTarget() expected missing depot/channel error")
 	}

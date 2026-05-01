@@ -33,9 +33,9 @@ type NavSection = {
 
 const sections: NavSection[] = [
   {
-    label: "Devices",
+    label: "Peers",
     items: [
-      { href: "/devices", icon: Boxes, label: "Devices" },
+      { href: "/peers", icon: Boxes, label: "Peers" },
       { href: "/firmware", icon: HardDrive, label: "Firmware" },
     ],
   },
@@ -65,7 +65,7 @@ export function AppSidebar(): JSX.Element {
             <CardContent className="p-4">
               <div className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">GizClaw</div>
               <div className="mt-1 text-lg font-semibold tracking-tight text-foreground">Admin Console</div>
-              <p className="mt-2 text-sm leading-6 text-muted-foreground">Overview, devices, providers, and AI resource surfaces.</p>
+              <p className="mt-2 text-sm leading-6 text-muted-foreground">Overview, peers, providers, and AI resource surfaces.</p>
             </CardContent>
           </Card>
         </div>

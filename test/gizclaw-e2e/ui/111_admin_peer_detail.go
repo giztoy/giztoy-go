@@ -1,4 +1,4 @@
-// User story: As an admin operator, I can inspect a seeded device across its
+// User story: As an admin operator, I can inspect a seeded peer across its
 // info, config, runtime, OTA, and raw views.
 package ui_test
 
@@ -7,14 +7,14 @@ import (
 	"testing"
 )
 
-func adminDeviceDetailStories() []Story {
+func adminPeerDetailStories() []Story {
 	return []Story{{
-		Name: "111-admin-device-detail",
+		Name: "111-admin-peer-detail",
 		Run: func(_ testing.TB, page *Page) {
-			page.GotoAdmin("/devices/" + url.PathEscape(page.Seed.DevicePublicKey))
+			page.GotoAdmin("/peers/" + url.PathEscape(page.Seed.DevicePublicKey))
 			page.ExpectText("Seeded UI Device")
 			page.ExpectText(page.Seed.DevicePublicKey)
-			page.ExpectText("Device Actions")
+			page.ExpectText("Peer Actions")
 			page.ExpectText("Firmware Policy")
 			page.ExpectText("ui-device-sn")
 

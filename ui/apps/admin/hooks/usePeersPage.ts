@@ -6,16 +6,16 @@ import { getServerInfo, type ServerInfo } from "../../../packages/serverpublic";
 
 import type { Depot, Registration } from "../../../packages/adminservice";
 
-export const DEVICE_PAGE_LIMIT = 50;
+export const PEER_PAGE_LIMIT = 50;
 
-export interface DeviceListState {
+export interface PeerListState {
   cursor: string | null;
   hasNext: boolean;
   history: Array<string | null>;
   nextCursor: string | null;
 }
 
-export interface DevicesPageState {
+export interface PeersPageState {
   depots: Depot[];
   error: string;
   gears: Registration[];
@@ -23,10 +23,10 @@ export interface DevicesPageState {
   serverInfo: ServerInfo | null;
 }
 
-export function useDevicesPage(): {
-  dashboard: DevicesPageState;
-  deviceList: DeviceListState;
-  devicePageNumber: number;
+export function usePeersPage(): {
+  dashboard: PeersPageState;
+  peerList: PeerListState;
+  peerPageNumber: number;
   filter: string;
   filteredGears: Registration[];
   loadDashboard: (cursor: string | null, history: Array<string | null>) => Promise<void>;
@@ -36,14 +36,14 @@ export function useDevicesPage(): {
   setFilter: (value: string) => void;
 } {
   const [filter, setFilter] = useState("");
-  const [dashboard, setDashboard] = useState<DevicesPageState>({
+  const [dashboard, setDashboard] = useState<PeersPageState>({
     depots: [],
     error: "",
     gears: [],
     loading: true,
     serverInfo: null,
   });
-  const [deviceList, setDeviceList] = useState<DeviceListState>({
+  const [peerList, setPeerList] = useState<PeerListState>({
     cursor: null,
     hasNext: false,
     history: [],
@@ -59,7 +59,7 @@ export function useDevicesPage(): {
           listGears({
             query: {
               cursor: cursor ?? undefined,
-              limit: DEVICE_PAGE_LIMIT,
+              limit: PEER_PAGE_LIMIT,
             },
           }),
         ),
@@ -73,7 +73,7 @@ export function useDevicesPage(): {
         loading: false,
         serverInfo,
       });
-      setDeviceList({
+      setPeerList({
         cursor,
         hasNext: registrations.has_next,
         history,
@@ -89,8 +89,8 @@ export function useDevicesPage(): {
   }, []);
 
   const refreshDashboard = useCallback(async () => {
-    await loadDashboard(deviceList.cursor, deviceList.history);
-  }, [deviceList.cursor, deviceList.history, loadDashboard]);
+    await loadDashboard(peerList.cursor, peerList.history);
+  }, [peerList.cursor, peerList.history, loadDashboard]);
 
   useEffect(() => {
     void loadDashboard(null, []);
@@ -109,26 +109,26 @@ export function useDevicesPage(): {
   }, [dashboard.gears, filter]);
 
   const nextPage = useCallback(() => {
-    if (deviceList.nextCursor === null) {
+    if (peerList.nextCursor === null) {
       return;
     }
-    void loadDashboard(deviceList.nextCursor, [...deviceList.history, deviceList.cursor]);
-  }, [deviceList.cursor, deviceList.history, deviceList.nextCursor, loadDashboard]);
+    void loadDashboard(peerList.nextCursor, [...peerList.history, peerList.cursor]);
+  }, [peerList.cursor, peerList.history, peerList.nextCursor, loadDashboard]);
 
   const prevPage = useCallback(() => {
-    if (deviceList.history.length === 0) {
+    if (peerList.history.length === 0) {
       return;
     }
-    const previousCursor = deviceList.history[deviceList.history.length - 1] ?? null;
-    void loadDashboard(previousCursor, deviceList.history.slice(0, -1));
-  }, [deviceList.history, loadDashboard]);
+    const previousCursor = peerList.history[peerList.history.length - 1] ?? null;
+    void loadDashboard(previousCursor, peerList.history.slice(0, -1));
+  }, [peerList.history, loadDashboard]);
 
-  const devicePageNumber = deviceList.history.length + 1;
+  const peerPageNumber = peerList.history.length + 1;
 
   return {
     dashboard,
-    deviceList,
-    devicePageNumber,
+    peerList,
+    peerPageNumber,
     filter,
     filteredGears,
     loadDashboard,

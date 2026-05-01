@@ -38,6 +38,7 @@ func New(cfg Config) (*gizclaw.Server, error) {
 		GearStore:       gearsKV,
 		BuildCommit:     BuildCommit,
 		ServerPublicKey: cfg.KeyPair.Public.String(),
+		AdminPublicKey:  cfg.AdminPublicKey,
 		DepotStore:      fwStore,
 		StoreCloser:     ss,
 	}

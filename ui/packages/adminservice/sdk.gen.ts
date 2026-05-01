@@ -2,7 +2,7 @@
 
 import type { Client, Options as Options2, TDataShape } from './client';
 import { client } from './client.gen';
-import type { ApproveGearData, ApproveGearErrors, ApproveGearResponses, BlockGearData, BlockGearErrors, BlockGearResponses, CreateCredentialData, CreateCredentialErrors, CreateCredentialResponses, CreateMiniMaxTenantData, CreateMiniMaxTenantErrors, CreateMiniMaxTenantResponses, CreateVoiceData, CreateVoiceErrors, CreateVoiceResponses, CreateWorkspaceData, CreateWorkspaceErrors, CreateWorkspaceResponses, CreateWorkspaceTemplateData, CreateWorkspaceTemplateErrors, CreateWorkspaceTemplateResponses, DeleteCredentialData, DeleteCredentialErrors, DeleteCredentialResponses, DeleteGearData, DeleteGearErrors, DeleteGearResponses, DeleteMiniMaxTenantData, DeleteMiniMaxTenantErrors, DeleteMiniMaxTenantResponses, DeleteVoiceData, DeleteVoiceErrors, DeleteVoiceResponses, DeleteWorkspaceData, DeleteWorkspaceErrors, DeleteWorkspaceResponses, DeleteWorkspaceTemplateData, DeleteWorkspaceTemplateErrors, DeleteWorkspaceTemplateResponses, GetChannelData, GetChannelErrors, GetChannelResponses, GetCredentialData, GetCredentialErrors, GetCredentialResponses, GetDepotData, GetDepotErrors, GetDepotResponses, GetGearConfigData, GetGearConfigErrors, GetGearConfigResponses, GetGearData, GetGearErrors, GetGearInfoData, GetGearInfoErrors, GetGearInfoResponses, GetGearOtaData, GetGearOtaErrors, GetGearOtaResponses, GetGearResponses, GetGearRuntimeData, GetGearRuntimeResponses, GetMiniMaxTenantData, GetMiniMaxTenantErrors, GetMiniMaxTenantResponses, GetVoiceData, GetVoiceErrors, GetVoiceResponses, GetWorkspaceData, GetWorkspaceErrors, GetWorkspaceResponses, GetWorkspaceTemplateData, GetWorkspaceTemplateErrors, GetWorkspaceTemplateResponses, ListByCertificationData, ListByCertificationErrors, ListByCertificationResponses, ListByFirmwareData, ListByFirmwareErrors, ListByFirmwareResponses, ListByLabelData, ListByLabelErrors, ListByLabelResponses, ListCredentialsData, ListCredentialsErrors, ListCredentialsResponses, ListDepotsData, ListDepotsErrors, ListDepotsResponses, ListGearsData, ListGearsErrors, ListGearsResponses, ListMiniMaxTenantsData, ListMiniMaxTenantsErrors, ListMiniMaxTenantsResponses, ListVoicesData, ListVoicesErrors, ListVoicesResponses, ListWorkspacesData, ListWorkspacesErrors, ListWorkspacesResponses, ListWorkspaceTemplatesData, ListWorkspaceTemplatesErrors, ListWorkspaceTemplatesResponses, PutChannelData, PutChannelErrors, PutChannelResponses, PutCredentialData, PutCredentialErrors, PutCredentialResponses, PutDepotInfoData, PutDepotInfoErrors, PutDepotInfoResponses, PutGearConfigData, PutGearConfigErrors, PutGearConfigResponses, PutMiniMaxTenantData, PutMiniMaxTenantErrors, PutMiniMaxTenantResponses, PutVoiceData, PutVoiceErrors, PutVoiceResponses, PutWorkspaceData, PutWorkspaceErrors, PutWorkspaceResponses, PutWorkspaceTemplateData, PutWorkspaceTemplateErrors, PutWorkspaceTemplateResponses, RefreshGearData, RefreshGearErrors, RefreshGearResponses, ReleaseDepotData, ReleaseDepotErrors, ReleaseDepotResponses, ResolveByImeiData, ResolveByImeiErrors, ResolveByImeiResponses, ResolveBySnData, ResolveBySnErrors, ResolveBySnResponses, RollbackDepotData, RollbackDepotErrors, RollbackDepotResponses, SyncMiniMaxTenantVoicesData, SyncMiniMaxTenantVoicesErrors, SyncMiniMaxTenantVoicesResponses } from './types.gen';
+import type { ApplyResourceData, ApplyResourceErrors, ApplyResourceResponses, ApproveGearData, ApproveGearErrors, ApproveGearResponses, BlockGearData, BlockGearErrors, BlockGearResponses, CreateCredentialData, CreateCredentialErrors, CreateCredentialResponses, CreateMiniMaxTenantData, CreateMiniMaxTenantErrors, CreateMiniMaxTenantResponses, CreateVoiceData, CreateVoiceErrors, CreateVoiceResponses, CreateWorkspaceData, CreateWorkspaceErrors, CreateWorkspaceResponses, CreateWorkspaceTemplateData, CreateWorkspaceTemplateErrors, CreateWorkspaceTemplateResponses, DeleteCredentialData, DeleteCredentialErrors, DeleteCredentialResponses, DeleteGearData, DeleteGearErrors, DeleteGearResponses, DeleteMiniMaxTenantData, DeleteMiniMaxTenantErrors, DeleteMiniMaxTenantResponses, DeleteResourceData, DeleteResourceErrors, DeleteResourceResponses, DeleteVoiceData, DeleteVoiceErrors, DeleteVoiceResponses, DeleteWorkspaceData, DeleteWorkspaceErrors, DeleteWorkspaceResponses, DeleteWorkspaceTemplateData, DeleteWorkspaceTemplateErrors, DeleteWorkspaceTemplateResponses, GetChannelData, GetChannelErrors, GetChannelResponses, GetCredentialData, GetCredentialErrors, GetCredentialResponses, GetDepotData, GetDepotErrors, GetDepotResponses, GetGearConfigData, GetGearConfigErrors, GetGearConfigResponses, GetGearData, GetGearErrors, GetGearInfoData, GetGearInfoErrors, GetGearInfoResponses, GetGearOtaData, GetGearOtaErrors, GetGearOtaResponses, GetGearResponses, GetGearRuntimeData, GetGearRuntimeResponses, GetMiniMaxTenantData, GetMiniMaxTenantErrors, GetMiniMaxTenantResponses, GetResourceData, GetResourceErrors, GetResourceResponses, GetVoiceData, GetVoiceErrors, GetVoiceResponses, GetWorkspaceData, GetWorkspaceErrors, GetWorkspaceResponses, GetWorkspaceTemplateData, GetWorkspaceTemplateErrors, GetWorkspaceTemplateResponses, ListByCertificationData, ListByCertificationErrors, ListByCertificationResponses, ListByFirmwareData, ListByFirmwareErrors, ListByFirmwareResponses, ListByLabelData, ListByLabelErrors, ListByLabelResponses, ListCredentialsData, ListCredentialsErrors, ListCredentialsResponses, ListDepotsData, ListDepotsErrors, ListDepotsResponses, ListGearsData, ListGearsErrors, ListGearsResponses, ListMiniMaxTenantsData, ListMiniMaxTenantsErrors, ListMiniMaxTenantsResponses, ListVoicesData, ListVoicesErrors, ListVoicesResponses, ListWorkspacesData, ListWorkspacesErrors, ListWorkspacesResponses, ListWorkspaceTemplatesData, ListWorkspaceTemplatesErrors, ListWorkspaceTemplatesResponses, PutChannelData, PutChannelErrors, PutChannelResponses, PutCredentialData, PutCredentialErrors, PutCredentialResponses, PutDepotInfoData, PutDepotInfoErrors, PutDepotInfoResponses, PutGearConfigData, PutGearConfigErrors, PutGearConfigResponses, PutMiniMaxTenantData, PutMiniMaxTenantErrors, PutMiniMaxTenantResponses, PutResourceData, PutResourceErrors, PutResourceResponses, PutVoiceData, PutVoiceErrors, PutVoiceResponses, PutWorkspaceData, PutWorkspaceErrors, PutWorkspaceResponses, PutWorkspaceTemplateData, PutWorkspaceTemplateErrors, PutWorkspaceTemplateResponses, RefreshGearData, RefreshGearErrors, RefreshGearResponses, ReleaseDepotData, ReleaseDepotErrors, ReleaseDepotResponses, ResolveByImeiData, ResolveByImeiErrors, ResolveByImeiResponses, ResolveBySnData, ResolveBySnErrors, ResolveBySnResponses, RollbackDepotData, RollbackDepotErrors, RollbackDepotResponses, SyncMiniMaxTenantVoicesData, SyncMiniMaxTenantVoicesErrors, SyncMiniMaxTenantVoicesResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -17,6 +17,48 @@ export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends 
      */
     meta?: Record<string, unknown>;
 };
+
+/**
+ * Apply an admin resource
+ *
+ * Create or update a declarative admin resource described by apiVersion, kind, metadata, and spec.
+ */
+export const applyResource = <ThrowOnError extends boolean = false>(options: Options<ApplyResourceData, ThrowOnError>) => (options.client ?? client).post<ApplyResourceResponses, ApplyResourceErrors, ThrowOnError>({
+    url: '/@apply',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Delete an admin resource
+ *
+ * Delete a named declarative admin resource by kind and name. ResourceList and resources without delete semantics are rejected.
+ */
+export const deleteResource = <ThrowOnError extends boolean = false>(options: Options<DeleteResourceData, ThrowOnError>) => (options.client ?? client).delete<DeleteResourceResponses, DeleteResourceErrors, ThrowOnError>({ url: '/resources/{kind}/{name}', ...options });
+
+/**
+ * Get an admin resource
+ *
+ * Get a named declarative admin resource by kind and name.
+ */
+export const getResource = <ThrowOnError extends boolean = false>(options: Options<GetResourceData, ThrowOnError>) => (options.client ?? client).get<GetResourceResponses, GetResourceErrors, ThrowOnError>({ url: '/resources/{kind}/{name}', ...options });
+
+/**
+ * Create or update an admin resource
+ *
+ * Create or update a named declarative admin resource. The request body's kind and metadata.name must match the path parameters.
+ */
+export const putResource = <ThrowOnError extends boolean = false>(options: Options<PutResourceData, ThrowOnError>) => (options.client ?? client).put<PutResourceResponses, PutResourceErrors, ThrowOnError>({
+    url: '/resources/{kind}/{name}',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
 
 /**
  * List all firmware depots

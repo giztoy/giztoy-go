@@ -54,6 +54,7 @@ type Server struct {
 	PublicLoginStore       kv.Store
 	BuildCommit            string
 	ServerPublicKey        string
+	AdminPublicKey         string
 	DepotStore             depotstore.Store
 	DepotMetadataStore     kv.Store
 	StoreCloser            interface{ Close() error }
@@ -199,9 +200,12 @@ func (s *Server) allowPeerService(pk giznet.PublicKey, service uint64) bool {
 	manager := s.manager
 	s.mu.Unlock()
 	if manager == nil {
+		if service == ServiceAdmin && adminPublicKeyMatches(pk, s.AdminPublicKey) {
+			return true
+		}
 		return service == ServiceRPC || service == ServiceServerPublic
 	}
-	return GearsSecurityPolicy{Gears: manager.Gears}.AllowPeerService(pk, service)
+	return GearsSecurityPolicy{Gears: manager.Gears, AdminPublicKey: s.AdminPublicKey}.AllowPeerService(pk, service)
 }
 
 func (s *Server) setListener(l *giznet.Listener) {

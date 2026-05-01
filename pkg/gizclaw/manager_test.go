@@ -47,6 +47,60 @@ func TestManagerMarkPeerOfflineKeepsNewerConnection(t *testing.T) {
 	}
 }
 
+func TestManagerEnsurePeerGearCreatesDefaultUnspecifiedGear(t *testing.T) {
+	service := &gear.Server{Store: mustBadgerInMemory(t, nil)}
+	manager := NewManager(service)
+	ctx := context.Background()
+
+	created, err := manager.EnsurePeerGear(ctx, "peer-pk")
+	if err != nil {
+		t.Fatalf("EnsurePeerGear error = %v", err)
+	}
+	if created.PublicKey != "peer-pk" {
+		t.Fatalf("PublicKey = %q, want peer-pk", created.PublicKey)
+	}
+	if created.Role != apitypes.GearRoleUnspecified {
+		t.Fatalf("Role = %q, want unspecified", created.Role)
+	}
+	if created.Status != apitypes.GearStatusActive {
+		t.Fatalf("Status = %q, want active", created.Status)
+	}
+	if created.AutoRegistered == nil || !*created.AutoRegistered {
+		t.Fatalf("AutoRegistered = %v, want true", created.AutoRegistered)
+	}
+
+	loaded, err := service.LoadGear(ctx, "peer-pk")
+	if err != nil {
+		t.Fatalf("LoadGear error = %v", err)
+	}
+	if loaded.Role != apitypes.GearRoleUnspecified || loaded.Status != apitypes.GearStatusActive {
+		t.Fatalf("loaded gear = %+v", loaded)
+	}
+}
+
+func TestManagerEnsurePeerGearPreservesExistingGear(t *testing.T) {
+	service := &gear.Server{Store: mustBadgerInMemory(t, nil)}
+	manager := NewManager(service)
+	ctx := context.Background()
+	if _, err := service.SaveGear(ctx, apitypes.Gear{
+		PublicKey:     "peer-pk",
+		Role:          apitypes.GearRoleAdmin,
+		Status:        apitypes.GearStatusBlocked,
+		Device:        apitypes.DeviceInfo{},
+		Configuration: apitypes.Configuration{},
+	}); err != nil {
+		t.Fatalf("SaveGear error = %v", err)
+	}
+
+	got, err := manager.EnsurePeerGear(ctx, "peer-pk")
+	if err != nil {
+		t.Fatalf("EnsurePeerGear error = %v", err)
+	}
+	if got.Role != apitypes.GearRoleAdmin || got.Status != apitypes.GearStatusBlocked {
+		t.Fatalf("EnsurePeerGear overwrote existing gear: %+v", got)
+	}
+}
+
 func TestManagerRefreshDeviceErrors(t *testing.T) {
 	service := &gear.Server{Store: mustBadgerInMemory(t, nil)}
 	manager := NewManager(service)

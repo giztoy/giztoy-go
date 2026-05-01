@@ -14,7 +14,7 @@ func TestConvertHelpers(t *testing.T) {
 	deviceName := "convert-device"
 	gear := apitypes.Gear{
 		PublicKey:      "peer-convert",
-		Role:           apitypes.GearRolePeer,
+		Role:           apitypes.GearRoleServer,
 		Status:         apitypes.GearStatusActive,
 		AutoRegistered: &autoRegistered,
 		CreatedAt:      now,

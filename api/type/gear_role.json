@@ -13,8 +13,8 @@
         "enum": [
           "unspecified",
           "admin",
-          "peer",
-          "device"
+          "server",
+          "gear"
         ]
       }
     }

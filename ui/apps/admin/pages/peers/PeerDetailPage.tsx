@@ -27,12 +27,12 @@ import { EmptyState } from "../../../../packages/components/empty-state";
 import { FormField } from "../../../../packages/components/form-field";
 import { PageBreadcrumb } from "../../../../packages/components/page-breadcrumb";
 import { StatusBadge } from "../../../../packages/components/status-badge";
-import { useDeviceDetail } from "../../hooks/useDeviceDetail";
-import { deviceTitle, formatDate, formatShortKey } from "../../lib/format";
+import { usePeerDetail } from "../../hooks/usePeerDetail";
+import { formatDate, formatShortKey, peerTitle } from "../../lib/format";
 
 const FIRMWARE_CHANNEL_OPTIONS = ["stable", "beta", "testing"] as const;
 
-export function DeviceDetailPage(): JSX.Element {
+export function PeerDetailPage(): JSX.Element {
   const params = useParams();
   const navigate = useNavigate();
   const rawKey = params.publicKey ?? "";
@@ -44,10 +44,10 @@ export function DeviceDetailPage(): JSX.Element {
     }
   }, [rawKey]);
 
-  const detail = useDeviceDetail(publicKey === "" ? undefined : publicKey);
-  const [deviceNotice, setDeviceNotice] = useState<{ message: string; tone: "error" | "success" } | null>(null);
-  const [deviceActionBusy, setDeviceActionBusy] = useState<string | null>(null);
-  const [approveRole, setApproveRole] = useState<GearRole>("device");
+  const detail = usePeerDetail(publicKey === "" ? undefined : publicKey);
+  const [peerNotice, setPeerNotice] = useState<{ message: string; tone: "error" | "success" } | null>(null);
+  const [peerActionBusy, setPeerActionBusy] = useState<string | null>(null);
+  const [approveRole, setApproveRole] = useState<GearRole>("gear");
   const [configChannel, setConfigChannel] = useState("stable");
 
   const registration = detail.data?.registration ?? null;
@@ -61,16 +61,16 @@ export function DeviceDetailPage(): JSX.Element {
     }
   }, [detail.data?.config?.firmware?.channel, detail.data?.registration?.role]);
 
-  const runDeviceAction = useCallback(async (name: string, action: () => Promise<void>, successMessage: string) => {
-    setDeviceActionBusy(name);
-    setDeviceNotice(null);
+  const runPeerAction = useCallback(async (name: string, action: () => Promise<void>, successMessage: string) => {
+    setPeerActionBusy(name);
+    setPeerNotice(null);
     try {
       await action();
-      setDeviceNotice({ message: successMessage, tone: "success" });
+      setPeerNotice({ message: successMessage, tone: "success" });
     } catch (error) {
-      setDeviceNotice({ message: toMessage(error), tone: "error" });
+      setPeerNotice({ message: toMessage(error), tone: "error" });
     } finally {
-      setDeviceActionBusy(null);
+      setPeerActionBusy(null);
     }
   }, []);
 
@@ -80,7 +80,7 @@ export function DeviceDetailPage(): JSX.Element {
     }
     const nextRole: GearRole =
       detail.data?.registration?.role && detail.data.registration.role !== "unspecified" ? detail.data.registration.role : approveRole;
-    await runDeviceAction(
+    await runPeerAction(
       isBlocked ? "unblock" : "approve",
       async () => {
         await expectData(
@@ -91,57 +91,57 @@ export function DeviceDetailPage(): JSX.Element {
         );
         await detail.reload();
       },
-      isBlocked ? `Device restored as ${nextRole}.` : `Device approved as ${nextRole}.`,
+      isBlocked ? `Peer restored as ${nextRole}.` : `Peer approved as ${nextRole}.`,
     );
-  }, [approveRole, detail, isBlocked, publicKey, runDeviceAction]);
+  }, [approveRole, detail, isBlocked, publicKey, runPeerAction]);
 
   const handleBlock = useCallback(async () => {
     if (publicKey === "") {
       return;
     }
-    await runDeviceAction(
+    await runPeerAction(
       "block",
       async () => {
         await expectData(blockGear({ path: { publicKey } }));
         await detail.reload();
       },
-      "Device blocked.",
+      "Peer blocked.",
     );
-  }, [detail, publicKey, runDeviceAction]);
+  }, [detail, publicKey, runPeerAction]);
 
-  const handleRefreshDevice = useCallback(async () => {
+  const handleRefreshPeer = useCallback(async () => {
     if (publicKey === "") {
       return;
     }
-    await runDeviceAction(
+    await runPeerAction(
       "refresh",
       async () => {
         await expectData(refreshGear({ path: { publicKey } }));
         await detail.reload();
       },
-      "Device refreshed.",
+      "Peer refreshed.",
     );
-  }, [detail, publicKey, runDeviceAction]);
+  }, [detail, publicKey, runPeerAction]);
 
-  const handleDeleteDevice = useCallback(async () => {
+  const handleDeletePeer = useCallback(async () => {
     if (publicKey === "") {
       return;
     }
-    await runDeviceAction(
+    await runPeerAction(
       "delete",
       async () => {
         await expectData(deleteGear({ path: { publicKey } }));
-        navigate("/devices");
+        navigate("/peers");
       },
-      "Device deleted.",
+      "Peer deleted.",
     );
-  }, [navigate, publicKey, runDeviceAction]);
+  }, [navigate, publicKey, runPeerAction]);
 
   const handleSaveChannel = useCallback(async () => {
     if (publicKey === "") {
       return;
     }
-    await runDeviceAction(
+    await runPeerAction(
       "config",
       async () => {
         const nextConfig: Configuration = {
@@ -161,10 +161,10 @@ export function DeviceDetailPage(): JSX.Element {
       },
       `Desired channel updated to ${configChannel}.`,
     );
-  }, [configChannel, detail.data?.config, detail, publicKey, runDeviceAction]);
+  }, [configChannel, detail.data?.config, detail, publicKey, runPeerAction]);
 
   if (publicKey === "") {
-    return <EmptyState description="Missing device public key in the URL." title="Invalid route" />;
+    return <EmptyState description="Missing peer public key in the URL." title="Invalid route" />;
   }
 
   return (
@@ -172,20 +172,20 @@ export function DeviceDetailPage(): JSX.Element {
       <PageBreadcrumb
         items={[
           { href: "/overview", label: "Overview" },
-          { href: "/devices", label: "Devices" },
+          { href: "/peers", label: "Peers" },
           { label: formatShortKey(publicKey) },
         ]}
       />
 
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="space-y-2">
-          <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Devices</div>
-          <h1 className="text-3xl font-semibold tracking-tight">{registration ? deviceTitle(detail.data?.info, registration.public_key) : "Device"}</h1>
+          <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Peers</div>
+          <h1 className="text-3xl font-semibold tracking-tight">{registration ? peerTitle(detail.data?.info, registration.public_key) : "Peer"}</h1>
           <p className="max-w-3xl text-sm leading-6 text-muted-foreground lg:text-base break-all">{publicKey}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Button asChild size="sm" variant="outline">
-            <Link to="/devices">
+              <Link to="/peers">
               <ChevronLeft className="size-4" />
               Back to list
             </Link>
@@ -208,23 +208,23 @@ export function DeviceDetailPage(): JSX.Element {
       ) : detail.error !== "" ? (
         <ErrorBanner message={detail.error} />
       ) : registration === null ? (
-        <EmptyState description="This device could not be loaded." title="Not found" />
+        <EmptyState description="This peer could not be loaded." title="Not found" />
       ) : (
         <div className="space-y-4">
-          {deviceNotice !== null ? <NoticeBanner message={deviceNotice.message} tone={deviceNotice.tone} /> : null}
+          {peerNotice !== null ? <NoticeBanner message={peerNotice.message} tone={peerNotice.tone} /> : null}
 
           <div className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
             <Card>
               <CardHeader className="pb-3">
-                <CardTitle className="text-base">Device Actions</CardTitle>
-                <CardDescription>Approve, restore, block, refresh, or remove this device registration.</CardDescription>
+                <CardTitle className="text-base">Peer Actions</CardTitle>
+                <CardDescription>Approve, restore, block, refresh, or remove this peer registration.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <FormField
                   description={
                     isBlocked
-                      ? "Blocked devices can be restored back to service with their assigned role."
-                      : "Choose the role to assign when this device moves into service."
+                      ? "Blocked peers can be restored back to service with their assigned role."
+                      : "Choose the role to assign when this peer moves into service."
                   }
                   label={isBlocked ? "Restore role" : "Approval role"}
                 >
@@ -234,12 +234,12 @@ export function DeviceDetailPage(): JSX.Element {
                         <SelectValue placeholder="Select role" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="device">device</SelectItem>
-                        <SelectItem value="peer">peer</SelectItem>
+                        <SelectItem value="gear">gear</SelectItem>
+                        <SelectItem value="server">server</SelectItem>
                         <SelectItem value="admin">admin</SelectItem>
                       </SelectContent>
                     </Select>
-                    <Button className="w-full md:w-auto" disabled={deviceActionBusy !== null} onClick={() => void handleApprove()} type="button">
+                    <Button className="w-full md:w-auto" disabled={peerActionBusy !== null} onClick={() => void handleApprove()} type="button">
                       <Check className="size-4" />
                       {isBlocked ? "Unblock" : "Approve"}
                     </Button>
@@ -250,19 +250,19 @@ export function DeviceDetailPage(): JSX.Element {
                   <div className="space-y-1">
                     <div className="text-sm font-medium">Operational actions</div>
                     <p className="text-sm leading-6 text-muted-foreground">
-                      Pull the latest state from the device, suspend it, or remove the registration entirely.
+                      Pull the latest state from the peer, suspend it, or remove the registration entirely.
                     </p>
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    <Button disabled={deviceActionBusy !== null} onClick={() => void handleRefreshDevice()} type="button" variant="outline">
+                    <Button disabled={peerActionBusy !== null} onClick={() => void handleRefreshPeer()} type="button" variant="outline">
                       <RefreshCw className="size-4" />
                       Refresh
                     </Button>
-                    <Button disabled={deviceActionBusy !== null || isBlocked} onClick={() => void handleBlock()} type="button" variant="outline">
+                    <Button disabled={peerActionBusy !== null || isBlocked} onClick={() => void handleBlock()} type="button" variant="outline">
                       <Ban className="size-4" />
                       Block
                     </Button>
-                    <Button disabled={deviceActionBusy !== null} onClick={() => void handleDeleteDevice()} type="button" variant="outline">
+                    <Button disabled={peerActionBusy !== null} onClick={() => void handleDeletePeer()} type="button" variant="outline">
                       <Trash2 className="size-4" />
                       Delete
                     </Button>
@@ -274,12 +274,12 @@ export function DeviceDetailPage(): JSX.Element {
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-base">Firmware Policy</CardTitle>
-                <CardDescription>Set the desired firmware channel for this device.</CardDescription>
+                <CardDescription>Set the desired firmware channel for this peer.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <FormField description="This controls which release stream the device should follow." label="Desired channel">
+                <FormField description="This controls which release stream the peer should follow." label="Desired channel">
                   <Select onValueChange={setConfigChannel} value={configChannel}>
-                    <SelectTrigger id="device-channel">
+                    <SelectTrigger id="peer-channel">
                       <SelectValue placeholder="Select channel" />
                     </SelectTrigger>
                     <SelectContent>
@@ -290,7 +290,7 @@ export function DeviceDetailPage(): JSX.Element {
                   </Select>
                 </FormField>
                 <div className="flex justify-end border-t pt-4">
-                  <Button disabled={deviceActionBusy !== null} onClick={() => void handleSaveChannel()} type="button">
+                  <Button disabled={peerActionBusy !== null} onClick={() => void handleSaveChannel()} type="button">
                     <Save className="size-4" />
                     Save Channel
                   </Button>
@@ -301,7 +301,7 @@ export function DeviceDetailPage(): JSX.Element {
 
           <div className="flex flex-col gap-3 rounded-xl border bg-muted/30 p-4 lg:flex-row lg:items-center lg:justify-between">
             <div className="space-y-1">
-              <div className="text-base font-semibold">{deviceTitle(detail.data?.info, registration.public_key)}</div>
+              <div className="text-base font-semibold">{peerTitle(detail.data?.info, registration.public_key)}</div>
               <div className="text-sm text-muted-foreground break-all">{registration.public_key}</div>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -330,7 +330,7 @@ export function DeviceDetailPage(): JSX.Element {
                     ["Model", detail.data?.info?.hardware?.model],
                     ["Revision", detail.data?.info?.hardware?.hardware_revision],
                   ]}
-                  title="Device Info"
+                  title="Peer Info"
                 />
                 <DetailBlock
                   items={[
@@ -372,7 +372,7 @@ export function DeviceDetailPage(): JSX.Element {
                         </div>
                       ))
                     ) : (
-                      <EmptyState description="No certifications are attached to this device yet." title="No certifications" />
+                      <EmptyState description="No certifications are attached to this peer yet." title="No certifications" />
                     )}
                   </CardContent>
                 </Card>

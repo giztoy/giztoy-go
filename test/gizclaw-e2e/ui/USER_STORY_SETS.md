@@ -53,7 +53,7 @@ Use one short Go file per user-facing behavior:
 Recommended rule:
 
 - `100-109`: Admin shell and overview smoke
-- `110-119`: Admin device inventory and detail workflows
+- `110-119`: Admin peer inventory and detail workflows
 - `120-129`: Admin firmware workflows
 - `130-139`: Admin provider catalog workflows
 - `140-149`: Admin AI catalog workflows
@@ -75,11 +75,11 @@ Each case file should describe:
 - `100-admin-dashboard`
 - `101-admin-legacy-hash-route`
 
-### `110-*` Admin Device Workflows
+### `110-*` Admin Peer Workflows
 
-- `110-admin-devices-list`
-- `111-admin-device-detail`
-- `112-admin-device-actions`
+- `110-admin-peers-list`
+- `111-admin-peer-detail`
+- `112-admin-peer-actions`
 
 ### `120-*` Admin Firmware Workflows
 

@@ -36,7 +36,7 @@ func TestStoreOpsRegisterValidation(t *testing.T) {
 		t.Fatalf("empty public key err = %v", err)
 	}
 
-	registered, err := server.register(context.Background(), "peer", gearservice.RegistrationRequest{
+	registered, err := server.register(context.Background(), "server", gearservice.RegistrationRequest{
 		Device: apitypes.DeviceInfo{},
 	})
 	if err != nil {
@@ -47,11 +47,59 @@ func TestStoreOpsRegisterValidation(t *testing.T) {
 	}
 }
 
+func TestStoreOpsEnsureConnectedGearAndRegister(t *testing.T) {
+	server := &Server{Store: mustBadgerInMemory(t, nil)}
+	ctx := context.Background()
+
+	connected, err := server.EnsureConnectedGear(ctx, "server")
+	if err != nil {
+		t.Fatalf("EnsureConnectedGear error = %v", err)
+	}
+	if connected.Role != apitypes.GearRoleUnspecified || connected.Status != apitypes.GearStatusActive {
+		t.Fatalf("connected gear = %+v", connected)
+	}
+
+	name := "demo"
+	registered, err := server.register(ctx, "server", gearservice.RegistrationRequest{
+		Device: apitypes.DeviceInfo{Name: &name},
+	})
+	if err != nil {
+		t.Fatalf("register existing connected gear error = %v", err)
+	}
+	if registered.Role != apitypes.GearRoleUnspecified || registered.Status != apitypes.GearStatusActive {
+		t.Fatalf("registered gear = %+v", registered)
+	}
+	if registered.Device.Name == nil || *registered.Device.Name != "demo" {
+		t.Fatalf("registered device = %+v", registered.Device)
+	}
+}
+
+func TestStoreOpsEnsureConnectedGearPreservesExisting(t *testing.T) {
+	server := &Server{Store: mustBadgerInMemory(t, nil)}
+	ctx := context.Background()
+	if _, err := server.SaveGear(ctx, apitypes.Gear{
+		PublicKey:     "server",
+		Role:          apitypes.GearRoleAdmin,
+		Status:        apitypes.GearStatusBlocked,
+		Configuration: apitypes.Configuration{},
+	}); err != nil {
+		t.Fatalf("SaveGear error = %v", err)
+	}
+
+	got, err := server.EnsureConnectedGear(ctx, "server")
+	if err != nil {
+		t.Fatalf("EnsureConnectedGear error = %v", err)
+	}
+	if got.Role != apitypes.GearRoleAdmin || got.Status != apitypes.GearStatusBlocked {
+		t.Fatalf("EnsureConnectedGear overwrote existing gear: %+v", got)
+	}
+}
+
 func TestStoreOpsLoadAndSaveGear(t *testing.T) {
 	server := &Server{Store: mustBadgerInMemory(t, nil)}
 	want := apitypes.Gear{
-		PublicKey: "peer",
-		Role:      apitypes.GearRoleDevice,
+		PublicKey: "server",
+		Role:      apitypes.GearRoleGear,
 		Status:    apitypes.GearStatusActive,
 		Device: apitypes.DeviceInfo{
 			Name: func() *string {
@@ -108,15 +156,15 @@ func TestStoreOpsExists(t *testing.T) {
 	}
 
 	if _, err := server.SaveGear(context.Background(), apitypes.Gear{
-		PublicKey:     "peer",
-		Role:          apitypes.GearRoleDevice,
+		PublicKey:     "server",
+		Role:          apitypes.GearRoleGear,
 		Status:        apitypes.GearStatusActive,
 		Configuration: apitypes.Configuration{},
 	}); err != nil {
 		t.Fatalf("SaveGear error = %v", err)
 	}
 
-	if exists, err := server.exists(context.Background(), "peer"); err != nil || !exists {
+	if exists, err := server.exists(context.Background(), "server"); err != nil || !exists {
 		t.Fatalf("exists(peer) = %v, %v", exists, err)
 	}
 }

@@ -8,8 +8,8 @@ import { ChannelDetailPage } from "./pages/firmware/ChannelDetailPage";
 import { DepotDetailPage } from "./pages/firmware/DepotDetailPage";
 import { FirmwareListPage } from "./pages/firmware/FirmwareListPage";
 import { FirmwareUploadPage } from "./pages/firmware/FirmwareUploadPage";
-import { DeviceDetailPage } from "./pages/devices/DeviceDetailPage";
-import { DevicesListPage } from "./pages/devices/DevicesListPage";
+import { PeerDetailPage } from "./pages/peers/PeerDetailPage";
+import { PeersListPage } from "./pages/peers/PeersListPage";
 import { OverviewPage } from "./pages/overview/OverviewPage";
 import { CredentialsListPage } from "./pages/providers/CredentialsListPage";
 import { MiniMaxTenantsListPage } from "./pages/providers/MiniMaxTenantsListPage";
@@ -20,8 +20,8 @@ export function AppRoutes(): JSX.Element {
       <Route element={<AdminLayout />} path="/">
         <Route index element={<Navigate replace to="/overview" />} />
         <Route element={<OverviewPage />} path="overview" />
-        <Route element={<DevicesListPage />} path="devices" />
-        <Route element={<DeviceDetailPage />} path="devices/:publicKey" />
+        <Route element={<PeersListPage />} path="peers" />
+        <Route element={<PeerDetailPage />} path="peers/:publicKey" />
         <Route element={<FirmwareListPage />} path="firmware" />
         <Route element={<FirmwareUploadPage />} path="firmware/new" />
         <Route element={<DepotDetailPage />} path="firmware/:depot" />

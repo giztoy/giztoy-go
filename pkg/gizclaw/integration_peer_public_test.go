@@ -27,7 +27,7 @@ func TestIntegrationPeerPublicRefresh(t *testing.T) {
 
 	device := newTestClient(t, ts)
 	deviceResult, err := register(context.Background(), device, gearservice.RegistrationRequest{
-		Device: apitypes.DeviceInfo{Name: strPtr("device")},
+		Device: apitypes.DeviceInfo{Name: strPtr("gear")},
 	})
 	if err != nil {
 		t.Fatalf("device register error: %v", err)
@@ -64,7 +64,7 @@ func TestIntegrationPeerPublicRefreshReportsOfflineWhenDeviceDisconnected(t *tes
 
 	device := newTestClient(t, ts)
 	deviceResult, err := register(context.Background(), device, gearservice.RegistrationRequest{
-		Device: apitypes.DeviceInfo{Name: strPtr("device")},
+		Device: apitypes.DeviceInfo{Name: strPtr("gear")},
 	})
 	if err != nil {
 		t.Fatalf("device register error: %v", err)

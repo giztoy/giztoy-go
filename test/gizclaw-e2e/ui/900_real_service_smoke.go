@@ -1,5 +1,5 @@
 // User story: As a maintainer, I can run one smoke path that proves Admin and
-// Play both talk to the same running GizClaw service and seeded data set.
+// Play both serve against the same seeded test service.
 package ui_test
 
 import (
@@ -15,8 +15,9 @@ func realServiceSmokeStories() []Story {
 			page.ExpectText(SeedDepotName)
 
 			page.GotoPlay("/")
-			page.ClickRole("button", "Run Device Info")
-			page.ExpectText("Seeded UI Device")
+			page.ClickRole("button", "Start Video Call")
+			page.ExpectText("rpc.response")
+			page.ExpectText("build_commit")
 		},
 	}}
 }

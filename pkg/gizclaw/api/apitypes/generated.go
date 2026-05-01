@@ -143,8 +143,8 @@ func (e GearConfigResourceKind) Valid() bool {
 // Defines values for GearRole.
 const (
 	GearRoleAdmin       GearRole = "admin"
-	GearRoleDevice      GearRole = "device"
-	GearRolePeer        GearRole = "peer"
+	GearRoleGear        GearRole = "gear"
+	GearRoleServer      GearRole = "server"
 	GearRoleUnspecified GearRole = "unspecified"
 )
 
@@ -153,9 +153,9 @@ func (e GearRole) Valid() bool {
 	switch e {
 	case GearRoleAdmin:
 		return true
-	case GearRoleDevice:
+	case GearRoleGear:
 		return true
-	case GearRolePeer:
+	case GearRoleServer:
 		return true
 	case GearRoleUnspecified:
 		return true

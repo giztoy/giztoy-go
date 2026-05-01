@@ -82,7 +82,7 @@ export type GearLabel = {
     value: string;
 };
 
-export type GearRole = 'unspecified' | 'admin' | 'peer' | 'device';
+export type GearRole = 'unspecified' | 'admin' | 'server' | 'gear';
 
 export type GearStatus = 'unspecified' | 'active' | 'blocked';
 

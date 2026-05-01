@@ -203,7 +203,7 @@ func TestServerGearserviceHandlers(t *testing.T) {
 
 	approveResp, err := server.ApproveGear(ctx, adminservice.ApproveGearRequestObject{
 		PublicKey: adminservice.PublicKey("peer-gear"),
-		Body:      &adminservice.ApproveGearJSONRequestBody{Role: apitypes.GearRoleDevice},
+		Body:      &adminservice.ApproveGearJSONRequestBody{Role: apitypes.GearRoleGear},
 	})
 	if err != nil {
 		t.Fatalf("ApproveGear error: %v", err)
@@ -212,7 +212,7 @@ func TestServerGearserviceHandlers(t *testing.T) {
 	if !ok {
 		t.Fatalf("ApproveGear response type = %T", approveResp)
 	}
-	if approved.Role != apitypes.GearRoleDevice || approved.Status != apitypes.GearStatusActive {
+	if approved.Role != apitypes.GearRoleGear || approved.Status != apitypes.GearStatusActive {
 		t.Fatalf("ApproveGear = %+v", approved)
 	}
 
@@ -447,7 +447,7 @@ func TestServerRuntimeHandlers(t *testing.T) {
 			refreshResult: adminservice.RefreshResult{
 				Gear: apitypes.Gear{
 					PublicKey: "peer-3",
-					Role:      apitypes.GearRolePeer,
+					Role:      apitypes.GearRoleServer,
 					Status:    apitypes.GearStatusActive,
 				},
 				UpdatedFields: &[]string{"device.name"},

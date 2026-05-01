@@ -24,6 +24,13 @@ func (s *Server) register(ctx context.Context, publicKey string, request gearser
 		return apitypes.Gear{}, err
 	}
 	if exists {
+		gear, err := s.registerExistingConnectedGear(ctx, publicKey, request)
+		if err == nil {
+			return gear, nil
+		}
+		if !errors.Is(err, ErrGearAlreadyExists) {
+			return apitypes.Gear{}, err
+		}
 		return apitypes.Gear{}, ErrGearAlreadyExists
 	}
 
@@ -46,6 +53,60 @@ func (s *Server) register(ctx context.Context, publicKey string, request gearser
 		return apitypes.Gear{}, err
 	}
 	return created, nil
+}
+
+func (s *Server) registerExistingConnectedGear(ctx context.Context, publicKey string, request gearservice.RegistrationRequest) (apitypes.Gear, error) {
+	gear, err := s.get(ctx, publicKey)
+	if err != nil {
+		return apitypes.Gear{}, err
+	}
+	if !isAutoConnectedGear(gear) {
+		return apitypes.Gear{}, ErrGearAlreadyExists
+	}
+	device, err := convertViaJSON[apitypes.DeviceInfo](request.Device)
+	if err != nil {
+		return apitypes.Gear{}, err
+	}
+	gear.Device = device
+	return s.put(ctx, gear)
+}
+
+// EnsureConnectedGear creates a default active gear record for a connected peer
+// when the peer has not been registered yet. Existing records are preserved.
+func (s *Server) EnsureConnectedGear(ctx context.Context, publicKey string) (apitypes.Gear, error) {
+	publicKey = normalizePublicKey(publicKey)
+	if publicKey == "" {
+		return apitypes.Gear{}, fmt.Errorf("gear: empty public key")
+	}
+	existing, err := s.get(ctx, publicKey)
+	if err == nil {
+		return existing, nil
+	}
+	if !errors.Is(err, ErrGearNotFound) {
+		return apitypes.Gear{}, err
+	}
+
+	autoRegistered := true
+	created, err := s.create(ctx, apitypes.Gear{
+		PublicKey:      publicKey,
+		Role:           apitypes.GearRoleUnspecified,
+		Status:         apitypes.GearStatusActive,
+		Device:         apitypes.DeviceInfo{},
+		Configuration:  apitypes.Configuration{},
+		AutoRegistered: &autoRegistered,
+	})
+	if errors.Is(err, ErrGearAlreadyExists) {
+		return s.get(ctx, publicKey)
+	}
+	return created, err
+}
+
+func isAutoConnectedGear(gear apitypes.Gear) bool {
+	return gear.AutoRegistered != nil &&
+		*gear.AutoRegistered &&
+		gear.ApprovedAt == nil &&
+		gear.Role == apitypes.GearRoleUnspecified &&
+		gear.Status == apitypes.GearStatusActive
 }
 
 func (s *Server) putInfo(ctx context.Context, publicKey string, info apitypes.DeviceInfo) (apitypes.Gear, error) {

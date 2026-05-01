@@ -110,6 +110,111 @@ export type WorkspaceTemplateList = {
     items: Array<WorkflowTemplateDocument>;
 };
 
+export type CredentialResource = {
+    apiVersion: ResourceApiVersion;
+    kind: 'Credential';
+    metadata: ResourceMetadata;
+    spec: CredentialSpec;
+};
+
+export type GearConfigResource = {
+    apiVersion: ResourceApiVersion;
+    kind: 'GearConfig';
+    metadata: ResourceMetadata;
+    spec: Configuration;
+};
+
+export type MiniMaxTenantResource = {
+    apiVersion: ResourceApiVersion;
+    kind: 'MiniMaxTenant';
+    metadata: ResourceMetadata;
+    spec: MiniMaxTenantSpec;
+};
+
+/**
+ * Result of applying the resource.
+ */
+export type ApplyAction = 'created' | 'updated' | 'unchanged' | 'applied';
+
+export type ApplyResult = {
+    apiVersion: ResourceApiVersion;
+    kind: ResourceKind;
+    name: string;
+    action: ApplyAction;
+    message?: string;
+    /**
+     * Nested apply results for ResourceList resources.
+     */
+    items?: Array<ApplyResult>;
+};
+
+export type Resource = ({
+    kind: 'CredentialResource';
+} & CredentialResource) | ({
+    kind: 'MiniMaxTenantResource';
+} & MiniMaxTenantResource) | ({
+    kind: 'VoiceResource';
+} & VoiceResource) | ({
+    kind: 'WorkspaceTemplateResource';
+} & WorkspaceTemplateResource) | ({
+    kind: 'WorkspaceResource';
+} & WorkspaceResource) | ({
+    kind: 'GearConfigResource';
+} & GearConfigResource) | ({
+    kind: 'ResourceListResource';
+} & ResourceListResource);
+
+/**
+ * API version for declarative GizClaw resources.
+ */
+export type ResourceApiVersion = 'gizclaw.admin/v1alpha1';
+
+/**
+ * Declarative GizClaw resource kind.
+ */
+export type ResourceKind = 'Credential' | 'MiniMaxTenant' | 'Voice' | 'WorkspaceTemplate' | 'Workspace' | 'GearConfig' | 'ResourceList';
+
+export type ResourceMetadata = {
+    /**
+     * Resource name. For GearConfig this is the gear public key.
+     */
+    name: string;
+    annotations?: {
+        [key: string]: string;
+    };
+    labels?: {
+        [key: string]: string;
+    };
+};
+
+export type ResourceListResource = {
+    apiVersion: ResourceApiVersion;
+    kind: 'ResourceList';
+    metadata: ResourceMetadata;
+    spec: ResourceListSpec;
+};
+
+export type VoiceResource = {
+    apiVersion: ResourceApiVersion;
+    kind: 'Voice';
+    metadata: ResourceMetadata;
+    spec: VoiceSpec;
+};
+
+export type WorkspaceResource = {
+    apiVersion: ResourceApiVersion;
+    kind: 'Workspace';
+    metadata: ResourceMetadata;
+    spec: WorkspaceSpec;
+};
+
+export type WorkspaceTemplateResource = {
+    apiVersion: ResourceApiVersion;
+    kind: 'WorkspaceTemplate';
+    metadata: ResourceMetadata;
+    spec: WorkflowTemplateDocument;
+};
+
 export type Channel = string;
 
 export type Configuration = {
@@ -145,6 +250,13 @@ export type CredentialName = string;
  * Credential provider name
  */
 export type CredentialProvider = string;
+
+export type CredentialSpec = {
+    provider: CredentialProvider;
+    method: CredentialMethod;
+    description?: string;
+    body: CredentialBody;
+};
 
 export type Depot = {
     name: string;
@@ -233,7 +345,7 @@ export type GearLabel = {
     value: string;
 };
 
-export type GearRole = 'unspecified' | 'admin' | 'peer' | 'device';
+export type GearRole = 'unspecified' | 'admin' | 'server' | 'gear';
 
 export type GearStatus = 'unspecified' | 'active' | 'blocked';
 
@@ -274,12 +386,20 @@ export type MiniMaxTenant = {
  */
 export type MiniMaxTenantName = string;
 
+export type MiniMaxTenantSpec = {
+    app_id: MiniMaxAppId;
+    group_id: MiniMaxGroupId;
+    credential_name: CredentialName;
+    base_url?: string;
+    description?: string;
+};
+
 export type MultiAgentGraphWorkflowSpec = {
     [key: string]: unknown;
 };
 
 export type MultiAgentGraphWorkflowTemplate = {
-    apiVersion: 'gizclaw.flowcraft/v1alpha1';
+    apiVersion: WorkflowTemplateApiVersion;
     kind: 'MultiAgentGraphWorkflowTemplate';
     metadata: TemplateMetadata;
     spec: MultiAgentGraphWorkflowSpec;
@@ -302,6 +422,10 @@ export type Registration = {
     approved_at?: string;
 };
 
+export type ResourceListSpec = {
+    items: Array<Resource>;
+};
+
 export type Runtime = {
     online: boolean;
     last_seen_at: string;
@@ -313,7 +437,7 @@ export type SingleAgentGraphWorkflowSpec = {
 };
 
 export type SingleAgentGraphWorkflowTemplate = {
-    apiVersion: 'gizclaw.flowcraft/v1alpha1';
+    apiVersion: WorkflowTemplateApiVersion;
     kind: 'SingleAgentGraphWorkflowTemplate';
     metadata: TemplateMetadata;
     spec: SingleAgentGraphWorkflowSpec;
@@ -371,6 +495,26 @@ export type VoiceProviderName = string;
  */
 export type VoiceSource = 'sync' | 'manual';
 
+export type VoiceSpec = {
+    source: VoiceSource;
+    provider: VoiceProvider;
+    /**
+     * Upstream provider voice identifier. Present for synced voices.
+     */
+    provider_voice_id?: string;
+    name?: string;
+    description?: string;
+    /**
+     * Provider-specific voice type
+     */
+    provider_voice_type?: string;
+    raw?: {
+        [key: string]: unknown;
+    };
+};
+
+export type WorkflowTemplateApiVersion = 'gizclaw.flowcraft/v1alpha1';
+
 export type WorkflowTemplateDocument = ({
     kind: 'SingleAgentGraphWorkflowTemplate';
 } & SingleAgentGraphWorkflowTemplate) | ({
@@ -391,6 +535,13 @@ export type Workspace = {
  * Workspace name
  */
 export type WorkspaceName = string;
+
+export type WorkspaceSpec = {
+    workspace_template_name: WorkspaceTemplateName;
+    parameters?: {
+        [key: string]: unknown;
+    };
+};
 
 /**
  * Workspace template name
@@ -443,6 +594,16 @@ export type CredentialName2 = CredentialName;
 export type CredentialProvider2 = CredentialProvider;
 
 /**
+ * Declarative resource kind
+ */
+export type ResourceKind2 = ResourceKind;
+
+/**
+ * Declarative resource metadata.name
+ */
+export type ResourceName = string;
+
+/**
  * MiniMax tenant name
  */
 export type MiniMaxTenantName2 = MiniMaxTenantName;
@@ -466,6 +627,185 @@ export type VoiceProviderKind2 = VoiceProviderKind;
  * Filter voices by provider instance name
  */
 export type VoiceProviderName2 = VoiceProviderName;
+
+export type ApplyResourceData = {
+    body: Resource;
+    path?: never;
+    query?: never;
+    url: '/@apply';
+};
+
+export type ApplyResourceErrors = {
+    /**
+     * Invalid apply resource
+     */
+    400: ErrorResponse;
+    /**
+     * Resource conflict
+     */
+    409: ErrorResponse;
+    /**
+     * Internal error
+     */
+    500: ErrorResponse;
+    /**
+     * Apply is defined but not implemented
+     */
+    501: ErrorResponse;
+};
+
+export type ApplyResourceError = ApplyResourceErrors[keyof ApplyResourceErrors];
+
+export type ApplyResourceResponses = {
+    /**
+     * Applied resource result
+     */
+    200: ApplyResult;
+};
+
+export type ApplyResourceResponse = ApplyResourceResponses[keyof ApplyResourceResponses];
+
+export type DeleteResourceData = {
+    body?: never;
+    path: {
+        /**
+         * Declarative resource kind
+         */
+        kind: ResourceKind;
+        /**
+         * Declarative resource metadata.name
+         */
+        name: string;
+    };
+    query?: never;
+    url: '/resources/{kind}/{name}';
+};
+
+export type DeleteResourceErrors = {
+    /**
+     * Invalid or unsupported resource delete
+     */
+    400: ErrorResponse;
+    /**
+     * Resource not found
+     */
+    404: ErrorResponse;
+    /**
+     * Resource conflict
+     */
+    409: ErrorResponse;
+    /**
+     * Internal error
+     */
+    500: ErrorResponse;
+};
+
+export type DeleteResourceError = DeleteResourceErrors[keyof DeleteResourceErrors];
+
+export type DeleteResourceResponses = {
+    /**
+     * Deleted declarative resource
+     */
+    200: Resource;
+};
+
+export type DeleteResourceResponse = DeleteResourceResponses[keyof DeleteResourceResponses];
+
+export type GetResourceData = {
+    body?: never;
+    path: {
+        /**
+         * Declarative resource kind
+         */
+        kind: ResourceKind;
+        /**
+         * Declarative resource metadata.name
+         */
+        name: string;
+    };
+    query?: never;
+    url: '/resources/{kind}/{name}';
+};
+
+export type GetResourceErrors = {
+    /**
+     * Invalid resource kind or name
+     */
+    400: ErrorResponse;
+    /**
+     * Resource not found
+     */
+    404: ErrorResponse;
+    /**
+     * Internal error
+     */
+    500: ErrorResponse;
+    /**
+     * Resource get is defined but not implemented
+     */
+    501: ErrorResponse;
+};
+
+export type GetResourceError = GetResourceErrors[keyof GetResourceErrors];
+
+export type GetResourceResponses = {
+    /**
+     * Declarative resource
+     */
+    200: Resource;
+};
+
+export type GetResourceResponse = GetResourceResponses[keyof GetResourceResponses];
+
+export type PutResourceData = {
+    body: Resource;
+    path: {
+        /**
+         * Declarative resource kind
+         */
+        kind: ResourceKind;
+        /**
+         * Declarative resource metadata.name
+         */
+        name: string;
+    };
+    query?: never;
+    url: '/resources/{kind}/{name}';
+};
+
+export type PutResourceErrors = {
+    /**
+     * Invalid resource
+     */
+    400: ErrorResponse;
+    /**
+     * Backing resource not found
+     */
+    404: ErrorResponse;
+    /**
+     * Resource conflict
+     */
+    409: ErrorResponse;
+    /**
+     * Internal error
+     */
+    500: ErrorResponse;
+    /**
+     * Resource put is defined but not implemented
+     */
+    501: ErrorResponse;
+};
+
+export type PutResourceError = PutResourceErrors[keyof PutResourceErrors];
+
+export type PutResourceResponses = {
+    /**
+     * Stored declarative resource
+     */
+    200: Resource;
+};
+
+export type PutResourceResponse = PutResourceResponses[keyof PutResourceResponses];
 
 export type ListDepotsData = {
     body?: never;

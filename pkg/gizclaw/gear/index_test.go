@@ -45,7 +45,7 @@ func TestIndexEntriesAndKeys(t *testing.T) {
 	depot := "depot-index"
 	gear := apitypes.Gear{
 		PublicKey: "peer-index",
-		Role:      apitypes.GearRolePeer,
+		Role:      apitypes.GearRoleServer,
 		Status:    apitypes.GearStatusActive,
 		CreatedAt: time.Unix(1, 0),
 		UpdatedAt: time.Unix(2, 0),

@@ -1,6 +1,7 @@
 package client
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -11,14 +12,16 @@ import (
 	"os/signal"
 	"path"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
 	"github.com/GizClaw/gizclaw-go/pkg/gizclaw"
-	"github.com/GizClaw/gizclaw-go/pkg/gizclaw/api/gearservice"
 	adminui "github.com/GizClaw/gizclaw-go/ui/apps/admin"
 	playui "github.com/GizClaw/gizclaw-go/ui/apps/play"
 )
+
+const uiAPIProxyTimeout = 30 * time.Second
 
 func ListenAndServeAdminUI(ctxName, addr string, out io.Writer) error {
 	return listenAndServeUI(ctxName, addr, "GizClaw Admin UI", adminui.FS(), out, nil)
@@ -32,16 +35,22 @@ func listenAndServeUI(ctxName, addr, title string, uiFS fs.FS, out io.Writer, be
 	if strings.TrimSpace(addr) == "" {
 		return fmt.Errorf("gizclaw: empty listen addr")
 	}
-	c, err := ConnectFromContext(ctxName)
-	if err != nil {
-		return err
-	}
-	defer c.Close()
-
 	listener, err := net.Listen("tcp", normalizeListenAddr(addr))
 	if err != nil {
 		return fmt.Errorf("gizclaw: listen ui: %w", err)
 	}
+
+	c, err := ConnectFromContext(ctxName)
+	if err != nil {
+		_ = listener.Close()
+		return err
+	}
+	apiProxy := newUIAPIProxy(func() (uiAPIProxyClient, error) {
+		return ConnectFromContext(ctxName)
+	}, uiAPIProxyTimeout)
+	apiProxy.set(c)
+	defer apiProxy.Close()
+
 	if beforeServe != nil {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
@@ -52,8 +61,8 @@ func listenAndServeUI(ctxName, addr, title string, uiFS fs.FS, out io.Writer, be
 	}
 
 	mux := http.NewServeMux()
-	mux.Handle("/api/", c.ProxyHandler())
-	mux.Handle("/api", c.ProxyHandler())
+	mux.Handle("/api/", apiProxy)
+	mux.Handle("/api", apiProxy)
 	mux.Handle("/", staticWithSPAFallback(uiFS))
 
 	server := &http.Server{
@@ -81,6 +90,168 @@ func listenAndServeUI(ctxName, addr, title string, uiFS fs.FS, out io.Writer, be
 	return err
 }
 
+type uiAPIProxyClient interface {
+	Close() error
+	ProxyHandler() http.Handler
+}
+
+type uiAPIProxy struct {
+	connect func() (uiAPIProxyClient, error)
+	timeout time.Duration
+
+	mu     sync.Mutex
+	client uiAPIProxyClient
+}
+
+func newUIAPIProxy(connect func() (uiAPIProxyClient, error), timeout time.Duration) *uiAPIProxy {
+	if timeout <= 0 {
+		timeout = uiAPIProxyTimeout
+	}
+	return &uiAPIProxy{
+		connect: connect,
+		timeout: timeout,
+	}
+}
+
+func (p *uiAPIProxy) set(client uiAPIProxyClient) {
+	p.mu.Lock()
+	p.client = client
+	p.mu.Unlock()
+}
+
+func (p *uiAPIProxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	response, client, err := p.serveOnce(r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusServiceUnavailable)
+		return
+	}
+	if isUIAPIProxyRetryable(r) && isUIAPIProxyFailure(response.statusCode()) {
+		p.invalidate(client)
+		response, _, err = p.serveOnce(r)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusServiceUnavailable)
+			return
+		}
+	}
+	response.writeTo(w)
+}
+
+func (p *uiAPIProxy) serveOnce(r *http.Request) (*bufferedHTTPResponse, uiAPIProxyClient, error) {
+	client, err := p.get()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), p.timeout)
+	defer cancel()
+
+	response := newBufferedHTTPResponse()
+	client.ProxyHandler().ServeHTTP(response, r.WithContext(ctx))
+	if ctx.Err() != nil {
+		p.invalidate(client)
+	}
+	return response, client, nil
+}
+
+func (p *uiAPIProxy) Close() error {
+	p.mu.Lock()
+	client := p.client
+	p.client = nil
+	p.mu.Unlock()
+	if client != nil {
+		return client.Close()
+	}
+	return nil
+}
+
+func (p *uiAPIProxy) get() (uiAPIProxyClient, error) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if p.client != nil {
+		return p.client, nil
+	}
+	client, err := p.connect()
+	if err != nil {
+		return nil, err
+	}
+	p.client = client
+	return client, nil
+}
+
+func (p *uiAPIProxy) invalidate(stale uiAPIProxyClient) {
+	p.mu.Lock()
+	if p.client != stale {
+		p.mu.Unlock()
+		return
+	}
+	p.client = nil
+	p.mu.Unlock()
+	_ = stale.Close()
+}
+
+func isUIAPIProxyRetryable(r *http.Request) bool {
+	switch r.Method {
+	case http.MethodGet, http.MethodHead, http.MethodOptions:
+		return true
+	default:
+		return false
+	}
+}
+
+func isUIAPIProxyFailure(statusCode int) bool {
+	switch statusCode {
+	case http.StatusBadGateway, http.StatusServiceUnavailable, http.StatusGatewayTimeout:
+		return true
+	default:
+		return false
+	}
+}
+
+type bufferedHTTPResponse struct {
+	header http.Header
+	status int
+	body   bytes.Buffer
+}
+
+func newBufferedHTTPResponse() *bufferedHTTPResponse {
+	return &bufferedHTTPResponse{header: make(http.Header)}
+}
+
+func (r *bufferedHTTPResponse) Header() http.Header {
+	return r.header
+}
+
+func (r *bufferedHTTPResponse) WriteHeader(statusCode int) {
+	if r.status != 0 {
+		return
+	}
+	r.status = statusCode
+}
+
+func (r *bufferedHTTPResponse) Write(data []byte) (int, error) {
+	if r.status == 0 {
+		r.status = http.StatusOK
+	}
+	return r.body.Write(data)
+}
+
+func (r *bufferedHTTPResponse) statusCode() int {
+	if r.status == 0 {
+		return http.StatusOK
+	}
+	return r.status
+}
+
+func (r *bufferedHTTPResponse) writeTo(w http.ResponseWriter) {
+	for key, values := range r.header {
+		for _, value := range values {
+			w.Header().Add(key, value)
+		}
+	}
+	w.WriteHeader(r.statusCode())
+	_, _ = r.body.WriteTo(w)
+}
+
 func ensurePlayRegistration(ctx context.Context, c *gizclaw.Client) error {
 	gearAPI, err := c.GearServiceClient()
 	if err != nil {
@@ -93,22 +264,11 @@ func ensurePlayRegistration(ctx context.Context, c *gizclaw.Client) error {
 	if registration.JSON200 != nil {
 		return nil
 	}
-	if registration.StatusCode() != http.StatusNotFound {
-		return responseError(registration.StatusCode(), registration.Body, registration.JSON404)
-	}
-
-	created, err := gearAPI.RegisterGearWithResponse(ctx, gearservice.RegistrationRequest{})
-	if err != nil {
-		return err
-	}
-	if created.JSON200 != nil || created.StatusCode() == http.StatusConflict {
-		return nil
-	}
-	return responseError(created.StatusCode(), created.Body, created.JSON400, created.JSON409)
+	return responseError(registration.StatusCode(), registration.Body, registration.JSON404)
 }
 
 // staticWithSPAFallback serves embedded UI assets and falls back to index.html
-// for client-side routes (e.g. /devices/...) so BrowserRouter deep links work.
+// for client-side routes (e.g. /peers/...) so BrowserRouter deep links work.
 func staticWithSPAFallback(uiFS fs.FS) http.Handler {
 	fileServer := http.FileServer(http.FS(uiFS))
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

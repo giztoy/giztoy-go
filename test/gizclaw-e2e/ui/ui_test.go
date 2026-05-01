@@ -11,9 +11,9 @@ func allStories() []Story {
 	for _, group := range [][]Story{
 		adminDashboardStories(),
 		adminLegacyHashRouteStories(),
-		adminDevicesListStories(),
-		adminDeviceDetailStories(),
-		adminDeviceActionsStories(),
+		adminPeersListStories(),
+		adminPeerDetailStories(),
+		adminPeerActionsStories(),
 		adminFirmwareListStories(),
 		adminFirmwareUploadStories(),
 		adminDepotDetailStories(),

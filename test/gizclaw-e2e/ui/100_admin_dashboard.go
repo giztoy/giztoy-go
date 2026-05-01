@@ -13,10 +13,10 @@ func adminDashboardStories() []Story {
 			page.GotoAdmin("/")
 			page.ExpectText("Dashboard")
 			page.ExpectText("Server Build")
-			page.ExpectText("Devices This Page")
+			page.ExpectText("Peers This Page")
 			page.ExpectText("Firmware Depots")
 			page.ExpectText(SeedDepotName)
-			page.ExpectText("Devices")
+			page.ExpectText("Peers")
 			page.ExpectText("Firmware")
 		},
 	}}

@@ -6,7 +6,7 @@ import { getServerInfo, type ServerInfo } from "../../../packages/serverpublic";
 
 import type { Depot, Registration } from "../../../packages/adminservice";
 
-import { DEVICE_PAGE_LIMIT } from "./useDevicesPage";
+import { PEER_PAGE_LIMIT } from "./usePeersPage";
 
 export interface OverviewData {
   depots: Depot[];
@@ -33,7 +33,7 @@ export function useOverviewData(): OverviewData {
           expectData(getServerInfo()),
           expectData(
             listGears({
-              query: { limit: DEVICE_PAGE_LIMIT },
+              query: { limit: PEER_PAGE_LIMIT },
             }),
           ),
           expectData(listDepots()),

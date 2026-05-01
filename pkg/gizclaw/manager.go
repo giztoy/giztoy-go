@@ -100,6 +100,13 @@ func (m *Manager) PeerRuntime(_ context.Context, publicKey string) apitypes.Runt
 	}
 }
 
+func (m *Manager) EnsurePeerGear(ctx context.Context, publicKey string) (apitypes.Gear, error) {
+	if m == nil || m.Gears == nil {
+		return apitypes.Gear{}, errors.New("gizclaw: gears service not configured")
+	}
+	return m.Gears.EnsureConnectedGear(ctx, publicKey)
+}
+
 func (m *Manager) RefreshGear(ctx context.Context, publicKey string) (adminservice.RefreshResult, bool, error) {
 	if m.Gears == nil {
 		return adminservice.RefreshResult{}, false, errors.New("gizclaw: gears service not configured")

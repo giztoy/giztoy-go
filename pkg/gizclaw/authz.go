@@ -3,6 +3,7 @@ package gizclaw
 import (
 	"context"
 	"errors"
+	"strings"
 
 	"github.com/GizClaw/gizclaw-go/pkg/gizclaw/api/apitypes"
 	gearpkg "github.com/GizClaw/gizclaw-go/pkg/gizclaw/gear"
@@ -10,7 +11,8 @@ import (
 )
 
 type GearsSecurityPolicy struct {
-	Gears *gearpkg.Server
+	Gears          *gearpkg.Server
+	AdminPublicKey string
 }
 
 var _ SecurityPolicy = GearsSecurityPolicy{}
@@ -18,6 +20,9 @@ var _ SecurityPolicy = GearsSecurityPolicy{}
 func (p GearsSecurityPolicy) AllowPeerService(publicKey giznet.PublicKey, service uint64) bool {
 	switch service {
 	case ServiceRPC, ServiceServerPublic:
+		return true
+	}
+	if service == ServiceAdmin && adminPublicKeyMatches(publicKey, p.AdminPublicKey) {
 		return true
 	}
 	if p.Gears == nil {
@@ -38,8 +43,12 @@ func (p GearsSecurityPolicy) AllowPeerService(publicKey giznet.PublicKey, servic
 		if err != nil {
 			return false
 		}
-		return gear.Status == apitypes.GearStatusActive
+		return gear.Status == apitypes.GearStatusActive && gear.Role == apitypes.GearRoleAdmin
 	default:
 		return false
 	}
+}
+
+func adminPublicKeyMatches(publicKey giznet.PublicKey, configured string) bool {
+	return configured != "" && strings.EqualFold(publicKey.String(), configured)
 }

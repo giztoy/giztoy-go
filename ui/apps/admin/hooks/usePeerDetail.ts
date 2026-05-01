@@ -27,7 +27,7 @@ export interface GearDetailState {
   loading: boolean;
 }
 
-export function useDeviceDetail(publicKey: string | undefined): GearDetailState & { reload: () => Promise<void> } {
+export function usePeerDetail(publicKey: string | undefined): GearDetailState & { reload: () => Promise<void> } {
   const [state, setState] = useState<GearDetailState>({
     data: null,
     error: "",

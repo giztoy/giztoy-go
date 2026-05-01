@@ -11,32 +11,32 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from ".
 import { EmptyState } from "../../../../packages/components/empty-state";
 import { PageBreadcrumb } from "../../../../packages/components/page-breadcrumb";
 import { StatusBadge } from "../../../../packages/components/status-badge";
-import { useDevicesPage } from "../../hooks/useDevicesPage";
-import { deviceTitle, formatDate } from "../../lib/format";
+import { usePeersPage } from "../../hooks/usePeersPage";
+import { formatDate, peerTitle } from "../../lib/format";
 
-export function DevicesListPage(): JSX.Element {
+export function PeersListPage(): JSX.Element {
   const {
     dashboard,
-    deviceList,
-    devicePageNumber,
+    peerList,
+    peerPageNumber,
     filter,
     filteredGears,
     nextPage,
     prevPage,
     refreshDashboard,
     setFilter,
-  } = useDevicesPage();
+  } = usePeersPage();
 
   return (
     <div className="space-y-6">
-      <PageBreadcrumb items={[{ href: "/overview", label: "Overview" }, { label: "Devices" }]} />
+      <PageBreadcrumb items={[{ href: "/overview", label: "Overview" }, { label: "Peers" }]} />
 
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="space-y-2">
           <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Inventory</div>
-          <h1 className="text-3xl font-semibold tracking-tight">Devices</h1>
+          <h1 className="text-3xl font-semibold tracking-tight">Peers</h1>
           <p className="max-w-3xl text-sm leading-6 text-muted-foreground lg:text-base">
-            Browse paged inventory, filter the current page, and open a device into its own detail route.
+            Browse paged inventory, filter the current page, and open a peer into its own detail route.
           </p>
         </div>
         <Button className="h-8 min-w-fit shrink-0 whitespace-nowrap px-3 text-sm" onClick={() => void refreshDashboard()} variant="outline">
@@ -56,13 +56,13 @@ export function DevicesListPage(): JSX.Element {
           <div className="rounded-md border">
             <div className="flex flex-col gap-3 border-b px-4 py-4 lg:flex-row lg:items-start lg:justify-between">
               <div className="space-y-1">
-                <CardTitle>Device Inventory</CardTitle>
-                <CardDescription>Browse paged device results and open a row to inspect details.</CardDescription>
+                <CardTitle>Peer Inventory</CardTitle>
+                <CardDescription>Browse paged peer results and open a row to inspect details.</CardDescription>
               </div>
               <div className="flex flex-wrap gap-2">
-                <Badge variant="outline">Page {devicePageNumber}</Badge>
+                <Badge variant="outline">Page {peerPageNumber}</Badge>
                 <Badge variant="secondary">{dashboard.gears.length} loaded</Badge>
-                {deviceList.hasNext ? <Badge variant="outline">More Available</Badge> : null}
+                {peerList.hasNext ? <Badge variant="outline">More Available</Badge> : null}
               </div>
             </div>
 
@@ -79,7 +79,7 @@ export function DevicesListPage(): JSX.Element {
               <div className="flex gap-2">
                 <Button
                   className="h-8 min-w-fit shrink-0 whitespace-nowrap px-3 text-sm disabled:border-border disabled:bg-muted disabled:text-muted-foreground disabled:opacity-100 disabled:shadow-none"
-                  disabled={dashboard.loading || deviceList.history.length === 0}
+                  disabled={dashboard.loading || peerList.history.length === 0}
                   onClick={prevPage}
                   type="button"
                   variant="outline"
@@ -88,7 +88,7 @@ export function DevicesListPage(): JSX.Element {
                 </Button>
                 <Button
                   className="h-8 min-w-fit shrink-0 whitespace-nowrap px-3 text-sm disabled:border-border disabled:bg-muted disabled:text-muted-foreground disabled:opacity-100 disabled:shadow-none"
-                  disabled={dashboard.loading || !deviceList.hasNext || deviceList.nextCursor === null}
+                  disabled={dashboard.loading || !peerList.hasNext || peerList.nextCursor === null}
                   onClick={nextPage}
                   type="button"
                   variant="outline"
@@ -107,15 +107,15 @@ export function DevicesListPage(): JSX.Element {
             ) : filteredGears.length === 0 ? (
               <div className="p-4">
                 <EmptyState
-                  description={filter.trim() === "" ? "Devices will appear here as soon as they are registered." : "No devices on this page match the current filter."}
-                  title="No matching devices"
+                  description={filter.trim() === "" ? "Peers will appear here as soon as they are registered." : "No peers on this page match the current filter."}
+                  title="No matching peers"
                 />
               </div>
             ) : (
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Device</TableHead>
+                    <TableHead>Peer</TableHead>
                     <TableHead>Public Key</TableHead>
                     <TableHead className="w-24 text-center">Role</TableHead>
                     <TableHead className="w-24 text-center">Status</TableHead>
@@ -129,8 +129,8 @@ export function DevicesListPage(): JSX.Element {
                   {filteredGears.map((gear) => (
                     <TableRow className="cursor-pointer hover:bg-muted/40" key={gear.public_key}>
                       <TableCell>
-                        <Link className="font-medium hover:underline" to={`/devices/${encodeURIComponent(gear.public_key)}`}>
-                          {deviceTitle(undefined, gear.public_key)}
+                        <Link className="font-medium hover:underline" to={`/peers/${encodeURIComponent(gear.public_key)}`}>
+                          {peerTitle(undefined, gear.public_key)}
                         </Link>
                       </TableCell>
                       <TableCell className="max-w-[16rem]">
@@ -152,7 +152,7 @@ export function DevicesListPage(): JSX.Element {
                         {gear.auto_registered ? <Badge variant="secondary">Auto</Badge> : <span className="text-sm text-muted-foreground">Manual</span>}
                       </TableCell>
                       <TableCell className="text-right text-muted-foreground">
-                        <Link to={`/devices/${encodeURIComponent(gear.public_key)}`}>
+                        <Link to={`/peers/${encodeURIComponent(gear.public_key)}`}>
                           <ChevronRight className="ml-auto size-4" />
                         </Link>
                       </TableCell>
@@ -164,9 +164,9 @@ export function DevicesListPage(): JSX.Element {
 
             <div className="flex items-center justify-between border-t px-4 py-4 text-sm text-muted-foreground">
               <span>
-                Showing {filteredGears.length} of {dashboard.gears.length} devices on page {devicePageNumber}
+                Showing {filteredGears.length} of {dashboard.gears.length} peers on page {peerPageNumber}
               </span>
-              <span>{deviceList.hasNext ? "Next page available" : "End of results"}</span>
+              <span>{peerList.hasNext ? "Next page available" : "End of results"}</span>
             </div>
           </div>
         </CardContent>

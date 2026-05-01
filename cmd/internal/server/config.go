@@ -13,6 +13,7 @@ import (
 type Config struct {
 	KeyPair            *giznet.KeyPair
 	ListenAddr         string
+	AdminPublicKey     string
 	Storage            map[string]storage.Config
 	Stores             map[string]stores.Config
 	Gears              GearsConfig
@@ -53,6 +54,7 @@ type DepotsConfig struct {
 
 type ConfigFile struct {
 	ListenAddr         string                    `yaml:"listen"`
+	AdminPublicKey     string                    `yaml:"admin-public-key"`
 	Storage            map[string]storage.Config `yaml:"storage"`
 	Stores             map[string]stores.Config  `yaml:"stores"`
 	Gears              GearsConfig               `yaml:"gears"`
@@ -84,6 +86,9 @@ func DefaultConfig() Config {
 func mergeFileConfig(cfg Config, fileCfg ConfigFile) Config {
 	if cfg.ListenAddr == "" {
 		cfg.ListenAddr = fileCfg.ListenAddr
+	}
+	if cfg.AdminPublicKey == "" {
+		cfg.AdminPublicKey = fileCfg.AdminPublicKey
 	}
 	if len(cfg.Stores) == 0 {
 		cfg.Stores = fileCfg.Stores
@@ -159,6 +164,11 @@ func prepareConfig(cfg Config) (Config, error) {
 	if cfg.ListenAddr == "" {
 		cfg.ListenAddr = defaults.ListenAddr
 	}
+	adminPublicKey, err := normalizeAdminPublicKey(cfg.AdminPublicKey)
+	if err != nil {
+		return Config{}, err
+	}
+	cfg.AdminPublicKey = adminPublicKey
 	if err := cfg.validate(); err != nil {
 		return Config{}, err
 	}
@@ -178,6 +188,9 @@ func (cfg Config) validate() error {
 	}
 	if cfg.Depots.Store == "" {
 		return fmt.Errorf("server: depots.store is required")
+	}
+	if _, err := normalizeAdminPublicKey(cfg.AdminPublicKey); err != nil {
+		return err
 	}
 	if len(cfg.Storage) == 0 {
 		return nil
@@ -207,4 +220,18 @@ func (cfg Config) validate() error {
 		return fmt.Errorf("server: depots.metadata-store is required")
 	}
 	return nil
+}
+
+func normalizeAdminPublicKey(value string) (string, error) {
+	if value == "" {
+		return "", nil
+	}
+	adminPublicKey, err := giznet.KeyFromHex(value)
+	if err != nil {
+		return "", fmt.Errorf("server: invalid admin-public-key: %w", err)
+	}
+	if adminPublicKey.IsZero() {
+		return "", fmt.Errorf("server: invalid admin-public-key: zero key")
+	}
+	return adminPublicKey.String(), nil
 }

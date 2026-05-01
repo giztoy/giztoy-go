@@ -14,7 +14,7 @@ import { formatRelease, formatServerTime, formatShortKey } from "../../lib/forma
 
 export function OverviewPage(): JSX.Element {
   const dashboard = useOverviewData();
-  const latestDevices = dashboard.gears.slice(0, 5);
+  const latestPeers = dashboard.gears.slice(0, 5);
   const latestDepots = dashboard.depots.slice(0, 4);
   const autoCount = dashboard.gears.filter((gear) => gear.auto_registered).length;
 
@@ -24,7 +24,7 @@ export function OverviewPage(): JSX.Element {
         <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Overview</div>
         <h1 className="text-3xl font-semibold tracking-tight">Dashboard</h1>
         <p className="max-w-3xl text-sm leading-6 text-muted-foreground lg:text-base">
-          Server health, a snapshot of devices on the first page, and firmware depots.
+          Server health, a snapshot of peers on the first page, and firmware depots.
         </p>
       </div>
 
@@ -42,7 +42,7 @@ export function OverviewPage(): JSX.Element {
         <MetricCard
           description="First page snapshot"
           icon={Boxes}
-          label="Devices This Page"
+          label="Peers This Page"
           value={String(dashboard.gears.length)}
         />
         <MetricCard
@@ -63,12 +63,12 @@ export function OverviewPage(): JSX.Element {
         <Card className="border-border/60 bg-background/90 shadow-sm">
           <CardHeader className="flex flex-row items-start justify-between gap-4 space-y-0">
             <div className="space-y-1">
-              <CardTitle>Recent Devices</CardTitle>
-              <CardDescription>Latest devices from the first page of results.</CardDescription>
+              <CardTitle>Recent Peers</CardTitle>
+              <CardDescription>Latest peers from the first page of results.</CardDescription>
             </div>
             <Button asChild size="sm" variant="outline">
-              <Link to="/devices">
-                Open Devices
+              <Link to="/peers">
+                Open Peers
                 <ChevronRight className="size-4" />
               </Link>
             </Button>
@@ -80,27 +80,27 @@ export function OverviewPage(): JSX.Element {
                   <Skeleton className="h-16 w-full" key={index} />
                 ))}
               </div>
-            ) : latestDevices.length === 0 ? (
+            ) : latestPeers.length === 0 ? (
               <EmptyState
-                description="Register devices and they will show up here as clickable detail entries."
-                title="No devices yet"
+                description="Registered peers will show up here as clickable detail entries."
+                title="No peers yet"
               />
             ) : (
               <div className="rounded-md border">
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Device</TableHead>
+                      <TableHead>Peer</TableHead>
                       <TableHead>Role</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead className="text-right">Open</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {latestDevices.map((gear) => (
+                    {latestPeers.map((gear) => (
                       <TableRow className="cursor-pointer" key={gear.public_key}>
                         <TableCell className="font-medium">
-                          <Link className="hover:underline" to={`/devices/${encodeURIComponent(gear.public_key)}`}>
+                          <Link className="hover:underline" to={`/peers/${encodeURIComponent(gear.public_key)}`}>
                             {formatShortKey(gear.public_key)}
                           </Link>
                         </TableCell>
@@ -109,7 +109,7 @@ export function OverviewPage(): JSX.Element {
                           <StatusBadge status={gear.status} />
                         </TableCell>
                         <TableCell className="text-right text-muted-foreground">
-                          <Link to={`/devices/${encodeURIComponent(gear.public_key)}`}>
+                          <Link to={`/peers/${encodeURIComponent(gear.public_key)}`}>
                             <ChevronRight className="ml-auto size-4" />
                           </Link>
                         </TableCell>
@@ -186,9 +186,9 @@ export function OverviewPage(): JSX.Element {
         </CardHeader>
         <CardContent className="flex flex-wrap gap-2">
           <Button asChild variant="outline">
-            <Link to="/devices">
+            <Link to="/peers">
               <Boxes className="size-4" />
-              Devices
+              Peers
             </Link>
           </Button>
           <Button asChild variant="outline">

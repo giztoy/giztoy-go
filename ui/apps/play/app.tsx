@@ -1,186 +1,257 @@
 import type { JSX } from "react";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { Cpu, Info, RadioTower, Settings2 } from "lucide-react";
+import { Activity, Moon, Phone, PhoneOff, RadioTower, Sun } from "lucide-react";
 
-import { expectData, toMessage } from "../../packages/components/api";
-import { Badge } from "../../packages/components/badge";
-import { NoticeBanner } from "../../packages/components/banners";
 import { Button } from "../../packages/components/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../packages/components/card";
-import { EmptyState } from "../../packages/components/empty-state";
-import { Skeleton } from "../../packages/components/skeleton";
 import { cn } from "../../packages/components/utils";
-import { getConfig, getInfo, getOta } from "../../packages/gearservice";
-import { client as gearClient } from "../../packages/gearservice/client.gen";
-import { getServerInfo } from "../../packages/serverpublic";
-import { client as publicClient } from "../../packages/serverpublic/client.gen";
 
-gearClient.setConfig({
-  baseUrl: "/api/gear",
-  responseStyle: "fields",
-  throwOnError: false,
-});
-
-publicClient.setConfig({
-  baseUrl: "/api/public",
-  responseStyle: "fields",
-  throwOnError: false,
-});
-
-interface ActionDefinition {
-  description: string;
+interface RpcRequest {
   id: string;
-  label: string;
-  run: () => Promise<unknown>;
+  method: string;
+  params?: unknown;
 }
 
-interface NoticeState {
-  message: string;
-  tone: "error" | "success";
+interface RpcResponse {
+  id: string;
+  result?: unknown;
+  error?: {
+    message: string;
+  };
 }
 
-const actions: ActionDefinition[] = [
-  {
-    description: "Confirm the current server identity and build metadata exposed to the device.",
-    id: "server-info",
-    label: "Server Info",
-    run: () => expectData(getServerInfo()),
-  },
-  {
-    description: "Read the current device information returned by the proxied public endpoint.",
-    id: "device-info",
-    label: "Device Info",
-    run: () => expectData(getInfo()),
-  },
-  {
-    description: "Inspect the effective device configuration visible from the play flow.",
-    id: "configuration",
-    label: "Configuration",
-    run: () => expectData(getConfig()),
-  },
-  {
-    description: "Preview the OTA summary that the device would use for firmware decisions.",
-    id: "ota-summary",
-    label: "OTA Summary",
-    run: () => expectData(getOta()),
-  },
-];
+interface RpcLogEntry {
+  id: string;
+  event: string;
+  detail: string;
+}
+
+type CallStatus = "Idle" | "Starting" | "Connected" | "RPC failed" | "Ended";
+type Theme = "dark" | "light";
 
 function App(): JSX.Element {
-  const [activeAction, setActiveAction] = useState<string | null>(null);
-  const [notice, setNotice] = useState<NoticeState | null>(null);
-  const [output, setOutput] = useState<string>("Ready.");
+  const [theme, setTheme] = useState<Theme>("dark");
+  const [status, setStatus] = useState<CallStatus>("Idle");
+  const [logs, setLogs] = useState<RpcLogEntry[]>([]);
+  const [rpcSent, setRpcSent] = useState(0);
+  const [rpcReceived, setRpcReceived] = useState(0);
+  const uiPeerRef = useRef<RTCPeerConnection | null>(null);
+  const backendPeerRef = useRef<RTCPeerConnection | null>(null);
+  const dataChannelRef = useRef<RTCDataChannel | null>(null);
 
-  const activeLabel = useMemo(
-    () => actions.find((action) => action.id === activeAction)?.label ?? null,
-    [activeAction],
-  );
+  const appendLog = useCallback((event: string, detail: unknown) => {
+    setLogs((current) => [
+      {
+        id: `${Date.now()}-${current.length + 1}`,
+        event,
+        detail: typeof detail === "string" ? detail : JSON.stringify(detail),
+      },
+      ...current,
+    ].slice(0, 100));
+  }, []);
 
-  const runAction = useCallback(async (action: ActionDefinition) => {
-    setActiveAction(action.id);
-    setNotice(null);
+  const closeCall = useCallback(() => {
+    dataChannelRef.current?.close();
+    uiPeerRef.current?.close();
+    backendPeerRef.current?.close();
+    dataChannelRef.current = null;
+    uiPeerRef.current = null;
+    backendPeerRef.current = null;
+    setStatus("Ended");
+    appendLog("call.closed", "WebRTC call closed");
+  }, [appendLog]);
+
+  const handleRPC = useCallback(async (request: RpcRequest): Promise<RpcResponse> => {
     try {
-      const data = await action.run();
-      setOutput(JSON.stringify(data, null, 2));
-      setNotice({ message: `${action.label} loaded successfully.`, tone: "success" });
+      if (request.method !== "server.info.get") {
+        throw new Error(`unsupported method ${request.method}`);
+      }
+      const response = await fetch("/api/public/server-info");
+      if (!response.ok) {
+        const message = (await response.text()).trim() || `${response.status} ${response.statusText}`;
+        throw new Error(message);
+      }
+      return { id: request.id, result: await response.json() };
     } catch (error) {
-      setOutput("");
-      setNotice({ message: toMessage(error), tone: "error" });
-    } finally {
-      setActiveAction(null);
+      return {
+        id: request.id,
+        error: {
+          message: error instanceof Error ? error.message : String(error),
+        },
+      };
     }
   }, []);
 
+  const startCall = useCallback(async () => {
+    if (status === "Starting") {
+      return;
+    }
+    closeCall();
+    setStatus("Starting");
+    setLogs([]);
+    setRpcSent(0);
+    setRpcReceived(0);
+
+    const uiPeer = new RTCPeerConnection({ iceServers: [] });
+    const backendPeer = new RTCPeerConnection({ iceServers: [] });
+    uiPeerRef.current = uiPeer;
+    backendPeerRef.current = backendPeer;
+
+    uiPeer.onicecandidate = (event) => {
+      if (event.candidate) {
+        void backendPeer.addIceCandidate(event.candidate);
+      }
+    };
+    backendPeer.onicecandidate = (event) => {
+      if (event.candidate) {
+        void uiPeer.addIceCandidate(event.candidate);
+      }
+    };
+    uiPeer.onconnectionstatechange = () => appendLog("webrtc.state", uiPeer.connectionState);
+
+    backendPeer.ondatachannel = (event) => {
+      const backendChannel = event.channel;
+      appendLog("backend.datachannel", backendChannel.label);
+      backendChannel.onmessage = (message) => {
+        void (async () => {
+          const request = JSON.parse(String(message.data)) as RpcRequest;
+          appendLog("rpc.request", request.method);
+          const response = await handleRPC(request);
+          backendChannel.send(JSON.stringify(response));
+        })();
+      };
+    };
+
+    const rpcChannel = uiPeer.createDataChannel("rpc", { ordered: true });
+    dataChannelRef.current = rpcChannel;
+    rpcChannel.onopen = () => {
+      setStatus("Connected");
+      appendLog("rpc.open", "RPC data channel open");
+      const request: RpcRequest = {
+        id: crypto.randomUUID(),
+        method: "server.info.get",
+        params: {},
+      };
+      setRpcSent((current) => current + 1);
+      appendLog("rpc.send", request.method);
+      rpcChannel.send(JSON.stringify(request));
+    };
+    rpcChannel.onmessage = (message) => {
+      const response = JSON.parse(String(message.data)) as RpcResponse;
+      setRpcReceived((current) => current + 1);
+      if (response.error) {
+        setStatus("RPC failed");
+        appendLog("rpc.error", response.error.message);
+        return;
+      }
+      appendLog("rpc.response", response.result ?? {});
+    };
+    rpcChannel.onclose = () => appendLog("rpc.close", "RPC data channel closed");
+
+    const offer = await uiPeer.createOffer();
+    await uiPeer.setLocalDescription(offer);
+    await backendPeer.setRemoteDescription(offer);
+    const answer = await backendPeer.createAnswer();
+    await backendPeer.setLocalDescription(answer);
+    await uiPeer.setRemoteDescription(answer);
+  }, [appendLog, closeCall, handleRPC, status]);
+
+  const dark = theme === "dark";
+
   return (
-    <main className="min-h-screen bg-background">
-      <div className="mx-auto flex min-h-screen w-full max-w-6xl flex-col gap-8 px-4 py-8 lg:px-8 lg:py-12">
-        <section className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
-          <Card className="border-border/70 shadow-sm">
-            <CardHeader className="gap-4">
-              <div className="flex flex-wrap items-center gap-3">
-                <Badge>Play</Badge>
-                <Badge variant="secondary">Proxy API bases: /api/gear and /api/public</Badge>
+    <main className={cn("min-h-screen transition-colors", dark ? "bg-slate-950 text-slate-50" : "bg-slate-50 text-slate-950")}>
+      <div className="mx-auto grid min-h-screen w-full max-w-7xl gap-6 px-4 py-6 lg:grid-cols-[minmax(0,1.4fr)_24rem]">
+        <section className="grid gap-6 lg:grid-rows-[minmax(0,1fr)_18rem]">
+          <Card className={cn("overflow-hidden border", dark ? "border-slate-700 bg-slate-900" : "border-slate-200 bg-white")}>
+            <CardContent className="relative flex aspect-square min-h-[30rem] items-center justify-center p-0">
+              <div className="absolute left-4 top-4 rounded-lg bg-slate-950/70 px-3 py-2 text-xs text-slate-100">
+                <div className="font-semibold">WebRTC Play</div>
+                <div>Status: {status}</div>
+                <div>RPC up/down: {rpcSent}/{rpcReceived}</div>
               </div>
-              <div className="space-y-2">
-                <CardTitle className="text-3xl font-semibold tracking-tight">GizClaw Play</CardTitle>
-                <CardDescription className="max-w-2xl text-base leading-7">
-                  A lightweight operator surface for probing the current gear endpoints and server info through the local proxy.
-                </CardDescription>
+              <div className={cn("flex size-40 items-center justify-center rounded-full border", dark ? "border-cyan-400/50 bg-cyan-400/10" : "border-cyan-600/40 bg-cyan-100")}>
+                <RadioTower className={cn("size-16", status === "Connected" ? "text-cyan-400" : "text-slate-400")} />
               </div>
-            </CardHeader>
+            </CardContent>
           </Card>
 
-          <Card className="border-border/70 bg-muted/20 shadow-none">
+          <Card className={cn("border shadow-none", dark ? "border-slate-700 bg-slate-900" : "border-slate-200 bg-white")}>
             <CardHeader className="pb-3">
-              <CardTitle className="text-base">Current State</CardTitle>
-              <CardDescription>Quick feedback while you inspect the proxied responses.</CardDescription>
+              <CardTitle className="text-base">RPC Log</CardTitle>
+              <CardDescription>One line per WebRTC data channel event. Details stay compact for the drawer-style layout.</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-3 text-sm">
-              <InfoRow label="Status" value={activeLabel ? `Loading ${activeLabel}` : "Idle"} />
-              <InfoRow label="Surface" value="Gear and server endpoints" />
-              <InfoRow label="Transport" value="Local reverse proxy" />
+            <CardContent>
+              <div className={cn("h-48 overflow-auto rounded-lg border text-sm", dark ? "border-slate-700" : "border-slate-200")}>
+                <table className="w-full table-fixed border-collapse">
+                  <tbody>
+                    {logs.length === 0 ? (
+                      <tr>
+                        <td className="px-3 py-3 text-slate-500">No RPC events yet.</td>
+                      </tr>
+                    ) : logs.map((entry) => (
+                      <tr className={dark ? "border-b border-slate-800" : "border-b border-slate-100"} key={entry.id}>
+                        <td className="w-36 px-3 py-2 font-medium">{entry.event}</td>
+                        <td className="truncate px-3 py-2 text-slate-500">{entry.detail}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </CardContent>
           </Card>
         </section>
 
-        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          {actions.map((action) => (
-            <Card className="border-border/70" key={action.id}>
-              <CardHeader className="space-y-3">
-                <div className="flex size-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                  <ActionIcon id={action.id} />
-                </div>
-                <div className="space-y-1">
-                  <CardTitle className="text-base">{action.label}</CardTitle>
-                  <CardDescription className="leading-6">{action.description}</CardDescription>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <Button
-                  className="w-full"
-                  disabled={activeAction !== null}
-                  onClick={() => void runAction(action)}
-                  type="button"
-                  variant={activeAction === action.id ? "secondary" : "default"}
-                >
-                  {activeAction === action.id ? "Loading..." : `Run ${action.label}`}
-                </Button>
-              </CardContent>
-            </Card>
-          ))}
-        </section>
+        <aside className="flex flex-col justify-center gap-4">
+          <Card className={cn("border shadow-none", dark ? "border-slate-700 bg-slate-900" : "border-slate-200 bg-white")}>
+            <CardHeader>
+              <CardTitle>Controls</CardTitle>
+              <CardDescription>Start the local WebRTC call and tunnel JSON RPC over the `rpc` data channel.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <Button className="w-full" disabled={status === "Starting"} onClick={() => void startCall()} type="button">
+                <Phone className="size-4" />
+                Start Video Call
+              </Button>
+              <Button className="w-full" onClick={closeCall} type="button" variant="outline">
+                <PhoneOff className="size-4" />
+                End Call
+              </Button>
+            </CardContent>
+          </Card>
 
-        <Card className="min-h-[26rem] border-border/70">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">Response</CardTitle>
-            <CardDescription>Most recent payload returned by the selected proxied endpoint.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {notice ? <NoticeBanner message={notice.message} tone={notice.tone} /> : null}
+          <Card className={cn("border shadow-none", dark ? "border-slate-700 bg-slate-900" : "border-slate-200 bg-white")}>
+            <CardHeader>
+              <CardTitle>Theme</CardTitle>
+              <CardDescription>Choose the play surface theme.</CardDescription>
+            </CardHeader>
+            <CardContent className="grid grid-cols-2 gap-2">
+              <Button onClick={() => setTheme("dark")} type="button" variant={dark ? "default" : "outline"}>
+                <Moon className="size-4" />
+                Dark
+              </Button>
+              <Button onClick={() => setTheme("light")} type="button" variant={!dark ? "default" : "outline"}>
+                <Sun className="size-4" />
+                Light
+              </Button>
+            </CardContent>
+          </Card>
 
-            {activeAction !== null ? (
-              <div className="space-y-3">
-                <Skeleton className="h-5 w-40" />
-                <Skeleton className="h-56 w-full" />
-              </div>
-            ) : output === "" ? (
-              <EmptyState
-                description="Run one of the actions above to load a response from the proxied API."
-                title="No response available"
-              />
-            ) : (
-              <pre
-                className={cn(
-                  "overflow-x-auto rounded-xl border border-slate-800 bg-slate-950 p-4 text-sm leading-6 text-slate-100",
-                  "min-h-[20rem] whitespace-pre-wrap break-words",
-                )}
-              >
-                {output}
-              </pre>
-            )}
-          </CardContent>
-        </Card>
+          <Card className={cn("border shadow-none", dark ? "border-slate-700 bg-slate-900" : "border-slate-200 bg-white")}>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Activity className="size-4" />
+                Stats
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2 text-sm">
+              <InfoRow label="WebRTC status" value={status} />
+              <InfoRow label="Data channel" value={dataChannelRef.current?.readyState ?? "closed"} />
+              <InfoRow label="RPC sent" value={String(rpcSent)} />
+              <InfoRow label="RPC received" value={String(rpcReceived)} />
+            </CardContent>
+          </Card>
+        </aside>
       </div>
     </main>
   );
@@ -193,21 +264,6 @@ function InfoRow({ label, value }: { label: string; value: string }): JSX.Elemen
       <span className="text-right font-medium text-foreground">{value}</span>
     </div>
   );
-}
-
-function ActionIcon({ id }: { id: string }): JSX.Element {
-  switch (id) {
-    case "server-info":
-      return <RadioTower className="size-4" />;
-    case "device-info":
-      return <Info className="size-4" />;
-    case "configuration":
-      return <Settings2 className="size-4" />;
-    case "ota-summary":
-      return <Cpu className="size-4" />;
-    default:
-      return <Info className="size-4" />;
-  }
 }
 
 const root = document.querySelector<HTMLElement>("#app");

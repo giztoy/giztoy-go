@@ -212,6 +212,9 @@ func (s *PeerService) ServeConn(conn *giznet.Conn) error {
 	if err := s.validateServices(); err != nil {
 		return err
 	}
+	if err := s.ensurePeerGear(context.Background(), conn); err != nil {
+		return err
+	}
 	s.markPeerOnline(conn)
 	defer s.markPeerOffline(conn)
 
@@ -221,6 +224,14 @@ func (s *PeerService) ServeConn(conn *giznet.Conn) error {
 	g.Go(func() error { return s.servePublic(conn) })
 
 	return g.Wait()
+}
+
+func (s *PeerService) ensurePeerGear(ctx context.Context, conn *giznet.Conn) error {
+	if s == nil || s.peerManager == nil {
+		return nil
+	}
+	_, err := s.peerManager.EnsurePeerGear(ctx, conn.PublicKey().String())
+	return err
 }
 
 func (s *PeerService) validateServices() error {

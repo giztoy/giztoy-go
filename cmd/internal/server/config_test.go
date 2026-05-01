@@ -105,8 +105,10 @@ func TestNewWithLayeredStorageReportsStoreErrors(t *testing.T) {
 
 func TestNewWithPreparedConfig(t *testing.T) {
 	dir := t.TempDir()
+	adminPublicKey := strings.Repeat("ab", giznet.KeySize)
 	srv, err := New(Config{
-		ListenAddr: ":1234",
+		ListenAddr:     ":1234",
+		AdminPublicKey: strings.ToUpper(adminPublicKey),
 		Stores: map[string]stores.Config{
 			"mem": {Kind: stores.KindKeyValue, Backend: "memory"},
 			"fw":  {Kind: stores.KindFS, Backend: "filesystem", Dir: filepath.Join(dir, "firmware")},
@@ -130,12 +132,34 @@ func TestNewWithPreparedConfig(t *testing.T) {
 	if srv.PublicKey().String() == "" {
 		t.Fatal("PublicKey should not be empty")
 	}
+	if srv.AdminPublicKey != adminPublicKey {
+		t.Fatalf("AdminPublicKey = %q, want %q", srv.AdminPublicKey, adminPublicKey)
+	}
 }
 
 func TestConfigValidateRequiresStores(t *testing.T) {
 	cfg := Config{}
 	if err := cfg.validate(); err == nil {
 		t.Fatal("validate should fail without required stores")
+	}
+}
+
+func TestConfigValidateRejectsInvalidAdminPublicKey(t *testing.T) {
+	cfg := Config{
+		AdminPublicKey: "not-hex",
+		Stores: map[string]stores.Config{
+			"mem": {Kind: stores.KindKeyValue, Backend: "memory"},
+		},
+		Gears:  GearsConfig{Store: "mem"},
+		Depots: DepotsConfig{Store: "mem"},
+	}
+	if err := cfg.validate(); err == nil || !strings.Contains(err.Error(), "invalid admin-public-key") {
+		t.Fatalf("validate invalid admin public key err = %v", err)
+	}
+
+	cfg.AdminPublicKey = strings.Repeat("00", giznet.KeySize)
+	if err := cfg.validate(); err == nil || !strings.Contains(err.Error(), "zero key") {
+		t.Fatalf("validate zero admin public key err = %v", err)
 	}
 }
 
@@ -156,7 +180,8 @@ func TestLoadConfigErrors(t *testing.T) {
 
 func TestMergeFileConfigKeepsRuntimeOverrides(t *testing.T) {
 	runtimeCfg := Config{
-		ListenAddr: ":9999",
+		ListenAddr:     ":9999",
+		AdminPublicKey: strings.Repeat("01", giznet.KeySize),
 		Storage: map[string]storage.Config{
 			"runtime-storage": {Kind: "keyvalue", Backend: "memory"},
 		},
@@ -177,7 +202,8 @@ func TestMergeFileConfigKeepsRuntimeOverrides(t *testing.T) {
 		Depots:             DepotsConfig{Store: "runtime-depots"},
 	}
 	fileCfg := ConfigFile{
-		ListenAddr: ":1234",
+		ListenAddr:     ":1234",
+		AdminPublicKey: strings.Repeat("02", giznet.KeySize),
 		Storage: map[string]storage.Config{
 			"file-storage": {Kind: "keyvalue", Backend: "memory"},
 		},
@@ -201,6 +227,9 @@ func TestMergeFileConfigKeepsRuntimeOverrides(t *testing.T) {
 	merged := mergeFileConfig(runtimeCfg, fileCfg)
 	if merged.ListenAddr != ":9999" {
 		t.Fatalf("ListenAddr = %q", merged.ListenAddr)
+	}
+	if merged.AdminPublicKey != runtimeCfg.AdminPublicKey {
+		t.Fatalf("AdminPublicKey = %q, want %q", merged.AdminPublicKey, runtimeCfg.AdminPublicKey)
 	}
 	if len(merged.Stores) != 1 || merged.Stores["runtime"].Backend != "memory" {
 		t.Fatalf("Stores = %+v", merged.Stores)

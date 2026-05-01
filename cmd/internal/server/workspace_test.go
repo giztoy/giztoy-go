@@ -18,6 +18,7 @@ func TestPrepareWorkspaceConfigLoadsWorkspaceConfig(t *testing.T) {
 	workspace := t.TempDir()
 	if err := os.WriteFile(filepath.Join(workspace, workspaceConfigFile), []byte(`
 listen: "127.0.0.1:39001"
+admin-public-key: "ABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABAB"
 storage:
   memory:
     kind: keyvalue
@@ -94,6 +95,9 @@ depots:
 	}
 	if cfg.ListenAddr != "127.0.0.1:39001" {
 		t.Fatalf("ListenAddr = %q", cfg.ListenAddr)
+	}
+	if cfg.AdminPublicKey != strings.Repeat("ab", 32) {
+		t.Fatalf("AdminPublicKey = %q", cfg.AdminPublicKey)
 	}
 	if got := cfg.Storage["memory"].Dir; got != "" {
 		t.Fatalf("memory store dir = %q", got)

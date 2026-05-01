@@ -1,4 +1,5 @@
-import { RefreshCw } from "lucide-react";
+import { useMemo, useState } from "react";
+import { Eye, EyeOff, RefreshCw, X } from "lucide-react";
 
 import { Badge } from "../../../../packages/components/badge";
 import { Button } from "../../../../packages/components/button";
@@ -15,6 +16,7 @@ import { useCursorListPage } from "../../hooks/useCursorListPage";
 import { formatDate } from "../../lib/format";
 
 export function CredentialsListPage(): JSX.Element {
+  const [selectedCredential, setSelectedCredential] = useState<Credential | null>(null);
   const { error, hasNext, items, loading, nextPage, pageNumber, prevPage, refresh } = useCursorListPage<Credential>(async (query) => {
     const result = await expectData(listCredentials({ query }));
     return {
@@ -110,7 +112,18 @@ export function CredentialsListPage(): JSX.Element {
                         <Badge variant="outline">{credential.method}</Badge>
                       </TableCell>
                       <TableCell className="max-w-[22rem] text-sm text-muted-foreground">{credential.description?.trim() || "—"}</TableCell>
-                      <TableCell className="text-right">{Object.keys(credential.body).length}</TableCell>
+                      <TableCell className="text-right">
+                        <Button
+                          aria-label={`View body keys for ${credential.name}`}
+                          className="h-8 min-w-fit gap-2 px-2 text-xs"
+                          onClick={() => setSelectedCredential(credential)}
+                          type="button"
+                          variant="outline"
+                        >
+                          <Eye className="size-3.5" />
+                          {Object.keys(credential.body).length}
+                        </Button>
+                      </TableCell>
                       <TableCell className="text-sm text-muted-foreground">{formatDate(credential.updated_at)}</TableCell>
                     </TableRow>
                   ))}
@@ -120,6 +133,96 @@ export function CredentialsListPage(): JSX.Element {
           )}
         </CardContent>
       </Card>
+      {selectedCredential != null ? <CredentialBodyDialog credential={selectedCredential} onClose={() => setSelectedCredential(null)} /> : null}
     </div>
   );
+}
+
+function CredentialBodyDialog({ credential, onClose }: { credential: Credential; onClose: () => void }): JSX.Element {
+  const [revealed, setRevealed] = useState(false);
+  const entries = useMemo(() => Object.entries(credential.body), [credential.body]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4" role="presentation">
+      <div
+        aria-modal="true"
+        className="w-full max-w-3xl rounded-xl border bg-background shadow-xl"
+        onClick={(event) => event.stopPropagation()}
+        role="dialog"
+      >
+        <div className="flex items-start justify-between gap-4 border-b px-5 py-4">
+          <div className="space-y-1">
+            <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Credential body</div>
+            <h2 className="text-lg font-semibold">{credential.name}</h2>
+            <p className="text-sm text-muted-foreground">
+              {credential.provider} · {credential.method}
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button className="h-8 gap-2 px-3 text-xs" onClick={() => setRevealed((value) => !value)} type="button" variant="outline">
+              {revealed ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
+              {revealed ? "Hide values" : "Show values"}
+            </Button>
+            <Button aria-label="Close credential body dialog" className="h-8 w-8 p-0" onClick={onClose} type="button" variant="ghost">
+              <X className="size-4" />
+            </Button>
+          </div>
+        </div>
+        <div className="max-h-[60vh] overflow-auto p-5">
+          {entries.length === 0 ? (
+            <EmptyState description="This credential has an empty body." title="No body keys" />
+          ) : (
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-56">Key</TableHead>
+                    <TableHead>Value</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {entries.map(([key, value]) => {
+                    const formatted = formatCredentialBodyValue(value);
+                    return (
+                      <TableRow key={key}>
+                        <TableCell className="font-mono text-xs font-medium">{key}</TableCell>
+                        <TableCell className="break-all font-mono text-xs">{revealed ? formatted : maskCredentialBodyValue(formatted)}</TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function formatCredentialBodyValue(value: unknown): string {
+  if (typeof value === "string") {
+    return value;
+  }
+  if (value == null) {
+    return "";
+  }
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
+}
+
+function maskCredentialBodyValue(value: string): string {
+  if (value === "") {
+    return "—";
+  }
+  if (value.length <= 2) {
+    return "**";
+  }
+  if (value.length <= 8) {
+    return `${value.slice(0, 1)}****${value.slice(-1)}`;
+  }
+  return `${value.slice(0, 6)}******${value.slice(-4)}`;
 }

@@ -23,7 +23,7 @@ func TestIntegrationGearServiceLifecycle(t *testing.T) {
 	device := newTestClient(t, ts)
 	deviceResult, err := register(context.Background(), device, gearservice.RegistrationRequest{
 		Device: apitypes.DeviceInfo{
-			Name: strPtr("device"),
+			Name: strPtr("gear"),
 			Sn:   strPtr("sn/1"),
 			Hardware: &apitypes.HardwareInfo{
 				Depot: strPtr("demo-main"),
@@ -47,7 +47,7 @@ func TestIntegrationGearServiceLifecycle(t *testing.T) {
 		t.Fatalf("ListGears returned %d items", len(items))
 	}
 
-	if _, err := approveGear(context.Background(), admin, deviceResult.Gear.PublicKey, apitypes.GearRoleDevice); err != nil {
+	if _, err := approveGear(context.Background(), admin, deviceResult.Gear.PublicKey, apitypes.GearRoleGear); err != nil {
 		t.Fatalf("ApproveGear error: %v", err)
 	}
 	if _, err := getGear(context.Background(), admin, deviceResult.Gear.PublicKey); err != nil {

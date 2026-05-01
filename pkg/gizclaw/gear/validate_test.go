@@ -18,7 +18,7 @@ func TestValidateGear(t *testing.T) {
 
 	statusErr := validateGear(apitypes.Gear{
 		PublicKey: "x",
-		Role:      apitypes.GearRolePeer,
+		Role:      apitypes.GearRoleServer,
 		Status:    apitypes.GearStatus("bad"),
 	})
 	if statusErr == nil {
